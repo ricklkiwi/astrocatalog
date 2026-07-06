@@ -3,8 +3,8 @@
  * the dependency graph (desktop -> core + db). No Electron dependency yet —
  * the Electron entry point, preload, and typed IPC land in P0-03.
  */
-import { coreVersion } from 'core';
-import { dbVersion } from 'db';
+import { coreVersion } from '@astrotracker/core';
+import { dbVersion } from '@astrotracker/db';
 
 export const desktopVersion = '0.1.0';
 

@@ -1,5 +1,5 @@
 {
-  "name": "desktop",
+  "name": "@astrotracker/desktop",
   "version": "0.1.0",
   "private": true,
   "description": "AstroTracker Electron main process shell (Electron runtime lands in P0-03)",
@@ -18,7 +18,7 @@
     "test": "vitest run --dir src"
   },
   "dependencies": {
-    "core": "workspace:*",
-    "db": "workspace:*"
+    "@astrotracker/core": "workspace:*",
+    "@astrotracker/db": "workspace:*"
   }
 }

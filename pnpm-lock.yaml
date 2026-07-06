@@ -34,16 +34,16 @@ importers:
 
   packages/db:
     dependencies:
-      core:
+      '@astrotracker/core':
         specifier: workspace:*
         version: link:../core
 
   packages/desktop:
     dependencies:
-      core:
+      '@astrotracker/core':
         specifier: workspace:*
         version: link:../core
-      db:
+      '@astrotracker/db':
         specifier: workspace:*
         version: link:../db
 

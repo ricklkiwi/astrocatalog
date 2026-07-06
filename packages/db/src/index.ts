@@ -3,7 +3,7 @@
  * workspace protocol (dependency direction: db -> core, never the reverse).
  * Real Drizzle schema/migrations/repositories land in P0-04.
  */
-import { coreVersion } from 'core';
+import { coreVersion } from '@astrotracker/core';
 
 export const dbVersion = '0.1.0';
 
