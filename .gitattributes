@@ -1,0 +1,6 @@
+# Force LF line endings for all text files on checkout, on every OS.
+# The windows-latest CI runner defaults to core.autocrlf=true; without this,
+# it would check out CRLF and `prettier --check` (LF, Prettier's default
+# endOfLine) would fail on every file — an OS-dependent false red.
+# Binary exceptions (e.g. FITS/XISF fixtures) get added here as they arrive.
+* text=auto eol=lf
