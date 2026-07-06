@@ -35,18 +35,21 @@ Community forums (Cloudy Nights, Stargazers Lounge, Reddit r/astrophotography) a
 ### 3.1 Direct Competitors
 
 #### Observatory (Code Obsession) - Mac Only
+
 - **Platform:** macOS only | **Price:** $79.95 one-time
 - **Strengths:** Purpose-built astrophotography library; FITS/XISF metadata reading; smart albums, tags, ratings; plate solving; automatic object identification; non-destructive calibration and stacking; Spotlight/Quick Look plugins
 - **Weaknesses:** Mac-only (excludes majority of astrophotographers who use Windows); no explicit integration time tracking across sessions; no web/cloud component; no target planning or suggestions; limited multi-year project aggregation
 - **Key Insight:** Observatory is the closest existing product to our vision, but its platform limitation and lack of integration time tracking and target planning leave significant market opportunity.
 
 #### AstroFiler (Open Source)
+
 - **Platform:** Windows, Linux, macOS | **Price:** Free (open source)
 - **Strengths:** Cross-platform; intelligent session detection; auto-links calibration frames to light sessions based on camera/binning/temperature; SHA-256 file integrity checking; duplicate detection; full FITS metadata extraction
 - **Weaknesses:** Very new (first release 2024, v1.2); tiny community; no planning features; no image processing; limited documentation; no web component
 - **Key Insight:** AstroFiler validates market demand for this category. Its intelligent session linking is innovative but the tool is immature.
 
 #### AstroPhotoAssistant
+
 - **Platform:** Windows, macOS | **Price:** $79 one-time
 - **Strengths:** Purpose-built for deep-sky project management; per-filter exposure goals; equipment profiles; session logging; portable folder structure export; calibration frame management
 - **Weaknesses:** Small community; no FITS metadata auto-reading confirmed; no target suggestions; no integration with planning tools; manual entry required
@@ -54,17 +57,17 @@ Community forums (Cloudy Nights, Stargazers Lounge, Reddit r/astrophotography) a
 
 ### 3.2 Adjacent Tools (Partial Overlap)
 
-| Tool | Category | Platform | Price | File Mgmt | Integration Time | Target Planning |
-|------|----------|----------|-------|-----------|-----------------|-----------------|
-| **N.I.N.A.** | Capture Automation | Windows | Free | Session logs only | Per-session only | Framing Assistant |
-| **Voyager** | Automation | Windows | Subscription | Session data | Via RoboTarget DB | Advanced scheduling |
-| **APT** | Capture | Windows | $21 | DataCraft indexing | Per-session | Basic |
-| **SGPro** | Sequencing | Windows | Subscription | Profile logging | Per-session | Profile-based |
-| **PixInsight** | Processing | Multi | $$$ | Projects (workflow) | None | None |
-| **Telescopius** | Planning | Web | Free | None | None | Excellent |
-| **AstroBin** | Social/Hosting | Web | Freemium | Image uploads | None | Community-driven |
-| **Stellarium** | Planetarium | Multi | Free | None | None | Visibility only |
-| **Sky Safari** | Mobile Planetarium | Mobile | Paid | Basic gallery | None | Observation planning |
+| Tool            | Category           | Platform | Price        | File Mgmt           | Integration Time  | Target Planning      |
+| --------------- | ------------------ | -------- | ------------ | ------------------- | ----------------- | -------------------- |
+| **N.I.N.A.**    | Capture Automation | Windows  | Free         | Session logs only   | Per-session only  | Framing Assistant    |
+| **Voyager**     | Automation         | Windows  | Subscription | Session data        | Via RoboTarget DB | Advanced scheduling  |
+| **APT**         | Capture            | Windows  | $21          | DataCraft indexing  | Per-session       | Basic                |
+| **SGPro**       | Sequencing         | Windows  | Subscription | Profile logging     | Per-session       | Profile-based        |
+| **PixInsight**  | Processing         | Multi    | $$$          | Projects (workflow) | None              | None                 |
+| **Telescopius** | Planning           | Web      | Free         | None                | None              | Excellent            |
+| **AstroBin**    | Social/Hosting     | Web      | Freemium     | Image uploads       | None              | Community-driven     |
+| **Stellarium**  | Planetarium        | Multi    | Free         | None                | None              | Visibility only      |
+| **Sky Safari**  | Mobile Planetarium | Mobile   | Paid         | Basic gallery       | None              | Observation planning |
 
 ### 3.3 Critical Market Gap
 
@@ -89,11 +92,11 @@ This is AstroTracker's primary differentiator and competitive moat.
 - **Capture Software:** N.I.N.A. or SGPro
 - **Processing:** PixInsight or Siril
 - **Pain Points:**
-    - Has 5+ years of imaging data scattered across drives with no unified catalog
-    - Maintains a spreadsheet to track integration time per target but it's always out of date
-    - Spends 30+ minutes finding all subs for a target before processing
-    - Has duplicate calibration masters and isn't sure which ones are current
-    - Doesn't know if tonight's clear sky is better spent on M31 (needs more Ha) or starting a new target
+  - Has 5+ years of imaging data scattered across drives with no unified catalog
+  - Maintains a spreadsheet to track integration time per target but it's always out of date
+  - Spends 30+ minutes finding all subs for a target before processing
+  - Has duplicate calibration masters and isn't sure which ones are current
+  - Doesn't know if tonight's clear sky is better spent on M31 (needs more Ha) or starting a new target
 - **Quote:** "I have terabytes of data and no idea what I actually have."
 - **Goals:** Spend less time managing files and more time imaging and processing. Know exactly where every frame is and what's needed to complete a target.
 
@@ -105,10 +108,10 @@ This is AstroTracker's primary differentiator and competitive moat.
 - **Data Volume:** 10-50+ TB; runs automated sessions nightly
 - **Capture Software:** Voyager or N.I.N.A. with advanced automation
 - **Pain Points:**
-    - Downloads gigabytes nightly from remote site to local storage
-    - Needs to track dozens of active targets across multiple telescopes
-    - Calibration frames must be meticulously matched to equipment configurations
-    - Wants automated reports on session quality and cumulative progress
+  - Downloads gigabytes nightly from remote site to local storage
+  - Needs to track dozens of active targets across multiple telescopes
+  - Calibration frames must be meticulously matched to equipment configurations
+  - Wants automated reports on session quality and cumulative progress
 - **Quote:** "My observatory captured 200 GB last night. I need to know what's worth keeping."
 - **Goals:** Automated ingestion, quality metrics, and project tracking without manual intervention.
 
@@ -120,10 +123,10 @@ This is AstroTracker's primary differentiator and competitive moat.
 - **Data Volume:** Less than 500 GB
 - **Capture Software:** SharpCap, BackyardEOS, or ASIStudio
 - **Pain Points:**
-    - Confused about folder organization best practices
-    - Doesn't understand when to reuse vs. recapture calibration frames
-    - Wants guidance on what to image and how much data is "enough"
-    - Overwhelmed by the number of files after just a few sessions
+  - Confused about folder organization best practices
+  - Doesn't understand when to reuse vs. recapture calibration frames
+  - Wants guidance on what to image and how much data is "enough"
+  - Overwhelmed by the number of files after just a few sessions
 - **Quote:** "I took 200 light frames of Orion last night. Now what?"
 - **Goals:** Learn good habits early. Understand what they have and what they need. Get guided recommendations for their next session.
 
@@ -132,9 +135,9 @@ This is AstroTracker's primary differentiator and competitive moat.
 - **Demographics:** Varies; coordinates imaging sessions for a local club or educational group
 - **Equipment:** Shared club equipment or pooled member equipment
 - **Pain Points:**
-    - Multiple people contribute data from shared sessions
-    - Needs to aggregate data from different members' capture setups
-    - Wants a shared catalog for club projects
+  - Multiple people contribute data from shared sessions
+  - Needs to aggregate data from different members' capture setups
+  - Wants a shared catalog for club projects
 - **Goals:** Collaborative project tracking and data sharing among club members.
 
 ---
@@ -173,11 +176,11 @@ AstroTracker is a **desktop-first application with online integration**:
 
 - **Automatic Target Grouping:** Group all files by OBJECT name with fuzzy matching (e.g., "M31", "M 31", "Andromeda Galaxy" all map to the same target)
 - **Target Dashboard:** For each target, display:
-    - Total integration time (overall and per filter)
-    - Number of sessions spanning what date range
-    - Equipment used across sessions
-    - Thumbnail/preview of best sub or processed image
-    - Status indicator (planning / capturing / ready to process / processed / complete)
+  - Total integration time (overall and per filter)
+  - Number of sessions spanning what date range
+  - Equipment used across sessions
+  - Thumbnail/preview of best sub or processed image
+  - Status indicator (planning / capturing / ready to process / processed / complete)
 - **Integration Time Calculator:** Sum EXPTIME across all light frames per target per filter, displayed as hours:minutes
 - **Target Search & Filter:** Search by name, filter, equipment, date range, integration time, status
 
@@ -185,24 +188,24 @@ AstroTracker is a **desktop-first application with online integration**:
 
 - **Automatic Session Detection:** Group files captured on the same night (within a configurable time window, typically dusk-to-dawn)
 - **Session Detail View:**
-    - Date and time range
-    - Target(s) imaged
-    - Equipment configuration (telescope, camera, mount)
-    - Filter sequence and exposure counts
-    - Environmental conditions (if recorded in FITS: temperature, humidity)
-    - Quality metrics (average FWHM, star count if available from headers)
+  - Date and time range
+  - Target(s) imaged
+  - Equipment configuration (telescope, camera, mount)
+  - Filter sequence and exposure counts
+  - Environmental conditions (if recorded in FITS: temperature, humidity)
+  - Quality metrics (average FWHM, star count if available from headers)
 - **Session Notes:** Add text notes, weather observations, equipment issues to any session
 
 ### 6.4 Calibration Frame Management
 
 - **Calibration Library:** Dedicated section for managing master darks, flats, bias, and dark-flats
 - **Smart Matching:** Suggest appropriate calibration frames for a set of lights based on:
-    - Camera/sensor match
-    - Temperature match (within configurable tolerance, e.g., +/- 2 degrees C)
-    - Exposure time match (for darks)
-    - Filter match (for flats)
-    - Optical train match (for flats)
-    - Recency (prefer newer calibration frames)
+  - Camera/sensor match
+  - Temperature match (within configurable tolerance, e.g., +/- 2 degrees C)
+  - Exposure time match (for darks)
+  - Filter match (for flats)
+  - Optical train match (for flats)
+  - Recency (prefer newer calibration frames)
 - **Calibration Status Indicators:** Flag when calibration frames are missing, stale, or mismatched for a session
 - **Master Frame Tracking:** Record which raw calibration subs were used to generate each master frame
 
@@ -237,10 +240,10 @@ AstroTracker is a **desktop-first application with online integration**:
 - **Cloud Metadata Sync:** Sync library metadata (not files) to cloud for cross-device access
 - **Tonight's Sky Panel:** Shows what targets are optimally positioned tonight from your location, with altitude charts and transit times
 - **Smart Target Recommendations:**
-    - "M31 needs 4 more hours of OIII to match your Ha coverage"
-    - "NGC 7000 is at peak altitude tonight and you haven't started it yet"
-    - "Your M42 integration is already competitive - consider a new target"
-    - Factor in: season/visibility, moon phase, your existing data, filter balance, target difficulty
+  - "M31 needs 4 more hours of OIII to match your Ha coverage"
+  - "NGC 7000 is at peak altitude tonight and you haven't started it yet"
+  - "Your M42 integration is already competitive - consider a new target"
+  - Factor in: season/visibility, moon phase, your existing data, filter balance, target difficulty
 - **Weather Integration:** Pull forecast data from Clear Outside / Astrospheric to factor into session planning
 - **Bortle/Light Pollution Awareness:** Factor in your site's Bortle class for exposure recommendations
 
@@ -273,16 +276,16 @@ AstroTracker is a **desktop-first application with online integration**:
 
 ### 8.1 File Format Support
 
-| Format | Extensions | Metadata Source | Priority |
-|--------|-----------|-----------------|----------|
-| FITS | .fits, .fit, .fts | FITS headers | Critical |
-| XISF | .xisf | XML properties | Critical |
-| Canon RAW | .cr2, .cr3 | EXIF | High |
-| Nikon RAW | .nef | EXIF | High |
-| Sony RAW | .arw | EXIF | High |
-| TIFF | .tif, .tiff | EXIF/TIFF tags | Medium |
-| SER | .ser | SER header | Medium |
-| PNG/JPG | .png, .jpg | EXIF | Low (finals only) |
+| Format    | Extensions        | Metadata Source | Priority          |
+| --------- | ----------------- | --------------- | ----------------- |
+| FITS      | .fits, .fit, .fts | FITS headers    | Critical          |
+| XISF      | .xisf             | XML properties  | Critical          |
+| Canon RAW | .cr2, .cr3        | EXIF            | High              |
+| Nikon RAW | .nef              | EXIF            | High              |
+| Sony RAW  | .arw              | EXIF            | High              |
+| TIFF      | .tif, .tiff       | EXIF/TIFF tags  | Medium            |
+| SER       | .ser              | SER header      | Medium            |
+| PNG/JPG   | .png, .jpg        | EXIF            | Low (finals only) |
 
 ### 8.2 Key FITS Keywords to Extract
 
@@ -315,17 +318,20 @@ FWHM, HFR, STARS, GUIDEERR, HUMIDITY, PRESSURE, WINDSPD, BORESSION
 ## 9. Success Metrics
 
 ### 9.1 Adoption Metrics
+
 - 500 active users within 6 months of public launch
 - 50 users in closed beta providing regular feedback
 - Active community channel (Discord/forum) with daily engagement
 
 ### 9.2 Engagement Metrics
+
 - Average user catalogs 1,000+ files within first week
 - 70% of users return weekly during imaging season
 - 80% of users configure at least one watch folder
 - 50% of users create processing project links
 
 ### 9.3 Value Metrics
+
 - Users report 75% reduction in time finding files for processing
 - Average "time to first stack" (finding all subs for a target) drops from 30+ minutes to under 2 minutes
 - 90% of users say they'd recommend AstroTracker to other astrophotographers
@@ -334,14 +340,14 @@ FWHM, HFR, STARS, GUIDEERR, HUMIDITY, PRESSURE, WINDSPD, BORESSION
 
 ## 10. Risks & Mitigations
 
-| Risk | Impact | Likelihood | Mitigation |
-|------|--------|------------|------------|
-| FITS header inconsistency across capture software | Files miscategorized or missing metadata | High | Heuristic fallback to folder naming; manual override; community-maintained software profiles |
-| Performance with very large libraries (50K+ files) | Slow scanning and queries | Medium | Background indexing; incremental scans; database query optimization; pagination |
-| User adoption in niche market | Insufficient user base for sustainability | Medium | Freemium model; open API; community engagement; solve a painful problem extremely well |
-| AstroFiler gains traction as free alternative | Competitive pressure on paid features | Medium | Differentiate on UX, integration time tracking, and target recommendations (our unique features) |
-| Cloud service reliability for recommendations | Users frustrated when offline | Low | Core functionality fully offline; online features gracefully degrade |
-| File system permission issues on Windows/macOS | Can't scan user's folders | Medium | Clear onboarding; minimal permissions required (read-only for indexing) |
+| Risk                                               | Impact                                    | Likelihood | Mitigation                                                                                       |
+| -------------------------------------------------- | ----------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------ |
+| FITS header inconsistency across capture software  | Files miscategorized or missing metadata  | High       | Heuristic fallback to folder naming; manual override; community-maintained software profiles     |
+| Performance with very large libraries (50K+ files) | Slow scanning and queries                 | Medium     | Background indexing; incremental scans; database query optimization; pagination                  |
+| User adoption in niche market                      | Insufficient user base for sustainability | Medium     | Freemium model; open API; community engagement; solve a painful problem extremely well           |
+| AstroFiler gains traction as free alternative      | Competitive pressure on paid features     | Medium     | Differentiate on UX, integration time tracking, and target recommendations (our unique features) |
+| Cloud service reliability for recommendations      | Users frustrated when offline             | Low        | Core functionality fully offline; online features gracefully degrade                             |
+| File system permission issues on Windows/macOS     | Can't scan user's folders                 | Medium     | Clear onboarding; minimal permissions required (read-only for indexing)                          |
 
 ---
 
@@ -350,6 +356,7 @@ FWHM, HFR, STARS, GUIDEERR, HUMIDITY, PRESSURE, WINDSPD, BORESSION
 ### Recommended: Freemium Model
 
 **Free Tier (Desktop Core):**
+
 - File scanning and indexing (up to 10,000 files)
 - Target library with integration time tracking
 - Session management
@@ -357,6 +364,7 @@ FWHM, HFR, STARS, GUIDEERR, HUMIDITY, PRESSURE, WINDSPD, BORESSION
 - Statistics dashboard
 
 **Pro Tier ($59/year or $7/month):**
+
 - Unlimited file indexing
 - Smart target recommendations (online)
 - Cloud metadata sync
@@ -365,12 +373,14 @@ FWHM, HFR, STARS, GUIDEERR, HUMIDITY, PRESSURE, WINDSPD, BORESSION
 - Priority support
 
 **Team Tier ($149/year):**
+
 - Everything in Pro
 - Club/team shared projects
 - Multi-user metadata sharing
 - API access
 
 ### Pricing Rationale
+
 The astrophotography community already spends $21 (APT) to $80 (Observatory, AstroPhotoAssistant) on one-time licenses and $5-20/month on subscriptions (Adobe, cloud backup). A $59/year subscription is well within the demonstrated willingness to pay, especially for users who've invested $5,000-$50,000 in equipment.
 
 ---
@@ -378,6 +388,7 @@ The astrophotography community already spends $21 (APT) to $80 (Observatory, Ast
 ## 12. Research Sources
 
 ### Competitor Websites
+
 - [Observatory - Code Obsession](https://codeobsession.com/)
 - [AstroFiler](https://www.astrofiler.com/) | [GitHub](https://github.com/gordtulloch/astrofiler-gui)
 - [AstroPhotoAssistant](https://astrophotoassistant.com/)
@@ -390,6 +401,7 @@ The astrophotography community already spends $21 (APT) to $80 (Observatory, Ast
 - [AstroArt](https://www.msb-astroart.com/)
 
 ### Planning & Recommendation Tools
+
 - [Telescopius](https://telescopius.com/)
 - [AstroBin](https://astrobin.com/)
 - [Stellarium](https://stellarium.org/)
@@ -402,6 +414,7 @@ The astrophotography community already spends $21 (APT) to $80 (Observatory, Ast
 - [Nova DSO Tracker (GitHub)](https://github.com/mrantonSG/nova_DSO_tracker)
 
 ### Community Research
+
 - [Cloudy Nights Forums](https://www.cloudynights.com/) - file organization, session management threads
 - [Stargazers Lounge](https://stargazerslounge.com/) - data storage, calibration management discussions
 - [Reddit r/astrophotography](https://reddit.com/r/astrophotography)
@@ -410,6 +423,7 @@ The astrophotography community already spends $21 (APT) to $80 (Observatory, Ast
 - [AstronoMolly](http://www.astronomolly.com/2021/03/how-i-organize-my-data.html) - data organization blog
 
 ### Technical References
+
 - [FITS File Header Definitions (MaxIm DL)](https://cdn.diffractionlimited.com/help/maximdl/FITS_File_Header_Definitions.htm)
 - [N.I.N.A. FITS Format Documentation](https://nighttime-imaging.eu/docs/master/site/advanced/file_formats/fits/)
 - [XISF Format Specification (PixInsight)](https://pixinsight.com/xisf/)
@@ -417,4 +431,4 @@ The astrophotography community already spends $21 (APT) to $80 (Observatory, Ast
 
 ---
 
-*Document generated April 3, 2026. This is a living document and will be updated as research continues and stakeholder feedback is incorporated.*
+_Document generated April 3, 2026. This is a living document and will be updated as research continues and stakeholder feedback is incorporated._

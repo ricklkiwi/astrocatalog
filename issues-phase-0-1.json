@@ -1,565 +1,296 @@
 [
- {
-  "id": "P0-01",
-  "title": "[P0-01] Initialize monorepo with TypeScript, lint, and package structure",
-  "labels": [
-   "phase:0",
-   "pkg:core",
-   "type:infra"
-  ],
-  "deps": [],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, pkg:core, type:infra\n**Refs:** DD-001, DD-002\nCreate pnpm-workspace monorepo with packages `core`, `db`, `desktop` (with `renderer`), plus `fixtures/` dir. TypeScript strict mode, shared tsconfig base, ESLint + Prettier, `.editorconfig`, root README describing layout per DD-002.\n**Acceptance criteria:**\n- `pnpm install && pnpm -r build && pnpm -r lint && pnpm -r test` all succeed (placeholder test per package)\n- `packages/core` has zero runtime dependencies on Electron or Node fs\n- README documents package boundaries and layering rules from DD-002"
- },
- {
-  "id": "P0-02",
-  "title": "[P0-02] GitHub Actions CI pipeline",
-  "labels": [
-   "phase:0",
-   "type:infra"
-  ],
-  "deps": [
-   "P0-01"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, type:infra\n**Refs:** DD-001\n**Depends on:** P0-01\nWorkflow running on push/PR: install, typecheck, lint, unit tests on ubuntu + windows + macos matrix. Cache pnpm. Separate packaging workflow stub (manual dispatch) for later.\n**Acceptance criteria:**\n- CI green on all three OSes for main branch\n- PRs blocked on CI via branch protection documentation in CONTRIBUTING.md"
- },
- {
-  "id": "P0-03",
-  "title": "[P0-03] Electron shell with typed IPC and packaged builds",
-  "labels": [
-   "phase:0",
-   "pkg:desktop",
-   "type:infra"
-  ],
-  "deps": [
-   "P0-01"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, pkg:desktop, type:infra\n**Refs:** DD-001, DD-002\n**Depends on:** P0-01\nElectron app: main process, preload with contextIsolation, React renderer via Vite, typed IPC layer (electron-trpc or equivalent hand-rolled typed contract) with one demo procedure (`app.version`). electron-builder config producing Win NSIS + mac DMG (unsigned for now), including native-module rebuild for better-sqlite3/sharp.\n**Acceptance criteria:**\n- `pnpm dev` launches app with hot reload; renderer calls `app.version` over typed IPC\n- `pnpm package` produces installable artifacts on Win and mac (verified in CI packaging workflow)\n- Renderer has no nodeIntegration; preload exposes only the typed API"
- },
- {
-  "id": "P0-04",
-  "title": "[P0-04] Database layer \u2014 Drizzle schema v1 and migration runner",
-  "labels": [
-   "phase:0",
-   "pkg:db",
-   "type:infra"
-  ],
-  "deps": [
-   "P0-01"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, pkg:db, type:infra\n**Refs:** DD-003\n**Depends on:** P0-01\nImplement full v1 schema from DD-003 (all tables, indexes, FTS5 tables, UUIDv7 PKs, `updated_at` on every table), Drizzle migration setup, DB bootstrap (app-data path, WAL mode, busy_timeout), and repository layer skeleton with typed query helpers.\n**Acceptance criteria:**\n- Migration from empty DB creates full schema; round-trip test (create \u2192 insert fixtures \u2192 query) passes\n- UUIDv7 generator utility with test\n- FTS5 index populated via triggers, verified by a search test\n- Repositories expose no raw connection to callers"
- },
- {
-  "id": "P0-05",
-  "title": "[P0-05] Worker pool and persistent job queue",
-  "labels": [
-   "phase:0",
-   "pkg:desktop",
-   "type:infra"
-  ],
-  "deps": [
-   "P0-03",
-   "P0-04"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, pkg:desktop, type:infra\n**Refs:** DD-002, DD-004\n**Depends on:** P0-03, P0-04\nWorker-thread pool with a job queue persisted in `scan_jobs`-style tables: enqueue, claim, progress reporting to renderer via IPC events, resume-on-restart, cancellation.\n**Acceptance criteria:**\n- Demo job (sleep + progress) runs in worker, streams progress to renderer, survives app restart mid-job and resumes\n- Unit tests for queue claim/resume/cancel semantics"
- },
- {
-  "id": "P0-06",
-  "title": "[P0-06] Fixtures library of real-world file headers",
-  "labels": [
-   "phase:0",
-   "type:test"
-  ],
-  "deps": [
-   "P0-01"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, type:test\n**Refs:** DD-004, DD-005\n**Depends on:** P0-01\nAssemble `fixtures/`: real FITS headers (as standalone header-only .fits files) from N.I.N.A., SGPro, APT, SharpCap, ASIStudio, Voyager; XISF samples; CR2/CR3/NEF/ARW EXIF samples; malformed cases (truncated header, missing END, non-standard keywords, CONTINUE cards). Include a generator script that synthesizes valid FITS headers for bulk benchmarks and a manifest JSON describing expected parse output for each fixture.\n**Acceptance criteria:**\n- \u2265 25 real-world fixtures across \u2265 5 capture programs, each with expected-output manifest entry\n- Generator produces N synthetic header-only FITS files with controllable OBJECT/FILTER/EXPTIME/DATE-OBS distributions\n- All fixtures license-clean (self-captured or CC0) with provenance noted"
- },
- {
-  "id": "P0-07",
-  "title": "[P0-07] Benchmark harness with CI regression gates",
-  "labels": [
-   "phase:0",
-   "type:test"
-  ],
-  "deps": [
-   "P0-04",
-   "P0-06"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, type:test\n**Refs:** DD-001, DD-004; PRD \u00a78.4\n**Depends on:** P0-04, P0-06\nBenchmark runner (Vitest bench or custom) measuring: header parse throughput, bulk DB insert rate, aggregate query latency on a synthetic 100k-frame DB. CI job fails on >20% regression against stored baselines.\n**Acceptance criteria:**\n- `pnpm bench` outputs results table; baselines stored in repo\n- CI job compares and fails on regression; docs explain updating baselines"
- },
- {
-  "id": "P0-08",
-  "title": "[P0-08] Playwright E2E harness on packaged app",
-  "labels": [
-   "phase:0",
-   "pkg:desktop",
-   "type:test"
-  ],
-  "deps": [
-   "P0-03"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, pkg:desktop, type:test\n**Depends on:** P0-03\nPlaywright launching the built Electron app, one smoke test (app opens, window title, demo IPC round-trip). Runs in CI on Win + mac.\n**Acceptance criteria:**\n- `pnpm e2e` passes locally and in CI on both OSes\n- Test helper for seeding a temp app-data dir + temp library folder"
- },
- {
-  "id": "P1-01",
-  "title": "[P1-01] FITS header parser",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P0-06"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-004; PRD \u00a78.2\n**Depends on:** P0-06\nHeader-only FITS parser in `packages/core/fits`: accepts a read callback/stream, reads 2880-byte blocks to END card, parses 80-char cards (strings, numbers, booleans, comments, CONTINUE convention), returns typed keyword map + raw card list. Extract all PRD \u00a78.2 critical + important keywords into a normalized `FrameMetadata` type; unknown keywords preserved.\n**Acceptance criteria:**\n- All FITS fixtures parse to their manifest expectations\n- Malformed fixtures produce structured errors, never throws/hangs\n- Never reads beyond header region (verified by mock reader byte-count test)\n- Parses \u2265 5,000 fixture headers/second in benchmark"
- },
- {
-  "id": "P1-02",
-  "title": "[P1-02] XISF header parser",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P0-06"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-004; PRD \u00a78.1\n**Depends on:** P0-06\nXISF monolithic-file header parser: validate signature, read XML header block, extract FITSKeyword and XISF Property elements into the same `FrameMetadata` type as P1-01.\n**Acceptance criteria:**\n- XISF fixtures parse to manifest expectations; PixInsight-written and N.I.N.A.-written variants covered\n- Malformed XML \u2192 structured error"
- },
- {
-  "id": "P1-03",
-  "title": "[P1-03] RAW EXIF metadata adapter",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P0-06"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-004; PRD \u00a78.1\n**Depends on:** P0-06\nAdapter using `exifr` for CR2/CR3/NEF/ARW (+ TIFF): map EXIF (exposure, ISO\u2192gain field, capture time, camera model) into `FrameMetadata`. OBJECT/FILTER unavailable in EXIF \u2192 left null for path heuristics.\n**Acceptance criteria:**\n- RAW fixtures parse; capture time correctly normalized to UTC using EXIF offset when present\n- Unknown/corrupt RAW \u2192 structured error"
- },
- {
-  "id": "P1-04",
-  "title": "[P1-04] Frame classification (type detection)",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-01"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-004\n**Depends on:** P1-01\nPure function classifying frames as light/dark/flat/bias/darkflat/unknown: IMAGETYP mapping table (incl. capture-software variants like 'Light Frame', 'LIGHT', 'masterDark'), then path-segment heuristics, recording `frame_type_source`.\n**Acceptance criteria:**\n- Table-driven tests: \u2265 40 IMAGETYP variants and \u2265 20 path patterns\n- Ambiguous cases \u2192 `unknown`, never guessed silently"
- },
- {
-  "id": "P1-05",
-  "title": "[P1-05] Capture-software profile table",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-01"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-004\n**Depends on:** P1-01\nData-driven profile registry detecting originating software (SWCREATE/CREATOR/PROGRAM headers or keyword fingerprints) and applying per-software keyword mappings/quirk fixes (e.g., APT temperature keyword, SharpCap gain conventions).\n**Acceptance criteria:**\n- Each fixture's software correctly detected; quirk mappings tested per software\n- Adding a profile requires only a data entry + fixture, no code changes"
- },
- {
-  "id": "P1-06",
-  "title": "[P1-06] Watch folders \u2014 settings and discovery scan (Stage 1)",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "pkg:db",
-   "type:feat"
-  ],
-  "deps": [
-   "P0-05"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, pkg:db, type:feat\n**Refs:** DD-004; PRD \u00a76.1\n**Depends on:** P0-05\nWatch-folder CRUD (settings UI + repository), recursive directory walk in worker honoring supported extensions, upserting `files` rows (path/size/mtime), marking absent files `missing` (never deleting), drive-label capture for external drives. Skip patterns (node_modules-style ignore list, hidden dirs) configurable.\n**Acceptance criteria:**\n- Adding a folder enqueues a scan; progress visible via IPC events\n- Rescan of unchanged tree performs zero frame re-parses (incremental check test)\n- Disconnecting a drive marks files missing; reconnecting restores them\n- E2E: add temp folder with synthetic files \u2192 files rows appear"
- },
- {
-  "id": "P1-07",
-  "title": "[P1-07] Parse + resolve pipeline stages (Stages 2\u20133)",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-01",
-   "P1-02",
-   "P1-03",
-   "P1-04",
-   "P1-05",
-   "P1-06"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, pkg:core, type:feat\n**Refs:** DD-004\n**Depends on:** P1-01, P1-02, P1-03, P1-04, P1-05, P1-06\nWire parsers into the worker pipeline: for each new/changed file, header-only parse \u2192 classification \u2192 `frames` row with `headers_json`. Batch inserts (transaction per N files). Parse errors recorded on file row; batch never aborts.\n**Acceptance criteria:**\n- Synthetic 10k-file library completes stages 1\u20133 within CI benchmark budget (target: <5 min on reference hardware per PRD \u00a78.4)\n- Malformed files logged and skipped; error count surfaced in scan summary\n- Re-running scan is idempotent (row counts stable)"
- },
- {
-  "id": "P1-08",
-  "title": "[P1-08] Background SHA-256 hashing and duplicate detection (Stage 5a)",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-06"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-003, DD-004; PRD \u00a76.1\n**Depends on:** P1-06\nLowest-priority background jobs streaming SHA-256 per file; on hash collision mark `duplicate` with `duplicate_of_id` (oldest first-seen wins as canonical). Move detection: new path + matching (size, sha256) of a missing file re-paths the existing row preserving all links.\n**Acceptance criteria:**\n- Duplicates across two watch folders detected; canonical selection deterministic\n- Moved file retains frame/session/project links (integration test)\n- Hashing throttles under active scanning (priority test)"
- },
- {
-  "id": "P1-09",
-  "title": "[P1-09] Live watch mode (chokidar)",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-07"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-004\n**Depends on:** P1-07\nFile-system watching on active folders with 30 s debounce feeding the pipeline; toggle per folder; graceful handling of watcher limits on large trees (fall back to periodic rescan with user notice).\n**Acceptance criteria:**\n- Dropping files into a watched folder auto-catalogs them without manual rescan (E2E)\n- Debounce verified: burst of writes \u2192 single pipeline batch"
- },
- {
-  "id": "P1-10",
-  "title": "[P1-10] Bundled object catalog build script",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-005\nBuild-time script compiling OpenNGC (+ Messier common names, popular Sharpless/Barnard/vdB) into a bundled lookup asset (JSON or SQLite): designations, cross-references, common names, RA/DEC, type, constellation. CC-BY-SA attribution included in app about screen data.\n**Acceptance criteria:**\n- Asset contains \u2265 13,000 objects; M31 \u2194 NGC 224 \u2194 'Andromeda Galaxy' cross-referenced\n- Script re-runnable and documented; asset size < 10 MB\n- Lookup API: by normalized designation, by common name, by cone search (ra/dec/radius)"
- },
- {
-  "id": "P1-11",
-  "title": "[P1-11] Target name resolver",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-10"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-005\n**Depends on:** P1-10\nImplement DD-005 resolution: normalization, alias lookup, catalog lookup, coordinate-fallback suggestions, mosaic panel extraction. Pure functions + a resolver service that persists user aliases.\n**Acceptance criteria:**\n- Table-driven tests: \u2265 60 name variants incl. 'M 31'/'M31'/'m-31'/'NGC224'/'Andromeda Galaxy'/'Sh2-101'/'M 31 Panel 2'\n- Unresolvable names yield 'needs review' with ranked fuzzy suggestions (suggest-only, never auto-merge)\n- User alias assignment persists and wins on rescan"
- },
- {
-  "id": "P1-12",
-  "title": "[P1-12] Filter normalization",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P0-04"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-005\n**Depends on:** P0-04\nData-driven raw\u2192canonical filter mapping per DD-005 table, unknown filters become their own visible canonical entries, user merge with remembered mappings.\n**Acceptance criteria:**\n- Table-driven tests \u2265 30 raw variants incl. dualband filters\n- Merge operation reassigns frames and persists mapping (integration test)"
- },
- {
-  "id": "P1-13",
-  "title": "[P1-13] Integration-time aggregation queries",
-  "labels": [
-   "phase:1",
-   "pkg:db",
-   "type:feat"
-  ],
-  "deps": [
-   "P0-04"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:db, type:feat\n**Refs:** DD-003; PRD \u00a76.2\n**Depends on:** P0-04\nRepository queries: per-target totals, per-target-per-filter, per-session, per-equipment, per-month; formatted `HHh MMm`; only `light` frames counted; missing-file frames included (data still exists) with an excludable flag.\n**Acceptance criteria:**\n- Correctness tests against hand-computed fixture sums, incl. mixed filters and missing files\n- 100k-frame synthetic DB: per-target rollup query < 100 ms (benchmark)"
- },
- {
-  "id": "P1-14",
-  "title": "[P1-14] Targets page \u2014 grid, table, search & filters",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-11",
-   "P1-12",
-   "P1-13"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a76.2\n**Depends on:** P1-11, P1-12, P1-13\nTargets page per DD-008: card grid + table toggle, virtualized; search (FTS) and filters (filter band, equipment, date range, integration range, status); status badges; sort by name/integration/last-imaged.\n**Acceptance criteria:**\n- E2E: seeded library \u2192 search 'andromeda' finds M 31; filters combine correctly\n- Renders 1,000 targets without jank (virtualization test)"
- },
- {
-  "id": "P1-15",
-  "title": "[P1-15] Target detail dashboard",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-14"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a76.2\n**Depends on:** P1-14\nPer-target view: per-filter integration bars (DD-008 colors), session timeline, equipment used, date range, frame counts by type, status control (planning/capturing/ready/processed/complete), notes editor, linked processing projects placeholder.\n**Acceptance criteria:**\n- All PRD \u00a76.2 dashboard elements present; renders < 1 s on a 200-session target (benchmark seed)\n- Status and notes persist; FTS finds note text"
- },
- {
-  "id": "P1-16",
-  "title": "[P1-16] Review queue \u2014 unresolved targets, types, filters",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-11",
-   "P1-12",
-   "P1-04"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-005, DD-008\n**Depends on:** P1-11, P1-12, P1-04\nReview page listing unresolved OBJECT names (with fuzzy + coordinate suggestions), unknown frame types, unknown filters, and duplicates; bulk assignment actions; sidebar badge count.\n**Acceptance criteria:**\n- Assigning an unresolved name creates alias; all matching frames re-resolve immediately and on future scans\n- Bulk actions (select all by raw name) work; E2E covers assign-and-verify flow"
- },
- {
-  "id": "P1-17",
-  "title": "[P1-17] Session detection algorithm",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-07"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-006; PRD \u00a76.3\n**Depends on:** P1-07\nPure `detectSessions()` per DD-006: astronomical-day windowing, 4 h gap splitting, equipment-profile splitting, calibration-only sessions, idempotent re-runs, manual-assignment locks respected.\n**Acceptance criteria:**\n- Table-driven tests: midnight-spanning night, two-run night, multi-rig night, DSLR without CCD-TEMP, calibration-only night, timezone edge (site vs system tz)\n- Re-run after new files preserves manual merges/splits"
- },
- {
-  "id": "P1-18",
-  "title": "[P1-18] Equipment profile auto-detection",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "pkg:db",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-07"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, pkg:db, type:feat\n**Refs:** DD-003, DD-006; PRD \u00a76.3\n**Depends on:** P1-07\nDetect distinct TELESCOP+INSTRUME(+FOCALLEN) combos into `equipment_profiles`; fuzzy-consolidate near-identical strings as suggestions; user confirm/rename/merge UI on Equipment page with usage hours per profile.\n**Acceptance criteria:**\n- Same rig with minor header string drift ('EdgeHD 8' vs 'EdgeHD8') suggested as one profile, merged only on user confirm\n- Usage hours = sum of light exposure per profile (test)"
- },
- {
-  "id": "P1-19",
-  "title": "[P1-19] Sessions page and session detail",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-17",
-   "P1-18"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a76.3\n**Depends on:** P1-17, P1-18\nCalendar heat-map + list; detail view: targets, filter/exposure breakdown, equipment, conditions from headers (temp/humidity when present), quality stats (FWHM/HFR/star count when present), notes editor, manual merge/split controls.\n**Acceptance criteria:**\n- E2E: seeded multi-night library shows correct session grouping; merge/split persists across rescan\n- All PRD \u00a76.3 detail elements render; absent header data degrades gracefully"
- },
- {
-  "id": "P1-20",
-  "title": "[P1-20] Calibration matching engine",
-  "labels": [
-   "phase:1",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-17"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-006; PRD \u00a76.4\n**Depends on:** P1-17\nImplement `matchCalibration()` per DD-006: hard filters per master type, soft scoring (temp closeness, recency, sub count), flat staleness decay, per-target/session status (complete/partial/stale/missing), camera-type-aware \"needed set\" rules.\n**Acceptance criteria:**\n- Table-driven tests per DD-006 matrix: mono+FW, OSC, DSLR (no set-point), dualband, tolerance boundaries (\u00b12 \u00b0C edges), stale flats\n- Deterministic ranking; manual assignment respected on re-match"
- },
- {
-  "id": "P1-21",
-  "title": "[P1-21] Master frame library and provenance",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "pkg:db",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-20"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, pkg:db, type:feat\n**Refs:** DD-003; PRD \u00a76.4\n**Depends on:** P1-20\nDetect master frames (IMAGETYP master variants or user designation); Calibration page: masters grouped by camera/type with properties; record/edit which raw subs built each master (`master_frame_subs`); mark superseded masters.\n**Acceptance criteria:**\n- Masters auto-detected from fixture headers; manual designation flow works\n- Provenance view lists sub frames; superseded masters excluded from matching by default"
- },
- {
-  "id": "P1-22",
-  "title": "[P1-22] Calibration gap report and status indicators",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-20",
-   "P1-21"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-006, DD-008; PRD \u00a76.4\n**Depends on:** P1-20, P1-21\nGap report (\"these lights lack matching darks/flats\"), status chips on sessions and targets, tolerance settings UI (temp tolerance, staleness window, gap hours).\n**Acceptance criteria:**\n- E2E: library with missing flats shows correct gaps; tightening temp tolerance updates statuses live\n- Status chips consistent between Sessions, Targets, and Calibration pages (shared selector test)"
- },
- {
-  "id": "P1-23",
-  "title": "[P1-23] Session notes and annotations",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-19"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** PRD \u00a76.3\n**Depends on:** P1-19\nRich-text-lite (markdown) notes on sessions with weather/equipment-issue quick tags; searchable via FTS.\n**Acceptance criteria:**\n- Notes persist, render markdown, searchable from global search\n- Quick tags filterable on Sessions page"
- },
- {
-  "id": "P1-24",
-  "title": "[P1-24] Processing projects",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "pkg:db",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-15",
-   "P1-21"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, pkg:db, type:feat\n**Refs:** DD-003, DD-008; PRD \u00a76.5\n**Depends on:** P1-15, P1-21\nCreate project for a target; select input lights (by session/filter selection) and calibration masters; status kanban (in-progress/complete/abandoned); processing notes (software, steps, parameters); version labels (\"M31 v2 \u2013 added Ha\").\n**Acceptance criteria:**\n- E2E: create project from target detail, select inputs, move through statuses\n- Version history listed on target detail; inputs remain linked if files move (via P1-08 move detection)"
- },
- {
-  "id": "P1-25",
-  "title": "[P1-25] Processed image linking",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-24"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** PRD \u00a76.5\n**Depends on:** P1-24\nAttach final TIFF/PNG/JPG to a project (file picker or detected in watch folders); mark one as target hero image; trace-back view: final image \u2192 project \u2192 sessions \u2192 frames \u2192 calibration masters.\n**Acceptance criteria:**\n- Hero image shows on target card/detail; trace-back view navigates full chain (E2E)\n- Finals excluded from light-frame statistics"
- },
- {
-  "id": "P1-26",
-  "title": "[P1-26] FITS/XISF thumbnail generation (Stage 5b)",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "pkg:core",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-07"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, pkg:core, type:feat\n**Refs:** DD-004; PRD \u00a76.7\n**Depends on:** P1-07\nWorker-based thumbnail pipeline: read pixel data, debayer OSC when BAYERPAT present, midtones-transfer autostretch, downscale via sharp, cache as WebP keyed by frame id; LRU disk cache with size cap; lowest job priority.\n**Acceptance criteria:**\n- Correct-looking thumbnails for mono, OSC, and 32-bit float fixtures (golden-image tests with tolerance)\n- \u2265 50 thumbnails/sec on reference hardware for 16-bit 6200x4x binned data per PRD \u00a78.4 (benchmark; document hardware assumptions)\n- Cache eviction respects cap; regeneration transparent"
- },
- {
-  "id": "P1-27",
-  "title": "[P1-27] File browser page",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-26"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a76.7\n**Depends on:** P1-26\nBrowse library by target / date / equipment / physical folder with virtualized thumbnail grid; frame inspector (all parsed headers + raw `headers_json`); reveal-in-Explorer/Finder; copy-paths-to-clipboard for processing handoff.\n**Acceptance criteria:**\n- 100k-file library browses smoothly (virtualization benchmark)\n- 'Copy file list' produces newline-separated absolute paths usable in PixInsight/Siril (E2E clipboard test)"
- },
- {
-  "id": "P1-28",
-  "title": "[P1-28] Statistics dashboard",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-13",
-   "P1-17"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a76.6\n**Depends on:** P1-13, P1-17\nDashboard page: totals (targets, integration, files, library size), integration per month chart, sessions per month, most-imaged targets, per-filter distribution, equipment usage hours, calibration health summary.\n**Acceptance criteria:**\n- All widgets correct against seeded fixture library (numeric assertions)\n- Dashboard renders < 1 s on 100k-frame DB (benchmark)"
- },
- {
-  "id": "P1-29",
-  "title": "[P1-29] CSV/JSON export",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-28"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** PRD \u00a76.6\n**Depends on:** P1-28\nExport targets, sessions, frames, and statistics rollups as CSV and JSON to user-chosen location; column documentation in user docs.\n**Acceptance criteria:**\n- Exports re-import cleanly into a spreadsheet (schema test: headers, escaping, UTF-8 BOM for Excel)\n- JSON validates against a published schema file in repo"
- },
- {
-  "id": "P1-30",
-  "title": "[P1-30] Onboarding flow and empty states",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-06",
-   "P1-14"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008\n**Depends on:** P1-06, P1-14\nFirst-run wizard per DD-008 (welcome \u2192 watch folder \u2192 live scan preview \u2192 dashboard); instructive empty states on every page; sample-library mode for trying the app without data.\n**Acceptance criteria:**\n- E2E: fresh app-data \u2192 wizard \u2192 scan \u2192 dashboard populated\n- Every nav page has a designed empty state (visual snapshot tests)"
- },
- {
-  "id": "P1-31",
-  "title": "[P1-31] Settings, theming, and free-tier limit",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:feat"
-  ],
-  "deps": [
-   "P1-22"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a711\n**Depends on:** P1-22\nSettings page consolidating: watch folders, tolerances, session gap, timezone/site, theme (dark default / light / red night-vision), language of file-count limit. Implement 10,000-file free-tier soft limit (counting indexed image files) with clear upgrade messaging \u2014 enforcement flag off in beta builds.\n**Acceptance criteria:**\n- All three themes applied app-wide via CSS custom properties (snapshot tests)\n- Limit triggers at threshold, blocks new indexing only (never hides existing data), flag-controllable"
- },
- {
-  "id": "P1-32",
-  "title": "[P1-32] Performance validation and optimization pass",
-  "labels": [
-   "phase:1",
-   "type:test"
-  ],
-  "deps": [
-   "P1-27",
-   "P1-28"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, type:test\n**Refs:** PRD \u00a78.4\n**Depends on:** P1-27, P1-28\nRun full benchmark suite against PRD targets on reference Win + mac hardware; profile and fix the top bottlenecks; document results.\n**Acceptance criteria:**\n- 10k-file scan < 5 min; 100k library load < 3 s; target dashboard < 1 s; thumbnails \u2265 50/s \u2014 all evidenced in a committed benchmark report\n- CI baselines updated"
- },
- {
-  "id": "P1-33",
-  "title": "[P1-33] Code signing, notarization, auto-update",
-  "labels": [
-   "phase:1",
-   "pkg:desktop",
-   "type:infra"
-  ],
-  "deps": [
-   "P0-03"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:infra\n**Depends on:** P0-03\nWindows code signing, macOS notarization, electron-updater against GitHub Releases with staged rollout channel (beta/stable).\n**Acceptance criteria:**\n- Signed installers install without OS warnings on both platforms\n- Beta-channel build auto-updates to a newer beta release (verified manually, process documented)"
- },
- {
-  "id": "P1-34",
-  "title": "[P1-34] v1.0 release \u2014 docs, website copy, beta feedback triage",
-  "labels": [
-   "phase:1",
-   "type:docs"
-  ],
-  "deps": [
-   "P1-30",
-   "P1-31",
-   "P1-32",
-   "P1-33"
-  ],
-  "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, type:docs\n**Depends on:** P1-30, P1-31, P1-32, P1-33\nUser documentation (getting started, folder scanning, calibration matching concepts, FAQ), in-app help links, release notes, README polish, triage of closed-beta feedback into labeled backlog issues.\n**Acceptance criteria:**\n- Docs published (repo /docs or site); every MVP feature covered\n- v1.0.0 tagged; release checklist committed for repeatability"
- }
+  {
+    "id": "P0-01",
+    "title": "[P0-01] Initialize monorepo with TypeScript, lint, and package structure",
+    "labels": ["phase:0", "pkg:core", "type:infra"],
+    "deps": [],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, pkg:core, type:infra\n**Refs:** DD-001, DD-002\nCreate pnpm-workspace monorepo with packages `core`, `db`, `desktop` (with `renderer`), plus `fixtures/` dir. TypeScript strict mode, shared tsconfig base, ESLint + Prettier, `.editorconfig`, root README describing layout per DD-002.\n**Acceptance criteria:**\n- `pnpm install && pnpm -r build && pnpm -r lint && pnpm -r test` all succeed (placeholder test per package)\n- `packages/core` has zero runtime dependencies on Electron or Node fs\n- README documents package boundaries and layering rules from DD-002"
+  },
+  {
+    "id": "P0-02",
+    "title": "[P0-02] GitHub Actions CI pipeline",
+    "labels": ["phase:0", "type:infra"],
+    "deps": ["P0-01"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, type:infra\n**Refs:** DD-001\n**Depends on:** P0-01\nWorkflow running on push/PR: install, typecheck, lint, unit tests on ubuntu + windows + macos matrix. Cache pnpm. Separate packaging workflow stub (manual dispatch) for later.\n**Acceptance criteria:**\n- CI green on all three OSes for main branch\n- PRs blocked on CI via branch protection documentation in CONTRIBUTING.md"
+  },
+  {
+    "id": "P0-03",
+    "title": "[P0-03] Electron shell with typed IPC and packaged builds",
+    "labels": ["phase:0", "pkg:desktop", "type:infra"],
+    "deps": ["P0-01"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, pkg:desktop, type:infra\n**Refs:** DD-001, DD-002\n**Depends on:** P0-01\nElectron app: main process, preload with contextIsolation, React renderer via Vite, typed IPC layer (electron-trpc or equivalent hand-rolled typed contract) with one demo procedure (`app.version`). electron-builder config producing Win NSIS + mac DMG (unsigned for now), including native-module rebuild for better-sqlite3/sharp.\n**Acceptance criteria:**\n- `pnpm dev` launches app with hot reload; renderer calls `app.version` over typed IPC\n- `pnpm package` produces installable artifacts on Win and mac (verified in CI packaging workflow)\n- Renderer has no nodeIntegration; preload exposes only the typed API"
+  },
+  {
+    "id": "P0-04",
+    "title": "[P0-04] Database layer \u2014 Drizzle schema v1 and migration runner",
+    "labels": ["phase:0", "pkg:db", "type:infra"],
+    "deps": ["P0-01"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, pkg:db, type:infra\n**Refs:** DD-003\n**Depends on:** P0-01\nImplement full v1 schema from DD-003 (all tables, indexes, FTS5 tables, UUIDv7 PKs, `updated_at` on every table), Drizzle migration setup, DB bootstrap (app-data path, WAL mode, busy_timeout), and repository layer skeleton with typed query helpers.\n**Acceptance criteria:**\n- Migration from empty DB creates full schema; round-trip test (create \u2192 insert fixtures \u2192 query) passes\n- UUIDv7 generator utility with test\n- FTS5 index populated via triggers, verified by a search test\n- Repositories expose no raw connection to callers"
+  },
+  {
+    "id": "P0-05",
+    "title": "[P0-05] Worker pool and persistent job queue",
+    "labels": ["phase:0", "pkg:desktop", "type:infra"],
+    "deps": ["P0-03", "P0-04"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, pkg:desktop, type:infra\n**Refs:** DD-002, DD-004\n**Depends on:** P0-03, P0-04\nWorker-thread pool with a job queue persisted in `scan_jobs`-style tables: enqueue, claim, progress reporting to renderer via IPC events, resume-on-restart, cancellation.\n**Acceptance criteria:**\n- Demo job (sleep + progress) runs in worker, streams progress to renderer, survives app restart mid-job and resumes\n- Unit tests for queue claim/resume/cancel semantics"
+  },
+  {
+    "id": "P0-06",
+    "title": "[P0-06] Fixtures library of real-world file headers",
+    "labels": ["phase:0", "type:test"],
+    "deps": ["P0-01"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, type:test\n**Refs:** DD-004, DD-005\n**Depends on:** P0-01\nAssemble `fixtures/`: real FITS headers (as standalone header-only .fits files) from N.I.N.A., SGPro, APT, SharpCap, ASIStudio, Voyager; XISF samples; CR2/CR3/NEF/ARW EXIF samples; malformed cases (truncated header, missing END, non-standard keywords, CONTINUE cards). Include a generator script that synthesizes valid FITS headers for bulk benchmarks and a manifest JSON describing expected parse output for each fixture.\n**Acceptance criteria:**\n- \u2265 25 real-world fixtures across \u2265 5 capture programs, each with expected-output manifest entry\n- Generator produces N synthetic header-only FITS files with controllable OBJECT/FILTER/EXPTIME/DATE-OBS distributions\n- All fixtures license-clean (self-captured or CC0) with provenance noted"
+  },
+  {
+    "id": "P0-07",
+    "title": "[P0-07] Benchmark harness with CI regression gates",
+    "labels": ["phase:0", "type:test"],
+    "deps": ["P0-04", "P0-06"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, type:test\n**Refs:** DD-001, DD-004; PRD \u00a78.4\n**Depends on:** P0-04, P0-06\nBenchmark runner (Vitest bench or custom) measuring: header parse throughput, bulk DB insert rate, aggregate query latency on a synthetic 100k-frame DB. CI job fails on >20% regression against stored baselines.\n**Acceptance criteria:**\n- `pnpm bench` outputs results table; baselines stored in repo\n- CI job compares and fails on regression; docs explain updating baselines"
+  },
+  {
+    "id": "P0-08",
+    "title": "[P0-08] Playwright E2E harness on packaged app",
+    "labels": ["phase:0", "pkg:desktop", "type:test"],
+    "deps": ["P0-03"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:0, pkg:desktop, type:test\n**Depends on:** P0-03\nPlaywright launching the built Electron app, one smoke test (app opens, window title, demo IPC round-trip). Runs in CI on Win + mac.\n**Acceptance criteria:**\n- `pnpm e2e` passes locally and in CI on both OSes\n- Test helper for seeding a temp app-data dir + temp library folder"
+  },
+  {
+    "id": "P1-01",
+    "title": "[P1-01] FITS header parser",
+    "labels": ["phase:1", "pkg:core", "type:feat"],
+    "deps": ["P0-06"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-004; PRD \u00a78.2\n**Depends on:** P0-06\nHeader-only FITS parser in `packages/core/fits`: accepts a read callback/stream, reads 2880-byte blocks to END card, parses 80-char cards (strings, numbers, booleans, comments, CONTINUE convention), returns typed keyword map + raw card list. Extract all PRD \u00a78.2 critical + important keywords into a normalized `FrameMetadata` type; unknown keywords preserved.\n**Acceptance criteria:**\n- All FITS fixtures parse to their manifest expectations\n- Malformed fixtures produce structured errors, never throws/hangs\n- Never reads beyond header region (verified by mock reader byte-count test)\n- Parses \u2265 5,000 fixture headers/second in benchmark"
+  },
+  {
+    "id": "P1-02",
+    "title": "[P1-02] XISF header parser",
+    "labels": ["phase:1", "pkg:core", "type:feat"],
+    "deps": ["P0-06"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-004; PRD \u00a78.1\n**Depends on:** P0-06\nXISF monolithic-file header parser: validate signature, read XML header block, extract FITSKeyword and XISF Property elements into the same `FrameMetadata` type as P1-01.\n**Acceptance criteria:**\n- XISF fixtures parse to manifest expectations; PixInsight-written and N.I.N.A.-written variants covered\n- Malformed XML \u2192 structured error"
+  },
+  {
+    "id": "P1-03",
+    "title": "[P1-03] RAW EXIF metadata adapter",
+    "labels": ["phase:1", "pkg:core", "type:feat"],
+    "deps": ["P0-06"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-004; PRD \u00a78.1\n**Depends on:** P0-06\nAdapter using `exifr` for CR2/CR3/NEF/ARW (+ TIFF): map EXIF (exposure, ISO\u2192gain field, capture time, camera model) into `FrameMetadata`. OBJECT/FILTER unavailable in EXIF \u2192 left null for path heuristics.\n**Acceptance criteria:**\n- RAW fixtures parse; capture time correctly normalized to UTC using EXIF offset when present\n- Unknown/corrupt RAW \u2192 structured error"
+  },
+  {
+    "id": "P1-04",
+    "title": "[P1-04] Frame classification (type detection)",
+    "labels": ["phase:1", "pkg:core", "type:feat"],
+    "deps": ["P1-01"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-004\n**Depends on:** P1-01\nPure function classifying frames as light/dark/flat/bias/darkflat/unknown: IMAGETYP mapping table (incl. capture-software variants like 'Light Frame', 'LIGHT', 'masterDark'), then path-segment heuristics, recording `frame_type_source`.\n**Acceptance criteria:**\n- Table-driven tests: \u2265 40 IMAGETYP variants and \u2265 20 path patterns\n- Ambiguous cases \u2192 `unknown`, never guessed silently"
+  },
+  {
+    "id": "P1-05",
+    "title": "[P1-05] Capture-software profile table",
+    "labels": ["phase:1", "pkg:core", "type:feat"],
+    "deps": ["P1-01"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-004\n**Depends on:** P1-01\nData-driven profile registry detecting originating software (SWCREATE/CREATOR/PROGRAM headers or keyword fingerprints) and applying per-software keyword mappings/quirk fixes (e.g., APT temperature keyword, SharpCap gain conventions).\n**Acceptance criteria:**\n- Each fixture's software correctly detected; quirk mappings tested per software\n- Adding a profile requires only a data entry + fixture, no code changes"
+  },
+  {
+    "id": "P1-06",
+    "title": "[P1-06] Watch folders \u2014 settings and discovery scan (Stage 1)",
+    "labels": ["phase:1", "pkg:desktop", "pkg:db", "type:feat"],
+    "deps": ["P0-05"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, pkg:db, type:feat\n**Refs:** DD-004; PRD \u00a76.1\n**Depends on:** P0-05\nWatch-folder CRUD (settings UI + repository), recursive directory walk in worker honoring supported extensions, upserting `files` rows (path/size/mtime), marking absent files `missing` (never deleting), drive-label capture for external drives. Skip patterns (node_modules-style ignore list, hidden dirs) configurable.\n**Acceptance criteria:**\n- Adding a folder enqueues a scan; progress visible via IPC events\n- Rescan of unchanged tree performs zero frame re-parses (incremental check test)\n- Disconnecting a drive marks files missing; reconnecting restores them\n- E2E: add temp folder with synthetic files \u2192 files rows appear"
+  },
+  {
+    "id": "P1-07",
+    "title": "[P1-07] Parse + resolve pipeline stages (Stages 2\u20133)",
+    "labels": ["phase:1", "pkg:desktop", "pkg:core", "type:feat"],
+    "deps": ["P1-01", "P1-02", "P1-03", "P1-04", "P1-05", "P1-06"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, pkg:core, type:feat\n**Refs:** DD-004\n**Depends on:** P1-01, P1-02, P1-03, P1-04, P1-05, P1-06\nWire parsers into the worker pipeline: for each new/changed file, header-only parse \u2192 classification \u2192 `frames` row with `headers_json`. Batch inserts (transaction per N files). Parse errors recorded on file row; batch never aborts.\n**Acceptance criteria:**\n- Synthetic 10k-file library completes stages 1\u20133 within CI benchmark budget (target: <5 min on reference hardware per PRD \u00a78.4)\n- Malformed files logged and skipped; error count surfaced in scan summary\n- Re-running scan is idempotent (row counts stable)"
+  },
+  {
+    "id": "P1-08",
+    "title": "[P1-08] Background SHA-256 hashing and duplicate detection (Stage 5a)",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-06"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-003, DD-004; PRD \u00a76.1\n**Depends on:** P1-06\nLowest-priority background jobs streaming SHA-256 per file; on hash collision mark `duplicate` with `duplicate_of_id` (oldest first-seen wins as canonical). Move detection: new path + matching (size, sha256) of a missing file re-paths the existing row preserving all links.\n**Acceptance criteria:**\n- Duplicates across two watch folders detected; canonical selection deterministic\n- Moved file retains frame/session/project links (integration test)\n- Hashing throttles under active scanning (priority test)"
+  },
+  {
+    "id": "P1-09",
+    "title": "[P1-09] Live watch mode (chokidar)",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-07"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-004\n**Depends on:** P1-07\nFile-system watching on active folders with 30 s debounce feeding the pipeline; toggle per folder; graceful handling of watcher limits on large trees (fall back to periodic rescan with user notice).\n**Acceptance criteria:**\n- Dropping files into a watched folder auto-catalogs them without manual rescan (E2E)\n- Debounce verified: burst of writes \u2192 single pipeline batch"
+  },
+  {
+    "id": "P1-10",
+    "title": "[P1-10] Bundled object catalog build script",
+    "labels": ["phase:1", "pkg:core", "type:feat"],
+    "deps": [],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-005\nBuild-time script compiling OpenNGC (+ Messier common names, popular Sharpless/Barnard/vdB) into a bundled lookup asset (JSON or SQLite): designations, cross-references, common names, RA/DEC, type, constellation. CC-BY-SA attribution included in app about screen data.\n**Acceptance criteria:**\n- Asset contains \u2265 13,000 objects; M31 \u2194 NGC 224 \u2194 'Andromeda Galaxy' cross-referenced\n- Script re-runnable and documented; asset size < 10 MB\n- Lookup API: by normalized designation, by common name, by cone search (ra/dec/radius)"
+  },
+  {
+    "id": "P1-11",
+    "title": "[P1-11] Target name resolver",
+    "labels": ["phase:1", "pkg:core", "type:feat"],
+    "deps": ["P1-10"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-005\n**Depends on:** P1-10\nImplement DD-005 resolution: normalization, alias lookup, catalog lookup, coordinate-fallback suggestions, mosaic panel extraction. Pure functions + a resolver service that persists user aliases.\n**Acceptance criteria:**\n- Table-driven tests: \u2265 60 name variants incl. 'M 31'/'M31'/'m-31'/'NGC224'/'Andromeda Galaxy'/'Sh2-101'/'M 31 Panel 2'\n- Unresolvable names yield 'needs review' with ranked fuzzy suggestions (suggest-only, never auto-merge)\n- User alias assignment persists and wins on rescan"
+  },
+  {
+    "id": "P1-12",
+    "title": "[P1-12] Filter normalization",
+    "labels": ["phase:1", "pkg:core", "type:feat"],
+    "deps": ["P0-04"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-005\n**Depends on:** P0-04\nData-driven raw\u2192canonical filter mapping per DD-005 table, unknown filters become their own visible canonical entries, user merge with remembered mappings.\n**Acceptance criteria:**\n- Table-driven tests \u2265 30 raw variants incl. dualband filters\n- Merge operation reassigns frames and persists mapping (integration test)"
+  },
+  {
+    "id": "P1-13",
+    "title": "[P1-13] Integration-time aggregation queries",
+    "labels": ["phase:1", "pkg:db", "type:feat"],
+    "deps": ["P0-04"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:db, type:feat\n**Refs:** DD-003; PRD \u00a76.2\n**Depends on:** P0-04\nRepository queries: per-target totals, per-target-per-filter, per-session, per-equipment, per-month; formatted `HHh MMm`; only `light` frames counted; missing-file frames included (data still exists) with an excludable flag.\n**Acceptance criteria:**\n- Correctness tests against hand-computed fixture sums, incl. mixed filters and missing files\n- 100k-frame synthetic DB: per-target rollup query < 100 ms (benchmark)"
+  },
+  {
+    "id": "P1-14",
+    "title": "[P1-14] Targets page \u2014 grid, table, search & filters",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-11", "P1-12", "P1-13"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a76.2\n**Depends on:** P1-11, P1-12, P1-13\nTargets page per DD-008: card grid + table toggle, virtualized; search (FTS) and filters (filter band, equipment, date range, integration range, status); status badges; sort by name/integration/last-imaged.\n**Acceptance criteria:**\n- E2E: seeded library \u2192 search 'andromeda' finds M 31; filters combine correctly\n- Renders 1,000 targets without jank (virtualization test)"
+  },
+  {
+    "id": "P1-15",
+    "title": "[P1-15] Target detail dashboard",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-14"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a76.2\n**Depends on:** P1-14\nPer-target view: per-filter integration bars (DD-008 colors), session timeline, equipment used, date range, frame counts by type, status control (planning/capturing/ready/processed/complete), notes editor, linked processing projects placeholder.\n**Acceptance criteria:**\n- All PRD \u00a76.2 dashboard elements present; renders < 1 s on a 200-session target (benchmark seed)\n- Status and notes persist; FTS finds note text"
+  },
+  {
+    "id": "P1-16",
+    "title": "[P1-16] Review queue \u2014 unresolved targets, types, filters",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-11", "P1-12", "P1-04"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-005, DD-008\n**Depends on:** P1-11, P1-12, P1-04\nReview page listing unresolved OBJECT names (with fuzzy + coordinate suggestions), unknown frame types, unknown filters, and duplicates; bulk assignment actions; sidebar badge count.\n**Acceptance criteria:**\n- Assigning an unresolved name creates alias; all matching frames re-resolve immediately and on future scans\n- Bulk actions (select all by raw name) work; E2E covers assign-and-verify flow"
+  },
+  {
+    "id": "P1-17",
+    "title": "[P1-17] Session detection algorithm",
+    "labels": ["phase:1", "pkg:core", "type:feat"],
+    "deps": ["P1-07"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-006; PRD \u00a76.3\n**Depends on:** P1-07\nPure `detectSessions()` per DD-006: astronomical-day windowing, 4 h gap splitting, equipment-profile splitting, calibration-only sessions, idempotent re-runs, manual-assignment locks respected.\n**Acceptance criteria:**\n- Table-driven tests: midnight-spanning night, two-run night, multi-rig night, DSLR without CCD-TEMP, calibration-only night, timezone edge (site vs system tz)\n- Re-run after new files preserves manual merges/splits"
+  },
+  {
+    "id": "P1-18",
+    "title": "[P1-18] Equipment profile auto-detection",
+    "labels": ["phase:1", "pkg:core", "pkg:db", "type:feat"],
+    "deps": ["P1-07"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, pkg:db, type:feat\n**Refs:** DD-003, DD-006; PRD \u00a76.3\n**Depends on:** P1-07\nDetect distinct TELESCOP+INSTRUME(+FOCALLEN) combos into `equipment_profiles`; fuzzy-consolidate near-identical strings as suggestions; user confirm/rename/merge UI on Equipment page with usage hours per profile.\n**Acceptance criteria:**\n- Same rig with minor header string drift ('EdgeHD 8' vs 'EdgeHD8') suggested as one profile, merged only on user confirm\n- Usage hours = sum of light exposure per profile (test)"
+  },
+  {
+    "id": "P1-19",
+    "title": "[P1-19] Sessions page and session detail",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-17", "P1-18"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a76.3\n**Depends on:** P1-17, P1-18\nCalendar heat-map + list; detail view: targets, filter/exposure breakdown, equipment, conditions from headers (temp/humidity when present), quality stats (FWHM/HFR/star count when present), notes editor, manual merge/split controls.\n**Acceptance criteria:**\n- E2E: seeded multi-night library shows correct session grouping; merge/split persists across rescan\n- All PRD \u00a76.3 detail elements render; absent header data degrades gracefully"
+  },
+  {
+    "id": "P1-20",
+    "title": "[P1-20] Calibration matching engine",
+    "labels": ["phase:1", "pkg:core", "type:feat"],
+    "deps": ["P1-17"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:core, type:feat\n**Refs:** DD-006; PRD \u00a76.4\n**Depends on:** P1-17\nImplement `matchCalibration()` per DD-006: hard filters per master type, soft scoring (temp closeness, recency, sub count), flat staleness decay, per-target/session status (complete/partial/stale/missing), camera-type-aware \"needed set\" rules.\n**Acceptance criteria:**\n- Table-driven tests per DD-006 matrix: mono+FW, OSC, DSLR (no set-point), dualband, tolerance boundaries (\u00b12 \u00b0C edges), stale flats\n- Deterministic ranking; manual assignment respected on re-match"
+  },
+  {
+    "id": "P1-21",
+    "title": "[P1-21] Master frame library and provenance",
+    "labels": ["phase:1", "pkg:desktop", "pkg:db", "type:feat"],
+    "deps": ["P1-20"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, pkg:db, type:feat\n**Refs:** DD-003; PRD \u00a76.4\n**Depends on:** P1-20\nDetect master frames (IMAGETYP master variants or user designation); Calibration page: masters grouped by camera/type with properties; record/edit which raw subs built each master (`master_frame_subs`); mark superseded masters.\n**Acceptance criteria:**\n- Masters auto-detected from fixture headers; manual designation flow works\n- Provenance view lists sub frames; superseded masters excluded from matching by default"
+  },
+  {
+    "id": "P1-22",
+    "title": "[P1-22] Calibration gap report and status indicators",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-20", "P1-21"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-006, DD-008; PRD \u00a76.4\n**Depends on:** P1-20, P1-21\nGap report (\"these lights lack matching darks/flats\"), status chips on sessions and targets, tolerance settings UI (temp tolerance, staleness window, gap hours).\n**Acceptance criteria:**\n- E2E: library with missing flats shows correct gaps; tightening temp tolerance updates statuses live\n- Status chips consistent between Sessions, Targets, and Calibration pages (shared selector test)"
+  },
+  {
+    "id": "P1-23",
+    "title": "[P1-23] Session notes and annotations",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-19"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** PRD \u00a76.3\n**Depends on:** P1-19\nRich-text-lite (markdown) notes on sessions with weather/equipment-issue quick tags; searchable via FTS.\n**Acceptance criteria:**\n- Notes persist, render markdown, searchable from global search\n- Quick tags filterable on Sessions page"
+  },
+  {
+    "id": "P1-24",
+    "title": "[P1-24] Processing projects",
+    "labels": ["phase:1", "pkg:desktop", "pkg:db", "type:feat"],
+    "deps": ["P1-15", "P1-21"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, pkg:db, type:feat\n**Refs:** DD-003, DD-008; PRD \u00a76.5\n**Depends on:** P1-15, P1-21\nCreate project for a target; select input lights (by session/filter selection) and calibration masters; status kanban (in-progress/complete/abandoned); processing notes (software, steps, parameters); version labels (\"M31 v2 \u2013 added Ha\").\n**Acceptance criteria:**\n- E2E: create project from target detail, select inputs, move through statuses\n- Version history listed on target detail; inputs remain linked if files move (via P1-08 move detection)"
+  },
+  {
+    "id": "P1-25",
+    "title": "[P1-25] Processed image linking",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-24"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** PRD \u00a76.5\n**Depends on:** P1-24\nAttach final TIFF/PNG/JPG to a project (file picker or detected in watch folders); mark one as target hero image; trace-back view: final image \u2192 project \u2192 sessions \u2192 frames \u2192 calibration masters.\n**Acceptance criteria:**\n- Hero image shows on target card/detail; trace-back view navigates full chain (E2E)\n- Finals excluded from light-frame statistics"
+  },
+  {
+    "id": "P1-26",
+    "title": "[P1-26] FITS/XISF thumbnail generation (Stage 5b)",
+    "labels": ["phase:1", "pkg:desktop", "pkg:core", "type:feat"],
+    "deps": ["P1-07"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, pkg:core, type:feat\n**Refs:** DD-004; PRD \u00a76.7\n**Depends on:** P1-07\nWorker-based thumbnail pipeline: read pixel data, debayer OSC when BAYERPAT present, midtones-transfer autostretch, downscale via sharp, cache as WebP keyed by frame id; LRU disk cache with size cap; lowest job priority.\n**Acceptance criteria:**\n- Correct-looking thumbnails for mono, OSC, and 32-bit float fixtures (golden-image tests with tolerance)\n- \u2265 50 thumbnails/sec on reference hardware for 16-bit 6200x4x binned data per PRD \u00a78.4 (benchmark; document hardware assumptions)\n- Cache eviction respects cap; regeneration transparent"
+  },
+  {
+    "id": "P1-27",
+    "title": "[P1-27] File browser page",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-26"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a76.7\n**Depends on:** P1-26\nBrowse library by target / date / equipment / physical folder with virtualized thumbnail grid; frame inspector (all parsed headers + raw `headers_json`); reveal-in-Explorer/Finder; copy-paths-to-clipboard for processing handoff.\n**Acceptance criteria:**\n- 100k-file library browses smoothly (virtualization benchmark)\n- 'Copy file list' produces newline-separated absolute paths usable in PixInsight/Siril (E2E clipboard test)"
+  },
+  {
+    "id": "P1-28",
+    "title": "[P1-28] Statistics dashboard",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-13", "P1-17"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a76.6\n**Depends on:** P1-13, P1-17\nDashboard page: totals (targets, integration, files, library size), integration per month chart, sessions per month, most-imaged targets, per-filter distribution, equipment usage hours, calibration health summary.\n**Acceptance criteria:**\n- All widgets correct against seeded fixture library (numeric assertions)\n- Dashboard renders < 1 s on 100k-frame DB (benchmark)"
+  },
+  {
+    "id": "P1-29",
+    "title": "[P1-29] CSV/JSON export",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-28"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** PRD \u00a76.6\n**Depends on:** P1-28\nExport targets, sessions, frames, and statistics rollups as CSV and JSON to user-chosen location; column documentation in user docs.\n**Acceptance criteria:**\n- Exports re-import cleanly into a spreadsheet (schema test: headers, escaping, UTF-8 BOM for Excel)\n- JSON validates against a published schema file in repo"
+  },
+  {
+    "id": "P1-30",
+    "title": "[P1-30] Onboarding flow and empty states",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-06", "P1-14"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008\n**Depends on:** P1-06, P1-14\nFirst-run wizard per DD-008 (welcome \u2192 watch folder \u2192 live scan preview \u2192 dashboard); instructive empty states on every page; sample-library mode for trying the app without data.\n**Acceptance criteria:**\n- E2E: fresh app-data \u2192 wizard \u2192 scan \u2192 dashboard populated\n- Every nav page has a designed empty state (visual snapshot tests)"
+  },
+  {
+    "id": "P1-31",
+    "title": "[P1-31] Settings, theming, and free-tier limit",
+    "labels": ["phase:1", "pkg:desktop", "type:feat"],
+    "deps": ["P1-22"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:feat\n**Refs:** DD-008; PRD \u00a711\n**Depends on:** P1-22\nSettings page consolidating: watch folders, tolerances, session gap, timezone/site, theme (dark default / light / red night-vision), language of file-count limit. Implement 10,000-file free-tier soft limit (counting indexed image files) with clear upgrade messaging \u2014 enforcement flag off in beta builds.\n**Acceptance criteria:**\n- All three themes applied app-wide via CSS custom properties (snapshot tests)\n- Limit triggers at threshold, blocks new indexing only (never hides existing data), flag-controllable"
+  },
+  {
+    "id": "P1-32",
+    "title": "[P1-32] Performance validation and optimization pass",
+    "labels": ["phase:1", "type:test"],
+    "deps": ["P1-27", "P1-28"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, type:test\n**Refs:** PRD \u00a78.4\n**Depends on:** P1-27, P1-28\nRun full benchmark suite against PRD targets on reference Win + mac hardware; profile and fix the top bottlenecks; document results.\n**Acceptance criteria:**\n- 10k-file scan < 5 min; 100k library load < 3 s; target dashboard < 1 s; thumbnails \u2265 50/s \u2014 all evidenced in a committed benchmark report\n- CI baselines updated"
+  },
+  {
+    "id": "P1-33",
+    "title": "[P1-33] Code signing, notarization, auto-update",
+    "labels": ["phase:1", "pkg:desktop", "type:infra"],
+    "deps": ["P0-03"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, pkg:desktop, type:infra\n**Depends on:** P0-03\nWindows code signing, macOS notarization, electron-updater against GitHub Releases with staged rollout channel (beta/stable).\n**Acceptance criteria:**\n- Signed installers install without OS warnings on both platforms\n- Beta-channel build auto-updates to a newer beta release (verified manually, process documented)"
+  },
+  {
+    "id": "P1-34",
+    "title": "[P1-34] v1.0 release \u2014 docs, website copy, beta feedback triage",
+    "labels": ["phase:1", "type:docs"],
+    "deps": ["P1-30", "P1-31", "P1-32", "P1-33"],
+    "body": "_Source: `planning/task-breakdown.md` \u2014 read `CLAUDE.md` and referenced DDs in `design/` before starting._\n\n**Labels:** phase:1, type:docs\n**Depends on:** P1-30, P1-31, P1-32, P1-33\nUser documentation (getting started, folder scanning, calibration matching concepts, FAQ), in-app help links, release notes, README polish, triage of closed-beta feedback into labeled backlog issues.\n**Acceptance criteria:**\n- Docs published (repo /docs or site); every MVP feature covered\n- v1.0.0 tagged; release checklist committed for repeatability"
+  }
 ]

@@ -1,6 +1,6 @@
 # Spec: [Backlog] Scope package names to @astrotracker/* before real deps land
 
-**Slug:** backlog-44-scoped-names   **Issue:** #44   **Plan:** docs/plans/backlog-44-scoped-names.md   **Date:** 2026-07-05
+**Slug:** backlog-44-scoped-names **Issue:** #44 **Plan:** docs/plans/backlog-44-scoped-names.md **Date:** 2026-07-05
 
 ## Definition of Done
 
@@ -18,18 +18,22 @@
 - [ ] Given the full gate command `pnpm install && pnpm -r build && pnpm -r lint && pnpm -r test`, when run from a clean checkout of the branch, then it exits 0.
 
 ### Data Integrity
+
 - [ ] N/A — no database schema, table, or migration exists or is touched by this issue.
 
 ### Core Invariants
+
 - [ ] No code path in the diff writes, moves, renames, or deletes files outside the app-data directory — N/A; this diff touches only package manifests, two import lines, the lockfile, and README prose.
 - [ ] New domain logic is in packages/core with no Electron/fs imports — N/A, no domain logic added; `packages/core/package.json`'s empty `dependencies` field and the existing `no-restricted-imports` ESLint rule (path-scoped, untouched by this rename) must still pass `pnpm -r lint`.
 - [ ] All persisted timestamps are UTC — N/A, no persisted data involved.
 - [ ] Manual user overrides survive a rescan — N/A, no assignment or scanning logic exists.
 
 ### Performance
+
 - [ ] N/A — no scanning, query, thumbnail, or UI-list code path is touched.
 
 ### Tests
+
 - [ ] All four existing placeholder Vitest tests (`core`, `db`, `desktop`, `desktop/renderer`) still pass unmodified by `pnpm -r test`; no new tests are required since no behavior changes.
 - [ ] `describeDb()` output is unchanged in content (`db@0.1.0 (core@0.1.0)`) — only the module specifier it's built from changed, not the runtime string, per the existing `packages/db/src/index.test.ts` assertion.
 - [ ] `describeDesktop()` output is unchanged in content (`desktop@0.1.0 (core@0.1.0, db@0.1.0)`) for the same reason.

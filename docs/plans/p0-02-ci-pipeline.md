@@ -1,6 +1,6 @@
 # Plan: [P0-02] GitHub Actions CI pipeline
 
-**Slug:** p0-02-ci-pipeline   **Issue:** #2   **Date:** 2026-07-06
+**Slug:** p0-02-ci-pipeline **Issue:** #2 **Date:** 2026-07-06
 **Governing DDs:** DD-001 (tech stack — "CI: GitHub Actions: lint, typecheck, unit tests, package on Win+mac")
 **Status:** READY_FOR_SPEC
 
@@ -181,7 +181,7 @@ Not touched (verified, reasons noted):
   merges. The aggregate `ci-ok` job exists precisely for this; CONTRIBUTING.md documents
   requiring only `ci-ok`.
 - **`ci-ok` with `needs` + default behavior on skipped/failed legs:** a plain
-  `needs: [test]` job is *skipped* (not failed) if a leg fails, and GitHub treats a skipped
+  `needs: [test]` job is _skipped_ (not failed) if a leg fails, and GitHub treats a skipped
   required check as… still pending/neutral depending on context. The job must use
   `if: always()` and explicitly fail when `needs.test.result != 'success'`.
 - **Root `vitest run` finding zero tests in a project:** if a project's `include` pattern or
@@ -198,7 +198,7 @@ Not touched (verified, reasons noted):
   on a clean runner fails with module-not-found unless `pnpm -r build` runs first. CI step
   order (build before test) is load-bearing; CONTRIBUTING.md's local gate lists the same
   order.
-- **Double CI runs on PRs:** `on: push` without a branch filter runs every branch push *and*
+- **Double CI runs on PRs:** `on: push` without a branch filter runs every branch push _and_
   the PR event — two runs per push, slower feedback, wasted minutes. Restrict `push` to
   `main`.
 - **First run on each OS has a cold pnpm cache:** expected; `setup-node`'s cache key
@@ -218,7 +218,7 @@ Not touched (verified, reasons noted):
 - [x] Non-destructive: no code path writes/moves/renames/deletes user image files — N/A;
       this issue adds CI config and docs only, no runtime code
 - [x] Layering: new domain logic lives in packages/core, pure — N/A; no domain logic added.
-      CI *enforces* the existing layering lint rule on every PR from now on
+      CI _enforces_ the existing layering lint rule on every PR from now on
 - [x] DB: new tables/columns use UUIDv7 PKs + updated_at via Drizzle migration — N/A; no
       schema work (starts P0-04)
 - [x] Timestamps stored UTC — N/A; no timestamp-bearing data
@@ -233,7 +233,7 @@ Not touched (verified, reasons noted):
 - Benchmark jobs / performance-budget enforcement in CI (P0-07, per DD-004)
 - Playwright E2E on the packaged app in CI (P0-08)
 - Actually clicking the branch-protection settings (or automating them via API/terraform) —
-  the acceptance criterion is *documentation* in CONTRIBUTING.md; a repo admin applies it
+  the acceptance criterion is _documentation_ in CONTRIBUTING.md; a repo admin applies it
 - Release/tag workflows, artifact publishing, CI deploys (Phase 2, DD-007)
 - Coverage reporting/thresholds — no DD requires them yet; adding them now would slow the
   matrix for placeholder tests

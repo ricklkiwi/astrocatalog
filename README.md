@@ -8,13 +8,13 @@ Pre-development. Architecture and full task plan are complete; implementation is
 
 ## Documents
 
-| Location | Contents |
-|---|---|
-| [`planning/PRD-AstroTracker-v1.md`](planning/PRD-AstroTracker-v1.md) | Product requirements |
-| [`planning/development-plan.md`](planning/development-plan.md) | Phases, milestones, working agreements, testing strategy |
-| [`planning/task-breakdown.md`](planning/task-breakdown.md) | All 79 tasks (source of the GitHub issues) |
-| [`design/`](design/) | Design decisions DD-001…DD-008 — **authoritative** for all implementation |
-| [`CLAUDE.md`](CLAUDE.md) | Instructions for coding agents |
+| Location                                                             | Contents                                                                  |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [`planning/PRD-AstroTracker-v1.md`](planning/PRD-AstroTracker-v1.md) | Product requirements                                                      |
+| [`planning/development-plan.md`](planning/development-plan.md)       | Phases, milestones, working agreements, testing strategy                  |
+| [`planning/task-breakdown.md`](planning/task-breakdown.md)           | All 79 tasks (source of the GitHub issues)                                |
+| [`design/`](design/)                                                 | Design decisions DD-001…DD-008 — **authoritative** for all implementation |
+| [`CLAUDE.md`](CLAUDE.md)                                             | Instructions for coding agents                                            |
 
 ## Stack (DD-001)
 
@@ -24,13 +24,13 @@ Electron + React + TypeScript, SQLite (better-sqlite3 + Drizzle), pnpm monorepo.
 
 pnpm workspace with four packages plus a `fixtures/` directory:
 
-| Package | Role | May depend on |
-|---|---|---|
-| `packages/core` | Pure domain logic — parsers, target resolution, session detection, calibration matching, integration math | nothing (zero runtime dependencies) |
-| `packages/db` | Drizzle schema, migrations, repositories (from P0-04) | `@astrotracker/core` |
-| `packages/desktop` | Electron main process, preload, workers (from P0-03) | `@astrotracker/core`, `@astrotracker/db` |
-| `packages/desktop/renderer` | React UI — its own workspace member | nothing (IPC only) |
-| `fixtures/` | Real-world FITS/XISF/RAW header samples + manifests (populated in P0-06) | — |
+| Package                     | Role                                                                                                      | May depend on                            |
+| --------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `packages/core`             | Pure domain logic — parsers, target resolution, session detection, calibration matching, integration math | nothing (zero runtime dependencies)      |
+| `packages/db`               | Drizzle schema, migrations, repositories (from P0-04)                                                     | `@astrotracker/core`                     |
+| `packages/desktop`          | Electron main process, preload, workers (from P0-03)                                                      | `@astrotracker/core`, `@astrotracker/db` |
+| `packages/desktop/renderer` | React UI — its own workspace member                                                                       | nothing (IPC only)                       |
+| `fixtures/`                 | Real-world FITS/XISF/RAW header samples + manifests (populated in P0-06)                                  | —                                        |
 
 Allowed dependency direction: `core` ← `db` ← `desktop`. The renderer is deliberately
 independent — it declares **no** workspace dependency on `core`, `db`, or `desktop`, and

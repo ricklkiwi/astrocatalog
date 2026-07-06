@@ -16,7 +16,11 @@ export default defineConfig({
       { test: { name: 'db', root: './packages/db', include: ['src/**/*.test.ts'] } },
       { test: { name: 'desktop', root: './packages/desktop', include: ['src/**/*.test.ts'] } },
       {
-        test: { name: 'renderer', root: './packages/desktop/renderer', include: ['src/**/*.test.ts'] },
+        test: {
+          name: 'renderer',
+          root: './packages/desktop/renderer',
+          include: ['src/**/*.test.ts'],
+        },
       },
     ],
   },
