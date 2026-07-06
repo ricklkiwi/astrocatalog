@@ -1,5 +1,5 @@
 {
-  "name": "renderer",
+  "name": "@astrotracker/renderer",
   "version": "0.1.0",
   "private": true,
   "description": "AstroTracker React UI — independent workspace member; talks to main only via typed IPC (from P0-03)",
