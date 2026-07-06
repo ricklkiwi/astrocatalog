@@ -1,0 +1,21 @@
+{
+  "name": "renderer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AstroTracker React UI — independent workspace member; talks to main only via typed IPC (from P0-03)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src && prettier --check src",
+    "test": "vitest run --dir src"
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,21 @@
+{
+  "name": "core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pure domain logic for AstroTracker — no Electron, no fs (DD-002 rule 1)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src && prettier --check src",
+    "test": "vitest run --dir src"
+  },
+  "dependencies": {}
+}
