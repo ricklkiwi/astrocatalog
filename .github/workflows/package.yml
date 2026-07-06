@@ -1,0 +1,36 @@
+# Packaging workflow stub (P0-02). P0-03 appends the real electron-builder
+# steps. DD-001 scopes packaging to Windows + macOS, hence the two-OS matrix.
+# The setup steps are real (identical to ci.yml) so the stub already proves
+# install works on both packaging OSes.
+name: Package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # No `version` input: pnpm version comes solely from the root
+      # package.json `packageManager` field (same rule as ci.yml).
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Packaging placeholder (electron-builder lands in P0-03)
+        run: echo "No packaging steps yet - electron-builder packaging is added in P0-03."
