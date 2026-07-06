@@ -38,6 +38,15 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/desktop:
+    dependencies:
+      core:
+        specifier: workspace:*
+        version: link:../core
+      db:
+        specifier: workspace:*
+        version: link:../db
+
 packages:
 
   '@esbuild/aix-ppc64@0.28.1':
