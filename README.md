@@ -27,8 +27,8 @@ pnpm workspace with four packages plus a `fixtures/` directory:
 | Package | Role | May depend on |
 |---|---|---|
 | `packages/core` | Pure domain logic — parsers, target resolution, session detection, calibration matching, integration math | nothing (zero runtime dependencies) |
-| `packages/db` | Drizzle schema, migrations, repositories (from P0-04) | `core` |
-| `packages/desktop` | Electron main process, preload, workers (from P0-03) | `core`, `db` |
+| `packages/db` | Drizzle schema, migrations, repositories (from P0-04) | `@astrotracker/core` |
+| `packages/desktop` | Electron main process, preload, workers (from P0-03) | `@astrotracker/core`, `@astrotracker/db` |
 | `packages/desktop/renderer` | React UI — its own workspace member | nothing (IPC only) |
 | `fixtures/` | Real-world FITS/XISF/RAW header samples + manifests (populated in P0-06) | — |
 
