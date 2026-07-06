@@ -3,6 +3,8 @@
 !.env.example
 node_modules/
 dist/
+coverage/
+*.tsbuildinfo
 .DS_Store
 .git-askpass.sh
 all-issues.json
