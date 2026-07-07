@@ -9,7 +9,9 @@
  */
 import path from 'node:path';
 
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
+
+import { createIpcHandlers, registerIpcHandlers } from './ipc/register.js';
 
 /** Set by electron-vite dev; absent in packaged/preview builds. */
 const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
@@ -60,6 +62,15 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(() => {
+  registerIpcHandlers(
+    ipcMain,
+    createIpcHandlers({
+      appVersion: app.getVersion(),
+      platform: process.platform,
+      versions: process.versions,
+    }),
+  );
+
   createWindow();
 
   // macOS convention: re-create the window on dock activation.
