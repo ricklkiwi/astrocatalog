@@ -26,9 +26,14 @@ type BaseTable = SQLiteTable & {
   updatedAt: SQLiteColumn;
 };
 
-/** Caller-facing insert payload: the repo stamps `id`/`createdAt`/`updatedAt`. */
+/**
+ * Caller-facing insert payload: the repo stamps `id`/`createdAt`/`updatedAt`.
+ * Built on `$inferInsert` rather than `InferInsertModel<TTable>`: `Omit`
+ * over the latter inside a generic alias collapses optional (nullable /
+ * defaulted) columns to the constraint's keys, silently rejecting them.
+ */
 export type NewRow<TTable extends SQLiteTable> = Omit<
-  InferInsertModel<TTable>,
+  TTable['$inferInsert'],
   'id' | 'createdAt' | 'updatedAt'
 >;
 
