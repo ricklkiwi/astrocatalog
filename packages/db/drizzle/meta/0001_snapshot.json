@@ -190,17 +190,12 @@
       "indexes": {
         "files_sha256_idx": {
           "name": "files_sha256_idx",
-          "columns": [
-            "sha256"
-          ],
+          "columns": ["sha256"],
           "isUnique": false
         },
         "files_watch_folder_relative_path_uq": {
           "name": "files_watch_folder_relative_path_uq",
-          "columns": [
-            "watch_folder_id",
-            "relative_path"
-          ],
+          "columns": ["watch_folder_id", "relative_path"],
           "isUnique": true
         }
       },
@@ -208,26 +203,18 @@
         "files_watch_folder_id_watch_folders_id_fk": {
           "name": "files_watch_folder_id_watch_folders_id_fk",
           "tableFrom": "files",
-          "columnsFrom": [
-            "watch_folder_id"
-          ],
+          "columnsFrom": ["watch_folder_id"],
           "tableTo": "watch_folders",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "files_duplicate_of_id_files_id_fk": {
           "name": "files_duplicate_of_id_files_id_fk",
           "tableFrom": "files",
-          "columnsFrom": [
-            "duplicate_of_id"
-          ],
+          "columnsFrom": ["duplicate_of_id"],
           "tableTo": "files",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -559,32 +546,22 @@
       "indexes": {
         "frames_file_id_uq": {
           "name": "frames_file_id_uq",
-          "columns": [
-            "file_id"
-          ],
+          "columns": ["file_id"],
           "isUnique": true
         },
         "frames_target_filter_type_idx": {
           "name": "frames_target_filter_type_idx",
-          "columns": [
-            "target_id",
-            "filter_id",
-            "frame_type"
-          ],
+          "columns": ["target_id", "filter_id", "frame_type"],
           "isUnique": false
         },
         "frames_session_id_idx": {
           "name": "frames_session_id_idx",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         },
         "frames_date_obs_utc_idx": {
           "name": "frames_date_obs_utc_idx",
-          "columns": [
-            "date_obs_utc"
-          ],
+          "columns": ["date_obs_utc"],
           "isUnique": false
         }
       },
@@ -592,65 +569,45 @@
         "frames_file_id_files_id_fk": {
           "name": "frames_file_id_files_id_fk",
           "tableFrom": "frames",
-          "columnsFrom": [
-            "file_id"
-          ],
+          "columnsFrom": ["file_id"],
           "tableTo": "files",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "frames_target_id_targets_id_fk": {
           "name": "frames_target_id_targets_id_fk",
           "tableFrom": "frames",
-          "columnsFrom": [
-            "target_id"
-          ],
+          "columnsFrom": ["target_id"],
           "tableTo": "targets",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "frames_filter_id_filters_id_fk": {
           "name": "frames_filter_id_filters_id_fk",
           "tableFrom": "frames",
-          "columnsFrom": [
-            "filter_id"
-          ],
+          "columnsFrom": ["filter_id"],
           "tableTo": "filters",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "frames_equipment_profile_id_equipment_profiles_id_fk": {
           "name": "frames_equipment_profile_id_equipment_profiles_id_fk",
           "tableFrom": "frames",
-          "columnsFrom": [
-            "equipment_profile_id"
-          ],
+          "columnsFrom": ["equipment_profile_id"],
           "tableTo": "equipment_profiles",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "frames_session_id_sessions_id_fk": {
           "name": "frames_session_id_sessions_id_fk",
           "tableFrom": "frames",
-          "columnsFrom": [
-            "session_id"
-          ],
+          "columnsFrom": ["session_id"],
           "tableTo": "sessions",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -710,10 +667,7 @@
       "indexes": {
         "master_frame_subs_master_frame_uq": {
           "name": "master_frame_subs_master_frame_uq",
-          "columns": [
-            "master_frame_id",
-            "frame_id"
-          ],
+          "columns": ["master_frame_id", "frame_id"],
           "isUnique": true
         }
       },
@@ -721,26 +675,18 @@
         "master_frame_subs_master_frame_id_master_frames_id_fk": {
           "name": "master_frame_subs_master_frame_id_master_frames_id_fk",
           "tableFrom": "master_frame_subs",
-          "columnsFrom": [
-            "master_frame_id"
-          ],
+          "columnsFrom": ["master_frame_id"],
           "tableTo": "master_frames",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "master_frame_subs_frame_id_frames_id_fk": {
           "name": "master_frame_subs_frame_id_frames_id_fk",
           "tableFrom": "master_frame_subs",
-          "columnsFrom": [
-            "frame_id"
-          ],
+          "columnsFrom": ["frame_id"],
           "tableTo": "frames",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -877,39 +823,27 @@
         "master_frames_file_id_files_id_fk": {
           "name": "master_frames_file_id_files_id_fk",
           "tableFrom": "master_frames",
-          "columnsFrom": [
-            "file_id"
-          ],
+          "columnsFrom": ["file_id"],
           "tableTo": "files",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "master_frames_equipment_profile_id_equipment_profiles_id_fk": {
           "name": "master_frames_equipment_profile_id_equipment_profiles_id_fk",
           "tableFrom": "master_frames",
-          "columnsFrom": [
-            "equipment_profile_id"
-          ],
+          "columnsFrom": ["equipment_profile_id"],
           "tableTo": "equipment_profiles",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "master_frames_filter_id_filters_id_fk": {
           "name": "master_frames_filter_id_filters_id_fk",
           "tableFrom": "master_frames",
-          "columnsFrom": [
-            "filter_id"
-          ],
+          "columnsFrom": ["filter_id"],
           "tableTo": "filters",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -989,26 +923,18 @@
         "processed_images_project_id_processing_projects_id_fk": {
           "name": "processed_images_project_id_processing_projects_id_fk",
           "tableFrom": "processed_images",
-          "columnsFrom": [
-            "project_id"
-          ],
+          "columnsFrom": ["project_id"],
           "tableTo": "processing_projects",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "processed_images_file_id_files_id_fk": {
           "name": "processed_images_file_id_files_id_fk",
           "tableFrom": "processed_images",
-          "columnsFrom": [
-            "file_id"
-          ],
+          "columnsFrom": ["file_id"],
           "tableTo": "files",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1089,13 +1015,9 @@
         "processing_projects_target_id_targets_id_fk": {
           "name": "processing_projects_target_id_targets_id_fk",
           "tableFrom": "processing_projects",
-          "columnsFrom": [
-            "target_id"
-          ],
+          "columnsFrom": ["target_id"],
           "tableTo": "targets",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1160,11 +1082,7 @@
       "indexes": {
         "project_inputs_natural_uq": {
           "name": "project_inputs_natural_uq",
-          "columns": [
-            "project_id",
-            "frame_id",
-            "master_frame_id"
-          ],
+          "columns": ["project_id", "frame_id", "master_frame_id"],
           "isUnique": true
         }
       },
@@ -1172,39 +1090,27 @@
         "project_inputs_project_id_processing_projects_id_fk": {
           "name": "project_inputs_project_id_processing_projects_id_fk",
           "tableFrom": "project_inputs",
-          "columnsFrom": [
-            "project_id"
-          ],
+          "columnsFrom": ["project_id"],
           "tableTo": "processing_projects",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "project_inputs_frame_id_frames_id_fk": {
           "name": "project_inputs_frame_id_frames_id_fk",
           "tableFrom": "project_inputs",
-          "columnsFrom": [
-            "frame_id"
-          ],
+          "columnsFrom": ["frame_id"],
           "tableTo": "frames",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "project_inputs_master_frame_id_master_frames_id_fk": {
           "name": "project_inputs_master_frame_id_master_frames_id_fk",
           "tableFrom": "project_inputs",
-          "columnsFrom": [
-            "master_frame_id"
-          ],
+          "columnsFrom": ["master_frame_id"],
           "tableTo": "master_frames",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1311,13 +1217,9 @@
         "scan_jobs_watch_folder_id_watch_folders_id_fk": {
           "name": "scan_jobs_watch_folder_id_watch_folders_id_fk",
           "tableFrom": "scan_jobs",
-          "columnsFrom": [
-            "watch_folder_id"
-          ],
+          "columnsFrom": ["watch_folder_id"],
           "tableTo": "watch_folders",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1398,13 +1300,9 @@
         "sessions_equipment_profile_id_equipment_profiles_id_fk": {
           "name": "sessions_equipment_profile_id_equipment_profiles_id_fk",
           "tableFrom": "sessions",
-          "columnsFrom": [
-            "equipment_profile_id"
-          ],
+          "columnsFrom": ["equipment_profile_id"],
           "tableTo": "equipment_profiles",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1500,17 +1398,12 @@
       "indexes": {
         "target_aliases_alias_normalized_idx": {
           "name": "target_aliases_alias_normalized_idx",
-          "columns": [
-            "alias_normalized"
-          ],
+          "columns": ["alias_normalized"],
           "isUnique": false
         },
         "target_aliases_target_alias_uq": {
           "name": "target_aliases_target_alias_uq",
-          "columns": [
-            "target_id",
-            "alias_normalized"
-          ],
+          "columns": ["target_id", "alias_normalized"],
           "isUnique": true
         }
       },
@@ -1518,13 +1411,9 @@
         "target_aliases_target_id_targets_id_fk": {
           "name": "target_aliases_target_id_targets_id_fk",
           "tableFrom": "target_aliases",
-          "columnsFrom": [
-            "target_id"
-          ],
+          "columnsFrom": ["target_id"],
           "tableTo": "targets",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1638,13 +1527,9 @@
         "targets_thumbnail_frame_id_frames_id_fk": {
           "name": "targets_thumbnail_frame_id_frames_id_fk",
           "tableFrom": "targets",
-          "columnsFrom": [
-            "thumbnail_frame_id"
-          ],
+          "columnsFrom": ["thumbnail_frame_id"],
           "tableTo": "frames",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -1707,9 +1592,7 @@
       "indexes": {
         "thumbnails_frame_id_uq": {
           "name": "thumbnails_frame_id_uq",
-          "columns": [
-            "frame_id"
-          ],
+          "columns": ["frame_id"],
           "isUnique": true
         }
       },
@@ -1717,13 +1600,9 @@
         "thumbnails_frame_id_frames_id_fk": {
           "name": "thumbnails_frame_id_frames_id_fk",
           "tableFrom": "thumbnails",
-          "columnsFrom": [
-            "frame_id"
-          ],
+          "columnsFrom": ["frame_id"],
           "tableTo": "frames",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1789,9 +1668,7 @@
       "indexes": {
         "watch_folders_path_uq": {
           "name": "watch_folders_path_uq",
-          "columns": [
-            "path"
-          ],
+          "columns": ["path"],
           "isUnique": true
         }
       },

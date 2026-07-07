@@ -1,6 +1,6 @@
 # Spec: [P0-04] Database layer — Drizzle schema v1 and migration runner
 
-**Slug:** p0-04-db-layer   **Issue:** #4   **Plan:** docs/plans/p0-04-db-layer.md   **Date:** 2026-07-06
+**Slug:** p0-04-db-layer **Issue:** #4 **Plan:** docs/plans/p0-04-db-layer.md **Date:** 2026-07-06
 
 ## Definition of Done
 

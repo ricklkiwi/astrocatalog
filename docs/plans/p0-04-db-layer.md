@@ -1,6 +1,6 @@
 # Plan: [P0-04] Database layer — Drizzle schema v1 and migration runner
 
-**Slug:** p0-04-db-layer   **Issue:** #4   **Date:** 2026-07-05
+**Slug:** p0-04-db-layer **Issue:** #4 **Date:** 2026-07-05
 **Governing DDs:** DD-003 (database schema — primary), DD-001 (better-sqlite3 + Drizzle), DD-002 (layering: db owns SQLite; core stays pure)
 **Status:** READY_FOR_SPEC
 
@@ -44,7 +44,7 @@ notes rather than one FTS table per entity.
 - `packages/db/drizzle/0000_<name>.sql` + `drizzle/meta/*` — new; generated initial migration
   creating all tables and indexes
 - `packages/db/drizzle/0001_fts5_search.sql` — new; custom migration (`drizzle-kit generate
-  --custom`): `CREATE VIRTUAL TABLE search_fts USING fts5(...)` + sync triggers
+--custom`): `CREATE VIRTUAL TABLE search_fts USING fts5(...)` + sync triggers
 - `packages/db/src/bootstrap.ts` — new; `openDatabase(options)` — PRAGMAs, migration run,
   returns the closed-over handle
 - `packages/db/src/migrate.ts` — new; migration-runner wrapper resolving the `drizzle/`
@@ -97,6 +97,7 @@ weather_notes), `processing_projects` (name + notes).
 ## Implementation Steps
 
 ### Step 1 — Schema v1 + initial migration (with Drizzle tooling)
+
 **Outcome:** `packages/db` has real dependencies (`drizzle-orm`, `better-sqlite3`,
 `@types/better-sqlite3`, `drizzle-kit`) and a complete typed schema module for every DD-003
 table as specified in the Schema section above, with shared column helpers guaranteeing the
@@ -109,6 +110,7 @@ exported.
 **Depends on:** none
 
 ### Step 2 — FTS5 migration (virtual table + sync triggers)
+
 **Outcome:** A committed custom migration `drizzle/0001_fts5_search.sql` (created via
 `drizzle-kit generate --custom`) adds the `search_fts` FTS5 table and the twelve sync
 triggers (insert/update/delete × targets/target_aliases/sessions/processing_projects).
@@ -120,6 +122,7 @@ raw SQL, not in the Drizzle schema, so `generate` diffs ignore it).
 **Depends on:** Step 1
 
 ### Step 3 — UUIDv7 generator in `@astrotracker/core`
+
 **Outcome:** `uuidv7()` returns RFC 9562 version-7 UUID strings: 48-bit Unix-ms timestamp,
 version/variant bits correct, random tail, and monotonicity within the same millisecond
 (counter-increment strategy) so bulk inserts in one scan batch sort in creation order. A
@@ -133,6 +136,7 @@ dependencies; core stays pure (`node:crypto` randomness only — no fs, no Elect
 **Depends on:** none (parallel with Steps 1–2)
 
 ### Step 4 — Bootstrap and migration runner
+
 **Outcome:** `openDatabase({ filePath })` opens (creating parent directories for the DB file
 if absent), applies connection PRAGMAs in order — `journal_mode=WAL`,
 `busy_timeout=<default 5000ms>`, `foreign_keys=ON`, `synchronous=NORMAL` — verifies the
@@ -152,6 +156,7 @@ same file twice is safe (migrations idempotent, busy_timeout honored).
 **Depends on:** Steps 1–2
 
 ### Step 5 — Repository skeleton with typed helpers (no raw connection escape)
+
 **Outcome:** `openDatabase()` returns `AstroDatabase = { repos, transaction, close }` where
 the better-sqlite3 `Database` and the Drizzle instance are captured in a closure and appear
 nowhere on the public type. `repos` exposes one repository per aggregate (watchFolders,
@@ -172,16 +177,17 @@ of `better-sqlite3` types.
 **Depends on:** Steps 3–4
 
 ### Step 6 — Acceptance tests: migration round-trip and FTS5 search
+
 **Outcome:** Two integration test suites against a temp-directory DB file (created/removed
 per test):
-(a) *Round-trip:* `openDatabase()` on an empty path creates the full schema (assert every
+(a) _Round-trip:_ `openDatabase()` on an empty path creates the full schema (assert every
 DD-003 table exists via `sqlite_master`, spot-check the five DD-003 indexes); then insert a
 coherent fixture graph through the repositories — watch_folder → file → frame →
 target/filter/session/equipment_profile, a master_frame + master_frame_subs link, a
 processing_project + project_inputs (one frame input, one master input) — and read it back:
 `getById` on each, a `frames.list` filtered by target, and FK integrity (inserting a frame
 with a bogus `file_id` throws thanks to `foreign_keys=ON`).
-(b) *FTS search:* inserting a target named "M 31"/"Andromeda Galaxy" with alias "NGC 224",
+(b) _FTS search:_ inserting a target named "M 31"/"Andromeda Galaxy" with alias "NGC 224",
 a session with notes, and a project with notes makes all four findable via
 `repos.search.query(...)` (including prefix queries like `androm*`); updating the target's
 display_name changes results; deleting the alias removes its hit. This proves the triggers,
@@ -194,7 +200,7 @@ Fixture rows live in the test files (fixtures/ FITS samples are P0-06 and not ne
 ## Edge Cases
 
 - Two `openDatabase()` calls on the same file (e.g. app restarted while a stale process holds
-  the lock): `busy_timeout` must be set *before* the migration runs, and `migrate()` must be
+  the lock): `busy_timeout` must be set _before_ the migration runs, and `migrate()` must be
   idempotent — second open applies zero migrations, changes nothing.
 - In-memory DB (`:memory:`) silently ignores WAL (`journal_mode` stays `memory`): bootstrap
   must not treat this as an error, but WAL assertions in tests must use a real temp file.
@@ -217,7 +223,7 @@ Fixture rows live in the test files (fixtures/ FITS samples are P0-06 and not ne
   a test exercises the resolved path rather than hardcoding cwd.
 - Inserting a frame whose `file_id` already has a frame (rescan double-fire): UNIQUE(file_id)
   violation must surface as a typed constraint error, not silently overwrite.
-- `search_fts` DELETE triggers on `targets` must also remove that target's *alias* rows'
+- `search_fts` DELETE triggers on `targets` must also remove that target's _alias_ rows'
   FTS entries? No — alias rows are deleted by the `target_aliases` FK cascade/explicit
   delete, and each alias's own delete trigger cleans its FTS row; the plan wires
   `target_aliases.target_id` with `ON DELETE CASCADE` so orphaned alias FTS rows are
@@ -236,7 +242,7 @@ Fixture rows live in the test files (fixtures/ FITS samples are P0-06 and not ne
       migrations (two noted, justified exceptions: `settings` natural key; Drizzle's own
       migrations bookkeeping table)
 - [x] Timestamps stored UTC — INTEGER epoch-ms columns everywhere;
-      `sessions.session_date` is a local astronomical *date label* per DD-002 rule 4/DD-006,
+      `sessions.session_date` is a local astronomical _date label_ per DD-002 rule 4/DD-006,
       not a timestamp
 - [x] Long-running work goes through the worker job queue — N/A here (no scanning/hashing in
       this issue); the synchronous better-sqlite3 API is exactly what DD-001 prescribes for
