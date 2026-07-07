@@ -8,6 +8,13 @@
       "when": 1783376901687,
       "tag": "0000_numerous_dreadnoughts",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1783376942630,
+      "tag": "0001_fts5_search",
+      "breakpoints": true
     }
   ]
 }
