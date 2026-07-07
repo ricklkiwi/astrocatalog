@@ -11,3 +11,4 @@ all-issues.json
 
 # Default output directory of the bulk synthetic fixture generator (P0-06)
 fixtures/generated/
+packages/desktop/out/
