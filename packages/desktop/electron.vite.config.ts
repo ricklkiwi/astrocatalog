@@ -19,4 +19,17 @@ export default defineConfig({
       },
     },
   },
+  preload: {
+    build: {
+      rollupOptions: {
+        input: { index: resolve(import.meta.dirname, 'src/preload/index.ts') },
+        output: {
+          // sandbox: true preloads cannot use the ESM loader; force CJS even
+          // though the package is "type": "module" (plan Edge Cases).
+          format: 'cjs',
+          entryFileNames: '[name].cjs',
+        },
+      },
+    },
+  },
 });

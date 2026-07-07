@@ -34,6 +34,7 @@ function createWindow(): void {
     height: 640,
     show: false,
     webPreferences: {
+      preload: path.join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
