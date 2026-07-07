@@ -1,7 +1,9 @@
 /**
- * Placeholder export proving the `core` package builds, lints, and tests
- * under the shared toolchain. Real domain logic (parsers, catalog) lands in Phase 1.
+ * Public surface of `@astrotracker/core` — pure domain logic only
+ * (DD-002 rule 1: no Electron, no fs side effects).
  */
+export { isUuid, uuidv7 } from './ids/uuidv7.js';
+
 export const coreVersion = '0.1.0';
 
 /** Returns a human-readable identifier for this package. */
