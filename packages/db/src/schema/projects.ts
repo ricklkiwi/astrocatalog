@@ -44,10 +44,7 @@ export const projectInputs = sqliteTable(
       'project_inputs_exactly_one_check',
       sql`(${t.inputType} = 'frame' AND ${t.frameId} IS NOT NULL AND ${t.masterFrameId} IS NULL) OR (${t.inputType} = 'master_frame' AND ${t.masterFrameId} IS NOT NULL AND ${t.frameId} IS NULL)`,
     ),
-    check(
-      'project_inputs_input_type_check',
-      sql`${t.inputType} IN ('frame', 'master_frame')`,
-    ),
+    check('project_inputs_input_type_check', sql`${t.inputType} IN ('frame', 'master_frame')`),
   ],
 );
 
