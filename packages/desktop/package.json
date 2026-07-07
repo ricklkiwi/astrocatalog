@@ -5,6 +5,13 @@
   "description": "AstroTracker Electron app — main process, preload, typed IPC contract",
   "type": "module",
   "main": "./out/main/index.js",
+  "types": "./src/ipc/contract.ts",
+  "exports": {
+    ".": {
+      "types": "./src/ipc/contract.ts",
+      "default": "./out/main/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json && electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
