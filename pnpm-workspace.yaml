@@ -3,3 +3,4 @@ packages:
   - packages/db
   - packages/desktop
   - packages/desktop/renderer
+  - fixtures

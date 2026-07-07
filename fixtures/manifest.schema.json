@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "astrotracker://fixtures/manifest.schema.json",
+  "title": "AstroTracker fixture-set manifest",
+  "description": "Contract for fixtures/{fits,xisf,raw}/manifest.json. Every fixture file has exactly one entry; `expected` is the parse contract the P1-01/P1-02/P1-03 parsers are acceptance-tested against.",
+  "type": "object",
+  "required": ["set", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "set": {
+      "description": "Which fixture set this manifest describes.",
+      "enum": ["fits", "xisf", "raw"]
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/entry" }
+    }
+  },
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "required": ["file", "format", "description", "provenance", "expected"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "description": "Path of the fixture file relative to the fixtures/ package root, e.g. fits/nina/nina-light-mono-ha.fits",
+          "type": "string",
+          "minLength": 1
+        },
+        "format": { "enum": ["fits", "xisf", "raw"] },
+        "description": { "type": "string", "minLength": 1 },
+        "provenance": { "$ref": "#/definitions/provenance" },
+        "expected": {
+          "oneOf": [
+            { "$ref": "#/definitions/expectedOk" },
+            { "$ref": "#/definitions/expectedError" }
+          ]
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["method", "sources", "license", "date"],
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "description": "synthesized-to-conventions: authored in-repo byte-exactly to a program's publicly documented header conventions (cite docs in sources). user-captured: a real file captured by a user who granted a license. cc0-import: imported from an existing CC0 corpus.",
+          "enum": ["synthesized-to-conventions", "user-captured", "cc0-import"]
+        },
+        "program": {
+          "description": "Capture/processing program whose conventions the fixture follows (omit for pure format edge/malformed cases).",
+          "type": "string",
+          "minLength": 1
+        },
+        "emulatesVersion": {
+          "description": "Program version whose documented conventions are emulated.",
+          "type": "string",
+          "minLength": 1
+        },
+        "sources": {
+          "description": "Public documentation URLs the header conventions were derived from.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^https?://" }
+        },
+        "license": { "type": "string", "minLength": 1 },
+        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "method": { "const": "synthesized-to-conventions" } } },
+          "then": { "properties": { "sources": { "minItems": 1 } } }
+        }
+      ]
+    },
+    "expectedOk": {
+      "type": "object",
+      "required": ["status", "keywords"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "const": "ok" },
+        "keywords": {
+          "description": "Typed values a conforming parser must extract. Covers at minimum every PRD 8.2 critical keyword physically present in the file. null means the parser must report the field as absent (e.g. OBJECT/FILTER for RAW).",
+          "type": "object",
+          "additionalProperties": { "type": ["string", "number", "boolean", "null"] }
+        },
+        "cardCount": {
+          "description": "FITS only: number of 80-char cards including the END card.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "headerBytes": {
+          "description": "Size in bytes of the header region (FITS: multiple of 2880; XISF: 16-byte signature header + XML).",
+          "type": "integer",
+          "minimum": 1
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "expectedError": {
+      "type": "object",
+      "required": ["status", "errorCode"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "const": "error" },
+        "errorCode": {
+          "description": "Closed enum of structured parse-error codes (DD-004: malformed input produces structured errors, never throws across a worker boundary, never aborts a batch).",
+          "enum": [
+            "TRUNCATED_HEADER",
+            "MISSING_END",
+            "INVALID_CARD",
+            "BAD_CONTINUE",
+            "NOT_FITS",
+            "EMPTY_FILE",
+            "MALFORMED_XML",
+            "BAD_SIGNATURE",
+            "UNRECOGNIZED_RAW"
+          ]
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

@@ -4,3 +4,12 @@
 # endOfLine) would fail on every file — an OS-dependent false red.
 # Binary exceptions (e.g. FITS/XISF fixtures) get added here as they arrive.
 * text=auto eol=lf
+
+# Fixture binaries (P0-06): git must never rewrite bytes (e.g. CRLF conversion
+# on Windows checkouts) or every determinism/structure test fails on one CI leg.
+*.fits binary
+*.xisf binary
+*.cr2 binary
+*.cr3 binary
+*.nef binary
+*.arw binary

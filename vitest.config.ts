@@ -22,6 +22,7 @@ export default defineConfig({
           include: ['src/**/*.test.ts'],
         },
       },
+      { test: { name: 'fixtures', root: './fixtures', include: ['src/**/*.test.ts'] } },
     ],
   },
 });

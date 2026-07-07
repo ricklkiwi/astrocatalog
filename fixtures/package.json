@@ -1,0 +1,21 @@
+{
+  "name": "@astrotracker/fixtures",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Test fixture corpus, authoring tooling, and bulk synthetic generator (P0-06). Dev-only workspace member — never shipped.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src && prettier --check src manifest.schema.json README.md",
+    "test": "vitest run --dir src",
+    "author": "tsx src/author.ts",
+    "generate": "tsx src/generate.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "ajv": "^8.17.1",
+    "exifr": "^7.1.3",
+    "fast-xml-parser": "^4.5.0",
+    "tsx": "^4.20.0"
+  }
+}
