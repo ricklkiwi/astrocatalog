@@ -19,12 +19,12 @@ Goal of `matchCalibration(lights, masters, config)`: for a set of lights, score 
 
 ### Hard requirements (must match, else score 0)
 
-| Master type | Camera | Temp | Exposure | Gain/Offset | Binning | Filter | Optical train |
-|---|---|---|---|---|---|---|---|
-| Dark | ✔ | ±2 °C (config) | ✔ (or scalable*) | ✔ | ✔ | — | — |
-| Bias | ✔ | soft | — | ✔ | ✔ | — | — |
-| Flat | ✔ | soft | — | soft | ✔ | ✔ | ✔ same profile |
-| DarkFlat | ✔ | ±2 °C | ✔ match flat exp | ✔ | ✔ | — | — |
+| Master type | Camera | Temp           | Exposure         | Gain/Offset | Binning | Filter | Optical train  |
+| ----------- | ------ | -------------- | ---------------- | ----------- | ------- | ------ | -------------- |
+| Dark        | ✔      | ±2 °C (config) | ✔ (or scalable*) | ✔           | ✔       | —      | —              |
+| Bias        | ✔      | soft           | —                | ✔           | ✔       | —      | —              |
+| Flat        | ✔      | soft           | —                | soft        | ✔       | ✔      | ✔ same profile |
+| DarkFlat    | ✔      | ±2 °C          | ✔ match flat exp | ✔           | ✔       | —      | —              |
 
 \* exposure-scaled dark matching is v1.x, flagged as "scaled" in UI.
 

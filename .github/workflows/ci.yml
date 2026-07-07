@@ -1,0 +1,68 @@
+# CI quality gate (P0-02): install → typecheck/build → lint → unit tests
+# on ubuntu/windows/macos. Branch protection requires the aggregate `ci-ok`
+# job (see CONTRIBUTING.md), not the individual matrix legs.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # No `version` input: pnpm/action-setup reads the pinned pnpm version
+      # from the root package.json `packageManager` field — single source of
+      # truth, no drift.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Build first: it is the typecheck (per-package `tsc -p` in dependency
+      # order) and produces the dist/ output that workspace-linked imports in
+      # db/desktop tests resolve against. Order is load-bearing.
+      - name: Build (typecheck)
+        run: pnpm -r build
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+  # Aggregate gate: the one stable required status check for branch
+  # protection. `if: always()` is required — without it this job would be
+  # skipped (not failed) when a leg fails, and a skipped required check does
+  # not block a merge.
+  ci-ok:
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless every matrix leg succeeded
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "test matrix result: ${{ needs.test.result }}"
+            exit 1
+          fi
+          echo "All matrix legs succeeded."

@@ -1,6 +1,6 @@
 # Plan: [Backlog] Scope package names to @astrotracker/* before real deps land
 
-**Slug:** backlog-44-scoped-names   **Issue:** #44   **Date:** 2026-07-05
+**Slug:** backlog-44-scoped-names **Issue:** #44 **Date:** 2026-07-05
 **Governing DDs:** DD-002 (application architecture / package layout — layering and dependency
 direction are unaffected by this rename)
 **Status:** READY_FOR_SPEC
@@ -37,6 +37,7 @@ both key off directory paths, not package names — confirmed by inspection belo
   are unchanged since directories don't move
 
 Not touched (verified, reasons noted):
+
 - `vitest.workspace.ts` — project `name` fields (`'core'`, `'db'`, `'desktop'`, `'renderer'`)
   are Vitest project labels keyed to `root` paths, not npm package names; no collision risk,
   no functional coupling to `package.json#name`. Left as-is to keep the diff minimal — renaming
@@ -52,6 +53,7 @@ Not touched (verified, reasons noted):
 ## Implementation Steps
 
 ### Step 1 — Rename package identities in the four `package.json` files
+
 - **Outcome:** Each of the four workspace packages declares its scoped name
   (`@astrotracker/core`, `@astrotracker/db`, `@astrotracker/desktop`, `@astrotracker/renderer`)
   as `package.json#name`. Internal `workspace:*` dependency entries in `packages/db/package.json`
@@ -63,6 +65,7 @@ Not touched (verified, reasons noted):
 - **Depends on:** none
 
 ### Step 2 — Update source imports to the scoped specifiers
+
 - **Outcome:** `packages/db/src/index.ts` and `packages/desktop/src/index.ts` import from
   `@astrotracker/core` (and `@astrotracker/db` in desktop's case) instead of the bare `core`/`db`
   specifiers, so the code resolves against the renamed packages once dependencies are
@@ -71,12 +74,14 @@ Not touched (verified, reasons noted):
 - **Depends on:** Step 1
 
 ### Step 3 — Regenerate the lockfile
+
 - **Outcome:** `pnpm-lock.yaml` reflects the new package names and workspace links with no
   drift; `pnpm install` completes without needing `--no-frozen-lockfile` or manual edits.
 - **Files:** `pnpm-lock.yaml` (regenerated, not hand-edited)
 - **Depends on:** Step 1 (run `pnpm install` from repo root after the `package.json` renames)
 
 ### Step 4 — Update README package-layout references
+
 - **Outcome:** The package-layout table and prose in `README.md` describe dependencies using
   the scoped names (`@astrotracker/core`, `@astrotracker/db`) so the doc matches the actual
   `package.json` dependency declarations. Directory-path references stay as `packages/core`,
@@ -85,6 +90,7 @@ Not touched (verified, reasons noted):
 - **Depends on:** Step 1
 
 ### Step 5 — Verify the gate
+
 - **Outcome:** `pnpm install && pnpm -r build && pnpm -r lint && pnpm -r test` all pass,
   confirming the rename didn't break module resolution, the `core`-purity ESLint rule (still
   path-scoped, unaffected), or the placeholder unit tests (which assert on `coreVersion`/
@@ -106,18 +112,18 @@ Not touched (verified, reasons noted):
   left as `core`, `pnpm install` won't create the `@astrotracker/core` link and the build fails
   with a clear module-not-found error rather than resolving to something unintended — so Steps
   1 and 2 must land together, not independently, before running install.
-- **`workspace:*` value vs. key:** only the dependency *key* (package name) changes; the
-  `workspace:*` specifier *value* must NOT be rewritten to `workspace:@astrotracker/core:*` or
+- **`workspace:*` value vs. key:** only the dependency _key_ (package name) changes; the
+  `workspace:*` specifier _value_ must NOT be rewritten to `workspace:@astrotracker/core:*` or
   similar — `workspace:*` is a protocol specifier keyed by the dependency name itself.
 
 ## Invariant Checklist
 
 - [x] Non-destructive: no code path writes/moves/renames/deletes user image files — N/A,
-  this change touches only package manifests, one import line each in two files, the
-  lockfile, and README prose.
+      this change touches only package manifests, one import line each in two files, the
+      lockfile, and README prose.
 - [x] Layering: no change to `packages/core` purity or the dependency direction
-  (`core` ← `db` ← `desktop`, `renderer` independent) — only the names used to express those
-  edges change, not the edges themselves.
+      (`core` ← `db` ← `desktop`, `renderer` independent) — only the names used to express those
+      edges change, not the edges themselves.
 - [x] DB: no schema/table changes.
 - [x] Timestamps: N/A.
 - [x] Long-running work: N/A, no worker/queue code touched.

@@ -1,6 +1,6 @@
 # Spec: [P0-01] Initialize monorepo with TypeScript, lint, and package structure
 
-**Slug:** p0-01-monorepo-init   **Issue:** #1   **Plan:** docs/plans/p0-01-monorepo-init.md   **Date:** 2026-07-05
+**Slug:** p0-01-monorepo-init **Issue:** #1 **Plan:** docs/plans/p0-01-monorepo-init.md **Date:** 2026-07-05
 
 ## Definition of Done
 
@@ -22,23 +22,28 @@
 - [ ] Given `fixtures/README.md`, when read, then it exists, states no fixture data is present yet, and points to P0-06 as the issue that populates it.
 
 ### Data Integrity
+
 - [ ] N/A — no database schema, table, or migration is introduced by this issue (schema work starts at P0-04).
 
 ### Core Invariants
+
 - [ ] No code path in the diff writes, moves, renames, or deletes files outside the app-data directory — N/A, this issue introduces no file-system logic beyond the scaffold/tooling files themselves.
 - [ ] New domain logic is in packages/core with no Electron/fs imports — applies: verified by the empty `dependencies` field, the import scan, and the ESLint `no-restricted-imports` rule above.
 - [ ] All persisted timestamps are UTC — N/A, no persisted data exists in this issue.
 - [ ] Manual user overrides survive a rescan — N/A, no assignment or scanning logic exists in this issue.
 
 ### Performance
+
 - [ ] N/A — this issue touches no scanning, query, thumbnail, or UI-list code path; no benchmark harness exists yet (P0-07).
 
 ### Tests
+
 - [ ] Each package (`core`, `db`, `desktop`, `desktop/renderer`) ships exactly one `src/index.test.ts` with one passing Vitest test exercising its placeholder export; test names must not be copy-pasted identically across packages (Edge Case: ambiguous CI triage).
 - [ ] `pnpm -r test` passes with these four placeholder tests as the only tests in the repo (no pre-existing tests to regress).
 - [ ] E2E: N/A — no UI surface exists in this issue (Playwright harness is P0-08).
 
 ## Out of Scope
+
 - GitHub Actions CI workflow / branch protection (P0-02) — the Reviewer must not require a CI config file to exist yet, only that the commands it will invoke succeed locally.
 - Any Electron runtime code, preload script, typed IPC contract, or Vite dev server wiring for the renderer (P0-03) — `packages/desktop` and `packages/desktop/renderer` need only placeholder exports, not a real Electron entry point or React app.
 - Drizzle schema, migrations, UUIDv7 generator, repository layer (P0-04) — `packages/db`'s placeholder must not include real schema code.
@@ -50,6 +55,7 @@
 - Exact wording/formatting of the README layering section beyond covering the dependency direction and core purity — the Reviewer should not nitpick prose style.
 
 ## Test Hints
+
 - **clean-install**: from a checkout with `node_modules` removed at every workspace level, run `pnpm install && pnpm -r build && pnpm -r lint && pnpm -r test` as one chained command (not per-package `pnpm build`/`pnpm lint`/`pnpm test` run manually inside a package dir); assert exit code 0 for the whole chain.
 - **workspace-member-count**: run `pnpm -r list --depth -1 --json`, assert the result contains exactly four entries with names/paths matching `packages/core`, `packages/db`, `packages/desktop`, `packages/desktop/renderer`.
 - **core-purity-static**: `grep -rn "from 'electron'\|from 'fs'\|from 'node:fs" packages/core/src` returns no matches; and `packages/core/package.json`'s `dependencies` key is `{}` or absent.

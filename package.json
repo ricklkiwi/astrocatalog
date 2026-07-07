@@ -10,8 +10,10 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
+    "typecheck": "pnpm -r build",
+    "lint": "pnpm run lint:root && pnpm -r lint",
+    "lint:root": "eslint eslint.config.mjs vitest.config.ts && prettier --check .",
+    "test": "vitest run",
     "format": "prettier --write ."
   },
   "devDependencies": {

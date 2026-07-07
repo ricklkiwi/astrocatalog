@@ -1,6 +1,6 @@
 # Plan: [P0-01] Initialize monorepo with TypeScript, lint, and package structure
 
-**Slug:** p0-01-monorepo-init   **Issue:** #1   **Date:** 2026-07-05
+**Slug:** p0-01-monorepo-init **Issue:** #1 **Date:** 2026-07-05
 **Governing DDs:** DD-001 (tech stack), DD-002 (application architecture / module layout)
 **Status:** READY_FOR_SPEC
 
@@ -43,6 +43,7 @@ all of Phase 1 depend on this landing first).
 ## Implementation Steps
 
 ### Step 1 — Workspace and shared tooling skeleton
+
 **Outcome:** `pnpm install` succeeds at the repo root; a single source of truth exists for
 TypeScript strictness, lint rules, formatting, and the Node/pnpm version every package and CI
 job (P0-02) will use.
@@ -52,6 +53,7 @@ exact pnpm version and an `engines.node` range), `tsconfig.base.json`, `eslint.c
 **Depends on:** none
 
 ### Step 2 — `packages/core` scaffold (pure domain package)
+
 **Outcome:** A buildable, lintable, testable TypeScript package with zero runtime dependencies
 and no dependency on `electron` or Node's `fs`; this is the package DD-002 rule 1 governs, so
 its scaffold is the one that proves the "purity" constraint is mechanically enforced, not just
@@ -63,6 +65,7 @@ workspace root), `packages/core/tsconfig.json` (extends base), `packages/core/sr
 **Depends on:** Step 1
 
 ### Step 3 — `packages/db` scaffold
+
 **Outcome:** A buildable, lintable, testable package that depends on `core` via the pnpm
 `workspace:*` protocol, establishing the intended dependency direction (`db` → `core`, never
 the reverse) ahead of the real Drizzle schema work in P0-04.
@@ -71,6 +74,7 @@ the reverse) ahead of the real Drizzle schema work in P0-04.
 **Depends on:** Step 2
 
 ### Step 4 — `packages/desktop` scaffold (main process shell)
+
 **Outcome:** A buildable, lintable, testable package representing the future Electron main
 process, depending on `core` and `db` via `workspace:*`. No Electron dependency is added yet
 (that begins in P0-03) — this step only proves the package exists at the right place in the
@@ -80,6 +84,7 @@ graph with the right build/lint/test wiring.
 **Depends on:** Step 3
 
 ### Step 5 — `packages/desktop/renderer` scaffold (nested workspace member)
+
 **Outcome:** A separate pnpm workspace package nested under `desktop/`, so renderer-only
 tooling (React/Vite, added in P0-03) never bleeds into the main-process package's dependency
 tree and vice versa. Builds, lints, and tests independently of its parent `desktop` package.
@@ -89,6 +94,7 @@ tree and vice versa. Builds, lints, and tests independently of its parent `deskt
 to main via IPC, added in P0-03, so no workspace dependency edge is created here)
 
 ### Step 6 — `fixtures/` placeholder directory
+
 **Outcome:** The directory DD-002 and P0-06 expect exists in the repo with a short README
 describing its future contents (real-world FITS/XISF/RAW header samples + manifest JSON), so
 P0-06 has a home to populate without also needing to create the directory.
@@ -96,6 +102,7 @@ P0-06 has a home to populate without also needing to create the directory.
 **Depends on:** none
 
 ### Step 7 — Root scripts and cross-package verification
+
 **Outcome:** `pnpm install && pnpm -r build && pnpm -r lint && pnpm -r test` all succeed from a
 clean checkout, run in dependency order, and the root `README.md` documents the package
 boundaries and layering rules from DD-002 (which package may depend on which, and why
