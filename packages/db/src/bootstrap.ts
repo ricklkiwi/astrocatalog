@@ -19,6 +19,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 
 import { isFts5Available } from './fts5-support.js';
 import { runMigrations } from './migrate.js';
+import { createRepositories, type Repositories } from './repositories/index.js';
 
 type SqliteConnection = InstanceType<typeof Database>;
 
@@ -33,12 +34,14 @@ export interface OpenDatabaseOptions {
   busyTimeoutMs?: number;
 }
 
-/**
- * The only handle callers ever see — no raw connection, no Drizzle instance.
- * The repository surface (`repos`, `transaction`) is attached in the
- * repository-skeleton step.
- */
+/** The only handle callers ever see — no raw connection, no Drizzle instance. */
 export interface AstroDatabase {
+  repos: Repositories;
+  /**
+   * Run `fn` inside a synchronous better-sqlite3 transaction (DD-001:
+   * synchronous API, single writer). `fn` receives the same repos object.
+   */
+  transaction<T>(fn: (repos: Repositories) => T): T;
   close(): void;
 }
 
@@ -83,8 +86,13 @@ export function openDatabase(options: OpenDatabaseOptions): AstroDatabase {
   try {
     const db = drizzle(connection);
     runMigrations(db);
+    const repos = createRepositories(db);
 
     return {
+      repos,
+      transaction<T>(fn: (repos: Repositories) => T): T {
+        return connection.transaction(() => fn(repos))();
+      },
       close(): void {
         connection.close();
       },
