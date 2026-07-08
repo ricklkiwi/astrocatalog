@@ -1,6 +1,6 @@
 # Plan: [P0-03] Electron shell with typed IPC and packaged builds
 
-**Slug:** p0-03-electron-shell   **Issue:** #3   **Date:** 2026-07-05
+**Slug:** p0-03-electron-shell **Issue:** #3 **Date:** 2026-07-05
 **Governing DDs:** DD-001 (tech stack), DD-002 (application architecture / layering rules)
 **Status:** READY_FOR_SPEC
 
@@ -97,6 +97,7 @@ whole integration contract.
 ## Implementation Steps
 
 ### Step 1 — Electron main process boots a secure window
+
 **Outcome:** `packages/desktop` owns an Electron dependency and a main-process entry that opens
 a `BrowserWindow` hardened per Electron security guidance: `contextIsolation: true`,
 `sandbox: true`, `nodeIntegration: false`, webSecurity on, all `window.open`/navigation denied
@@ -108,6 +109,7 @@ bundle. App quits on all-windows-closed (except macOS convention).
 **Depends on:** none
 
 ### Step 2 — Typed IPC contract with `app.version`
+
 **Outcome:** A single contract module defines the IPC surface as data + types: channel name
 `app.version`, input `void`, output an object carrying app version, Electron/Chrome/Node
 versions, platform, and (after Step 6) the loaded SQLite version. Main-process registration is
@@ -121,6 +123,7 @@ type at runtime shape level.
 **Depends on:** Step 1
 
 ### Step 3 — Preload bridge exposing only the typed API
+
 **Outcome:** A sandboxed CJS preload exposes exactly one global (`window.astrotracker`) via
 `contextBridge.exposeInMainWorld`. The exposed object offers a typed `invoke` keyed to contract
 channel names, backed by a hard whitelist — invoking any channel outside the contract throws in
@@ -130,6 +133,7 @@ the page. This is the acceptance criterion "preload exposes only the typed API" 
 **Depends on:** Step 2
 
 ### Step 4 — React renderer calls `app.version` over the bridge
+
 **Outcome:** The renderer package becomes a real React 18 + Vite app. An ambient `window.d.ts`
 types `window.astrotracker` using `import type` from the desktop contract (types only — erased
 at compile time; ESLint forbids value imports across this boundary). A thin `ipc.ts` client
@@ -143,6 +147,7 @@ has coverage without Electron (real-process E2E is P0-08's job).
 **Depends on:** Step 3
 
 ### Step 5 — `pnpm dev` with hot reload, wired through electron-vite
+
 **Outcome:** `pnpm dev` at the repo root starts one command that builds main + preload, boots
 the Vite dev server for `renderer/`, and launches Electron against it. Editing renderer code
 hot-replaces modules without app restart; editing main restarts Electron; editing preload
@@ -155,6 +160,7 @@ native modules. First acceptance criterion is demonstrable after this step.
 **Depends on:** Step 4
 
 ### Step 6 — Native modules present and provably rebuilt
+
 **Outcome:** `better-sqlite3` and `sharp` are dependencies of `@astrotracker/desktop`,
 externalized from the bundle. At startup the main process opens an in-memory SQLite database and
 reads `sqlite_version()`, and reads `sharp`'s versions object; both land in the `app.version`
@@ -168,6 +174,7 @@ two version fields), renderer `App.tsx`/test updated for the richer payload
 **Depends on:** Steps 2, 5
 
 ### Step 7 — electron-builder packaging: Win NSIS + mac DMG, unsigned
+
 **Outcome:** `pnpm package` at the repo root runs the production electron-vite build then
 electron-builder for the host OS: on Windows an NSIS x64 installer, on macOS a DMG for the host
 arch, both unsigned (`mac.identity: null`; no Windows cert configured). `npmRebuild: true`
@@ -182,6 +189,7 @@ script), root `package.json` (`package` script), `.gitignore` (add `packages/des
 **Depends on:** Steps 5, 6
 
 ### Step 8 — CI packaging integration point + docs
+
 **Outcome:** The repository documents the exact contract the P0-02 packaging workflow stub needs
 — run `pnpm install`, `pnpm package` on `windows-latest` and `macos-latest`, upload
 `packages/desktop/release/*.exe` and `*.dmg` — without this issue creating or editing any
