@@ -3,6 +3,7 @@ import { asistudioDefs } from './asistudio.js';
 import { edgeDefs } from './edge.js';
 import { malformedDefs } from './malformed.js';
 import { ninaDefs } from './nina.js';
+import { rawDefs as rawFixtureDefs } from './raw.js';
 import { sgproDefs } from './sgpro.js';
 import { sharpcapDefs } from './sharpcap.js';
 import { voyagerDefs } from './voyager.js';
@@ -32,7 +33,7 @@ export const fitsDefs: FixtureDef[] = [
 ];
 
 export const xisfDefs: FixtureDef[] = [...xisfFixtureDefs];
-export const rawDefs: FixtureDef[] = [];
+export const rawDefs: FixtureDef[] = [...rawFixtureDefs];
 
 export const allSets: ReadonlyArray<{ set: 'fits' | 'xisf' | 'raw'; defs: FixtureDef[] }> = [
   { set: 'fits', defs: fitsDefs },
