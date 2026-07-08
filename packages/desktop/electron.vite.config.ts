@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 
+import react from '@vitejs/plugin-react';
 import { defineConfig } from 'electron-vite';
 
 /**
@@ -29,6 +30,16 @@ export default defineConfig({
           format: 'cjs',
           entryFileNames: '[name].cjs',
         },
+      },
+    },
+  },
+  renderer: {
+    root: resolve(import.meta.dirname, 'renderer'),
+    plugins: [react()],
+    build: {
+      outDir: resolve(import.meta.dirname, 'out/renderer'),
+      rollupOptions: {
+        input: resolve(import.meta.dirname, 'renderer/index.html'),
       },
     },
   },

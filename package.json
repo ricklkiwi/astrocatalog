@@ -9,6 +9,7 @@
     "node": "^24"
   },
   "scripts": {
+    "dev": "pnpm --filter @astrotracker/desktop dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r build",
     "lint": "pnpm run lint:root && pnpm -r lint",
