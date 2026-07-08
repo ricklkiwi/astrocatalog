@@ -24,7 +24,7 @@ export const SRC = {
   /** XISF 1.0 specification. */
   XISF_SPEC: 'https://pixinsight.com/xisf/',
   /** EXIF tag reference. */
-  EXIF_TAGS: 'https://exiftool.org/TagNames/EXIF.html',
+  EXIF_TAGS: 'https://exiftool.sourceforge.net/TagNames/EXIF.html',
   /** Community documentation of the Canon CR3 ISO-BMFF container. */
   CR3_STRUCT: 'https://github.com/lclevy/canon_cr3',
 } as const;

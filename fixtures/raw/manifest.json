@@ -9,7 +9,7 @@
         "method": "synthesized-to-conventions",
         "program": "Canon EOS (CR2)",
         "sources": [
-          "https://exiftool.org/TagNames/EXIF.html"
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
         ],
         "license": "CC0-1.0",
         "date": "2026-07-06"
@@ -37,7 +37,7 @@
         "method": "synthesized-to-conventions",
         "program": "Nikon (NEF)",
         "sources": [
-          "https://exiftool.org/TagNames/EXIF.html"
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
         ],
         "license": "CC0-1.0",
         "date": "2026-07-06"
@@ -65,7 +65,7 @@
         "method": "synthesized-to-conventions",
         "program": "Sony (ARW)",
         "sources": [
-          "https://exiftool.org/TagNames/EXIF.html"
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
         ],
         "license": "CC0-1.0",
         "date": "2026-07-06"
@@ -93,7 +93,7 @@
         "program": "Canon EOS (CR3)",
         "sources": [
           "https://github.com/lclevy/canon_cr3",
-          "https://exiftool.org/TagNames/EXIF.html"
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
         ],
         "license": "CC0-1.0",
         "date": "2026-07-06"
@@ -120,7 +120,7 @@
       "provenance": {
         "method": "synthesized-to-conventions",
         "sources": [
-          "https://exiftool.org/TagNames/EXIF.html"
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
         ],
         "license": "CC0-1.0",
         "date": "2026-07-06"
@@ -138,7 +138,7 @@
       "provenance": {
         "method": "synthesized-to-conventions",
         "sources": [
-          "https://exiftool.org/TagNames/EXIF.html"
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
         ],
         "license": "CC0-1.0",
         "date": "2026-07-06"
