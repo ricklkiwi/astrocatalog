@@ -2,20 +2,26 @@
   "name": "@astrotracker/renderer",
   "version": "0.1.0",
   "private": true,
-  "description": "AstroTracker React UI — independent workspace member; talks to main only via typed IPC (from P0-03)",
+  "description": "AstroTracker React UI — independent workspace member; talks to main only via typed IPC. Built/served by electron-vite from the desktop package; @astrotracker/desktop is a type-only devDependency (IPC contract types, erased at build).",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "lint": "eslint src && prettier --check src",
-    "test": "vitest run --dir src"
+    "build": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src vitest.config.ts && prettier --check src vitest.config.ts index.html",
+    "test": "vitest run"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@astrotracker/desktop": "workspace:*",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^5.2.0",
+    "jsdom": "^29.1.1",
+    "vite": "^7.3.6"
+  }
 }
