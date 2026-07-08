@@ -1,6 +1,6 @@
 # Spec: [P0-06] Fixtures library of real-world file headers
 
-**Slug:** p0-06-fixtures-library   **Issue:** #6   **Plan:** docs/plans/p0-06-fixtures-library.md   **Date:** 2026-07-06
+**Slug:** p0-06-fixtures-library **Issue:** #6 **Plan:** docs/plans/p0-06-fixtures-library.md **Date:** 2026-07-06
 
 ## Definition of Done
 
@@ -34,20 +34,24 @@
 - [ ] Given `vitest.workspace.ts`, when read, then it includes a project entry for the `fixtures` package so `pnpm -r test` executes its suite.
 
 ### Data Integrity
+
 - [ ] N/A — no database schema, table, or migration is introduced by this issue (fixtures are static files + JSON manifests, no runtime DB code).
 - [ ] `fixtures/manifest.schema.json` is the closed contract for manifest shape: `file`, `format` (`fits|xisf|raw`), `description`, `provenance` (`method`, `program`, `emulatesVersion`, `sources[]`, `license`, `date`), `expected` (`{status:"ok", keywords, cardCount, headerBytes, notes}` or `{status:"error", errorCode}` with the closed enum `TRUNCATED_HEADER | MISSING_END | INVALID_CARD | BAD_CONTINUE | NOT_FITS | EMPTY_FILE | MALFORMED_XML | BAD_SIGNATURE | UNRECOGNIZED_RAW`) — validated as a rule before any manifest is considered committed (Step 8 schema test).
 - [ ] Every manifest entry's `expected.errorCode` (when `status: "error"`) is one of the closed enum values; the Reviewer rejects any manifest using an errorCode string not in the schema enum.
 
 ### Core Invariants
+
 - [ ] No code path in the diff writes, moves, renames, or deletes files outside `fixtures/` (committed sets) or the generator's explicit `--out` directory — Reviewer greps `fixtures/src/**` for `fs.write*`/`fs.rename*`/`fs.unlink*`/`fs.rm*` calls and verifies every target path is derived from `fixtures/` or the `--out` CLI argument, never from a hardcoded external or ambient path.
 - [ ] New domain logic is in packages/core with no Electron/fs imports — N/A/adapted: this issue introduces no `packages/core` changes at all; instead, Reviewer verifies `fixtures/src/lib/{fits,xisf,tiff-exif,prng}.ts` (the builder libraries) contain no `fs`/`node:fs`/`electron` imports — they are pure Buffer-in/Buffer-out functions; fs usage is confined to `fixtures/src/author.ts` and `fixtures/src/generate.ts` only.
 - [ ] All persisted timestamps are UTC — applies: every DATE-OBS value across all committed FITS/XISF fixtures is UTC; DATE-LOC fixtures exist specifically as a negative-control (Reviewer spot-checks at least one N.I.N.A. and one SGPro fixture where DATE-OBS ≠ DATE-LOC, confirming they are genuinely different values, not copies).
 - [ ] Manual user overrides (target/filter/type/session assignments) survive a rescan — N/A, this issue has no scanning, assignment, or session logic; it ships static test data only.
 
 ### Performance
+
 - [ ] N/A for this issue directly — no scanning, query, thumbnail, or UI-list code path is touched. However, the generator's determinism and non-destructive `--out` guarantees are a hard prerequisite for P0-07's benchmark harness; Reviewer confirms the generator can produce 10,000 files (smoke-run with a smaller count, e.g. 1,000, is acceptable for this issue's own test suite — a full 10k timed run is P0-07's concern, not this issue's).
 
 ### Tests
+
 - [ ] Table-driven unit tests in `fixtures/src/lib/fits.test.ts` cover: 80-char card serialization/padding, string quoting with `''` escaping, CONTINUE + LONGSTRN emission, COMMENT/HISTORY/blank cards, END card placement at block boundaries (36th vs 37th card), and deliberate breakage modes (unpadded block, missing END, overlong/short card, non-ASCII byte).
 - [ ] `fixtures/src/lib/xisf.test.ts` covers: correct 16-byte signature + little-endian header-length encoding, and a broken-XML / wrong-signature negative case.
 - [ ] `fixtures/src/lib/tiff-exif.test.ts` covers: IFD0 Make/Model + EXIF IFD ExposureTime/ISOSpeedRatings/DateTimeOriginal roundtrip via `exifr`, the with-offset vs without-offset case, and the CR3 ISO-BMFF box structure.
@@ -59,23 +63,27 @@
 - [ ] E2E: N/A — this issue has no UI or Electron surface.
 
 ## Out of Scope
+
 - The actual parsers: FITS (P1-01), XISF (P1-02), RAW/exifr adapter (P1-03) — this issue ships `expected.keywords` as a contract, not an implementation; the Reviewer must not require parser code in this diff.
 - The capture-software profile table in `packages/core` (DD-004) — fixtures encode program quirks in data/manifests only; the mapping/detection table is P1-05's job.
-- Benchmark harness, baselines, CI regression gates, and any timed 10k-file run (P0-07) — this issue only proves the generator *can* produce a large, deterministic, distribution-controlled batch at a smaller scale; the Reviewer must not require a full 10,000-file timed benchmark here.
-- Target resolution / filter normalization *logic* and the OpenNGC catalog build (DD-005, P1-04+) — fixtures deliberately contain OBJECT/FILTER strings that exercise these paths (`M 31 Panel 1`, `Ha 3nm` vs `Halpha`, `L-eXtreme`, absent OBJECT/FILTER), but no resolution or normalization code is in scope.
+- Benchmark harness, baselines, CI regression gates, and any timed 10k-file run (P0-07) — this issue only proves the generator _can_ produce a large, deterministic, distribution-controlled batch at a smaller scale; the Reviewer must not require a full 10,000-file timed benchmark here.
+- Target resolution / filter normalization _logic_ and the OpenNGC catalog build (DD-005, P1-04+) — fixtures deliberately contain OBJECT/FILTER strings that exercise these paths (`M 31 Panel 1`, `Ha 3nm` vs `Halpha`, `L-eXtreme`, absent OBJECT/FILTER), but no resolution or normalization code is in scope.
 - Replacing synthesized fixtures with genuinely user-captured real files — explicitly deferred; the manifest's `user-captured` provenance method exists to support this later without a format change. The Reviewer must not reject this issue for lacking real captured files — the plan's documented deviation (see below) covers this.
 - Compressed/tiled FITS, multi-HDU extensions, XISF distributed (non-monolithic) units, full-sensor-data RAW samples — beyond MVP parser scope per PRD §8.1/8.2.
 - Any `packages/db`, `packages/desktop`, IPC, or worker-queue changes — none exist in this diff.
 - Exact prose/wording of `fixtures/README.md` beyond the required content list above — Reviewer checks content presence, not phrasing.
 
 ### Documented deviation: provenance interpretation (flag for Reviewer, do not treat as a defect)
+
 The issue's acceptance wording says "real-world fixtures... license-clean (self-captured or CC0)". This autonomous run has no access to user-captured files and downloading files of unclear license is disallowed. The plan's chosen interpretation — accepted as meeting the criterion — is:
+
 - Every fixture is **synthesized byte-exactly to each program's publicly documented header conventions**, not copied from any real captured file.
 - Each manifest entry's `provenance.method` is honestly `"synthesized-to-conventions"` (never falsely `"user-captured"`), `provenance.license` is `"CC0-1.0"` (project-authored, so licensing is clean by construction), and `provenance.sources` cites the actual public documentation URL(s) the header conventions were derived from (N.I.N.A. FITS docs, SGPro help, APT guide/forum, SharpCap docs/forums, ZWO/ASIStudio manuals, Voyager wiki, FITS 4.0 standard, XISF 1.0 spec, PRD §8.2).
-- This satisfies "license-clean with provenance noted" by construction (nothing is downloaded; everything is authored). It reinterprets "real-world" as "real-world *conventions*, faithfully reproduced and cited" rather than "bytes from an actual captured file."
+- This satisfies "license-clean with provenance noted" by construction (nothing is downloaded; everything is authored). It reinterprets "real-world" as "real-world _conventions_, faithfully reproduced and cited" rather than "bytes from an actual captured file."
 - **Reviewer check:** confirm every manifest entry's `provenance.method` is truthfully `synthesized-to-conventions` (not mislabeled `user-captured`), that `sources` is non-empty and points to a real, citable public document per program, and that the PR description explicitly calls out this interpretation (per the plan). This is not grounds for rejection; it is grounds for verifying honesty of labeling.
 
 ## Test Hints
+
 - **program-fixture-count**: `find fixtures/fits/{nina,sgpro,apt,sharpcap,asistudio,voyager} -name '*.fits' | wc -l` equals 27; per-directory counts are 6/5/4/4/4/4 respectively.
 - **manifest-schema-valid**: for each of `fixtures/fits/manifest.json`, `fixtures/xisf/manifest.json`, `fixtures/raw/manifest.json`, run an AJV (or equivalent) validation against `fixtures/manifest.schema.json`; assert zero errors.
 - **manifest-file-bijection**: build the set of files on disk under `fixtures/{fits,xisf,raw}/**/*.{fits,xisf,cr2,cr3,nef,arw}` and the set of `file` values across all manifests; assert the two sets are identical (no orphan file, no dangling manifest entry).
