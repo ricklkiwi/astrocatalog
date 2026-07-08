@@ -12,6 +12,7 @@ import path from 'node:path';
 import { app, BrowserWindow, ipcMain } from 'electron';
 
 import { createIpcHandlers, registerIpcHandlers } from './ipc/register.js';
+import { runNativeSmoke } from './native-smoke.js';
 
 /** Set by electron-vite dev; absent in packaged/preview builds. */
 const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
@@ -69,6 +70,7 @@ void app.whenReady().then(() => {
       appVersion: app.getVersion(),
       platform: process.platform,
       versions: process.versions,
+      nativeSmoke: runNativeSmoke,
     }),
   );
 

@@ -26,17 +26,24 @@ export interface IpcHandlerDeps {
   platform: string;
   /** `process.versions` — electron/chrome are absent under plain Node tests. */
   versions: Partial<Record<'electron' | 'chrome' | 'node', string>>;
+  /** Step 6 native-module smoke, injected so this module needs no native deps to unit test. */
+  nativeSmoke: () => { sqliteVersion: string; sharpVersion: string };
 }
 
 export function createIpcHandlers(deps: IpcHandlerDeps): IpcHandlers {
   return {
-    'app.version': () => ({
-      appVersion: deps.appVersion,
-      electronVersion: deps.versions.electron ?? 'unknown',
-      chromeVersion: deps.versions.chrome ?? 'unknown',
-      nodeVersion: deps.versions.node ?? 'unknown',
-      platform: deps.platform,
-    }),
+    'app.version': () => {
+      const { sqliteVersion, sharpVersion } = deps.nativeSmoke();
+      return {
+        appVersion: deps.appVersion,
+        electronVersion: deps.versions.electron ?? 'unknown',
+        chromeVersion: deps.versions.chrome ?? 'unknown',
+        nodeVersion: deps.versions.node ?? 'unknown',
+        platform: deps.platform,
+        sqliteVersion,
+        sharpVersion,
+      };
+    },
   };
 }
 

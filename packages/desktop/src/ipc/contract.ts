@@ -22,6 +22,9 @@ export interface AppVersionInfo {
   chromeVersion: string;
   nodeVersion: string;
   platform: string;
+  /** From the Step 6 native-module smoke (in-memory SQLite, no persistence). */
+  sqliteVersion: string;
+  sharpVersion: string;
 }
 
 /**

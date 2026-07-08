@@ -23,11 +23,13 @@ describe('App', () => {
       chromeVersion: '142.0.0.1',
       nodeVersion: '22.20.0',
       platform: 'darwin',
+      sqliteVersion: '3.46.0',
+      sharpVersion: '0.33.0',
     });
     renderApp({ invoke } as AstroTrackerBridge);
 
     expect(await screen.findByText('9.9.9-mocked')).toBeTruthy();
-    for (const value of ['43.0.0', '142.0.0.1', '22.20.0', 'darwin']) {
+    for (const value of ['43.0.0', '142.0.0.1', '22.20.0', 'darwin', '3.46.0', '0.33.0']) {
       expect(screen.getByText(value)).toBeTruthy();
     }
     expect(invoke).toHaveBeenCalledExactlyOnceWith('app.version');

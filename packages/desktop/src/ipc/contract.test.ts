@@ -8,6 +8,7 @@ function makeHandlers() {
     appVersion: '0.1.0-test',
     platform: 'darwin',
     versions: { electron: '43.0.0', chrome: '142.0.0.0', node: '22.0.0' },
+    nativeSmoke: () => ({ sqliteVersion: '3.46.0', sharpVersion: '0.33.0' }),
   });
 }
 
@@ -37,6 +38,8 @@ describe('app.version handler', () => {
       'chromeVersion',
       'nodeVersion',
       'platform',
+      'sqliteVersion',
+      'sharpVersion',
     ];
     expect(Object.keys(result).sort()).toEqual([...expectedKeys].sort());
     for (const key of expectedKeys) {

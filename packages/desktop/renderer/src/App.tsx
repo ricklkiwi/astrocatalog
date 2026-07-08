@@ -26,6 +26,8 @@ export function App() {
     ['Chrome', data.chromeVersion],
     ['Node', data.nodeVersion],
     ['Platform', data.platform],
+    ['SQLite', data.sqliteVersion],
+    ['sharp', data.sharpVersion],
   ];
 
   return (
