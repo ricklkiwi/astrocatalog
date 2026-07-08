@@ -6,6 +6,7 @@ import { ninaDefs } from './nina.js';
 import { sgproDefs } from './sgpro.js';
 import { sharpcapDefs } from './sharpcap.js';
 import { voyagerDefs } from './voyager.js';
+import { xisfDefs as xisfFixtureDefs } from './xisf.js';
 import type { FixtureDef } from './types.js';
 
 /** Program fixture sets keyed by fits/<dir> (counts are spec criteria). */
@@ -30,7 +31,7 @@ export const fitsDefs: FixtureDef[] = [
   ...malformedDefs,
 ];
 
-export const xisfDefs: FixtureDef[] = [];
+export const xisfDefs: FixtureDef[] = [...xisfFixtureDefs];
 export const rawDefs: FixtureDef[] = [];
 
 export const allSets: ReadonlyArray<{ set: 'fits' | 'xisf' | 'raw'; defs: FixtureDef[] }> = [
