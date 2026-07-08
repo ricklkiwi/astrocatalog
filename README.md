@@ -127,8 +127,9 @@ xattr -dr com.apple.quarantine /Applications/AstroTracker.app
 
 ### CI packaging integration contract (P0-02)
 
-The `.github/workflows/package.yml` stub added by P0-02 dispatches this build on both
-`windows-latest` and `macos-latest` by running `pnpm install && pnpm package`, then uploads
+`.github/workflows/package.yml` (added by P0-02) is a manual-dispatch stub with a placeholder
+step — it does not yet build or upload anything. Wiring it up is a small follow-up: run
+`pnpm install && pnpm package` on both `windows-latest` and `macos-latest`, then upload
 `packages/desktop/release/*.exe` (from Windows) and `packages/desktop/release/*.dmg` (from macOS)
 as build artifacts.
 
