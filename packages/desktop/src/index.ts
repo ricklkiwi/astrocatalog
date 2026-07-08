@@ -4,11 +4,14 @@
  * the Electron entry point, preload, and typed IPC land in P0-03.
  */
 import { coreVersion } from '@astrotracker/core';
-import { dbVersion } from '@astrotracker/db';
+import { openDatabase } from '@astrotracker/db';
 
 export const desktopVersion = '0.1.0';
 
 /** Returns a human-readable identifier including the workspace deps it was built against. */
 export function describeDesktop(): string {
-  return `desktop@${desktopVersion} (core@${coreVersion}, db@${dbVersion})`;
+  // P0-04 replaced db's placeholder exports with the real persistence API;
+  // referencing openDatabase keeps proving the desktop -> db edge builds.
+  const dbApi = typeof openDatabase === 'function' ? 'openDatabase' : 'unavailable';
+  return `desktop@${desktopVersion} (core@${coreVersion}, db:${dbApi})`;
 }
