@@ -1,0 +1,153 @@
+{
+  "set": "raw",
+  "entries": [
+    {
+      "file": "raw/canon-6d-light.cr2",
+      "format": "raw",
+      "description": "Minimal-valid Canon CR2 (TIFF-based) sample with IFD0 Make/Model and an EXIF sub-IFD carrying ExposureTime/ISOSpeedRatings/DateTimeOriginal plus OffsetTimeOriginal (the with-offset case in this 3-sample trio).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "Canon EOS (CR2)",
+        "sources": [
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": null,
+          "FILTER": null,
+          "Make": "Canon",
+          "Model": "Canon EOS 6D",
+          "ExposureTime": 0.005,
+          "ISO": 800,
+          "DateTimeOriginal": "2026:04:05 22:11:03",
+          "OffsetTimeOriginal": "+02:00"
+        },
+        "notes": "Verified by this package's structural test: exifr.parse() returns ExposureTime, ISO, DateTimeOriginal, and OffsetTimeOriginal matching these values exactly."
+      }
+    },
+    {
+      "file": "raw/nikon-z6-light.nef",
+      "format": "raw",
+      "description": "Minimal-valid Nikon NEF (plain TIFF) sample: no OffsetTimeOriginal (the without-offset case).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "Nikon (NEF)",
+        "sources": [
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": null,
+          "FILTER": null,
+          "Make": "NIKON CORPORATION",
+          "Model": "NIKON Z 6",
+          "ExposureTime": 0.0025,
+          "ISO": 1600,
+          "DateTimeOriginal": "2026:04:06 01:20:00",
+          "OffsetTimeOriginal": null
+        },
+        "notes": "OffsetTimeOriginal is structurally absent — no tag 0x9011 in the EXIF IFD."
+      }
+    },
+    {
+      "file": "raw/sony-a7iv-light.arw",
+      "format": "raw",
+      "description": "Minimal-valid Sony ARW (plain TIFF) sample, no OffsetTimeOriginal.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "Sony (ARW)",
+        "sources": [
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": null,
+          "FILTER": null,
+          "Make": "SONY",
+          "Model": "ILCE-7M4",
+          "ExposureTime": 0.008,
+          "ISO": 400,
+          "DateTimeOriginal": "2026:04:07 03:45:12",
+          "OffsetTimeOriginal": null
+        }
+      }
+    },
+    {
+      "file": "raw/canon-r6-light.cr3",
+      "format": "raw",
+      "description": "Best-effort minimal Canon CR3 (ISO-BMFF): ftyp + moov (Canon-style uuid metadata box with a CTBO offset table) + appended CMT1/CMT2 TIFF/EXIF blocks, structured per the community CR3 write-up.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "Canon EOS (CR3)",
+        "sources": [
+          "https://github.com/lclevy/canon_cr3",
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": null,
+          "FILTER": null,
+          "Make": "Canon",
+          "Model": "Canon EOS R6",
+          "ExposureTime": 0.004,
+          "ISO": 3200,
+          "DateTimeOriginal": "2026:04:08 04:02:00",
+          "OffsetTimeOriginal": null
+        },
+        "notes": "exifr limitation (verified in this package's own structural test): exifr's CR3 reader expects the exact box/offset layout Canon firmware produces and returns 'Unknown file format' for this hand-built approximation. The embedded CMT1/CMT2 blocks are themselves valid, exifr-parseable TIFF/EXIF (see raw/canon-6d-light.cr2 for proof the same builder round-trips). The fixture is kept — not silently dropped — per the P0-06 plan; P1-03 planning should treat CR3 support as needing either a dedicated box-offset reader or a real camera-captured sample."
+      }
+    },
+    {
+      "file": "raw/malformed-truncated.cr2",
+      "format": "raw",
+      "description": "TIFF header truncated to 10 bytes — the IFD0 entry table never fully appears.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "TRUNCATED_HEADER",
+        "notes": "Only the 8-byte TIFF header plus 2 bytes of the IFD0 entry count are present."
+      }
+    },
+    {
+      "file": "raw/malformed-garbage.nef",
+      "format": "raw",
+      "description": "Correctly-extensioned .nef file containing 64 bytes of non-TIFF garbage.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://exiftool.sourceforge.net/TagNames/EXIF.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "UNRECOGNIZED_RAW",
+        "notes": "First two bytes are not a valid TIFF byte-order marker (neither \"II\" nor \"MM\")."
+      }
+    }
+  ]
+}

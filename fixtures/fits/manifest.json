@@ -1,0 +1,1405 @@
+{
+  "set": "fits",
+  "entries": [
+    {
+      "file": "fits/nina/nina-light-mono-ha.fits",
+      "format": "fits",
+      "description": "N.I.N.A. mono narrowband light frame with the full documented rig keyword set: EXPOSURE+EXPTIME, DATE-LOC+DATE-OBS, sexagesimal and degree pointing, GAIN/OFFSET/EGAIN, filter wheel, focuser, and site keywords.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "N.I.N.A.",
+        "emulatesVersion": "3.x",
+        "sources": [
+          "https://nighttime-imaging.eu/docs/master/site/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 31",
+          "IMAGETYP": "LIGHT",
+          "FILTER": "Ha 3nm",
+          "EXPTIME": 300,
+          "EXPOSURE": 300,
+          "DATE-OBS": "2026-01-15T03:22:10.123",
+          "DATE-LOC": "2026-01-14T22:22:10.123",
+          "TELESCOP": "Sky-Watcher Esprit 100ED",
+          "INSTRUME": "ZWO ASI2600MM Pro",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 100,
+          "OFFSET": 50,
+          "EGAIN": 0.246,
+          "CCD-TEMP": -10.1,
+          "ROWORDER": "TOP-DOWN",
+          "SWCREATE": "N.I.N.A. 3.1.2.9001",
+          "NAXIS1": 4656,
+          "NAXIS2": 3520,
+          "RA": 10.684708,
+          "DEC": 41.26875,
+          "OBJCTRA": "00 42 44",
+          "OBJCTDEC": "+41 16 09",
+          "FWHEEL": "ZWO EFW"
+        },
+        "cardCount": 48,
+        "headerBytes": 5760,
+        "notes": "DATE-LOC deliberately differs from DATE-OBS: parsers must persist the UTC DATE-OBS (DD-002 rule 4 / DD-004). Both EXPOSURE and EXPTIME are present per N.I.N.A. convention."
+      }
+    },
+    {
+      "file": "fits/nina/nina-light-osc-lextreme.fits",
+      "format": "fits",
+      "description": "N.I.N.A. one-shot-color light frame with BAYERPAT/XBAYROFF/YBAYROFF and a dual-band filter string (DD-005 Dualband canonical filter).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "N.I.N.A.",
+        "emulatesVersion": "3.x",
+        "sources": [
+          "https://nighttime-imaging.eu/docs/master/site/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "NGC 7000",
+          "IMAGETYP": "LIGHT",
+          "FILTER": "L-eXtreme",
+          "EXPTIME": 180,
+          "EXPOSURE": 180,
+          "DATE-OBS": "2026-02-11T21:05:44.512",
+          "TELESCOP": "Sky-Watcher Esprit 100ED",
+          "INSTRUME": "ZWO ASI2600MC Pro",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 100,
+          "OFFSET": 50,
+          "EGAIN": 0.246,
+          "CCD-TEMP": -10.1,
+          "ROWORDER": "TOP-DOWN",
+          "SWCREATE": "N.I.N.A. 3.1.2.9001",
+          "NAXIS1": 6248,
+          "NAXIS2": 4176,
+          "RA": 314.697417,
+          "DEC": 44.530833,
+          "BAYERPAT": "RGGB",
+          "XBAYROFF": 0,
+          "YBAYROFF": 0
+        },
+        "cardCount": 45,
+        "headerBytes": 5760,
+        "notes": "OSC frame: BAYERPAT present; 'L-eXtreme' maps to the DD-005 Dualband canonical filter."
+      }
+    },
+    {
+      "file": "fits/nina/nina-dark.fits",
+      "format": "fits",
+      "description": "N.I.N.A. dark frame: no OBJECT, FILTER, or pointing keywords.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "N.I.N.A.",
+        "emulatesVersion": "3.x",
+        "sources": [
+          "https://nighttime-imaging.eu/docs/master/site/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "DARK",
+          "EXPTIME": 300,
+          "EXPOSURE": 300,
+          "DATE-OBS": "2026-01-15T12:40:02.001",
+          "INSTRUME": "ZWO ASI2600MM Pro",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 100,
+          "OFFSET": 50,
+          "EGAIN": 0.246,
+          "CCD-TEMP": -10.1,
+          "ROWORDER": "TOP-DOWN",
+          "SWCREATE": "N.I.N.A. 3.1.2.9001",
+          "NAXIS1": 4656,
+          "NAXIS2": 3520
+        },
+        "cardCount": 25,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/nina/nina-flat.fits",
+      "format": "fits",
+      "description": "N.I.N.A. flat frame with FILTER but no OBJECT or pointing keywords.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "N.I.N.A.",
+        "emulatesVersion": "3.x",
+        "sources": [
+          "https://nighttime-imaging.eu/docs/master/site/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "FLAT",
+          "FILTER": "Lum",
+          "EXPTIME": 1.2,
+          "EXPOSURE": 1.2,
+          "DATE-OBS": "2026-01-15T11:58:31.870",
+          "INSTRUME": "ZWO ASI2600MM Pro",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 100,
+          "OFFSET": 50,
+          "EGAIN": 0.246,
+          "CCD-TEMP": -10.1,
+          "ROWORDER": "TOP-DOWN",
+          "SWCREATE": "N.I.N.A. 3.1.2.9001",
+          "NAXIS1": 4656,
+          "NAXIS2": 3520
+        },
+        "cardCount": 27,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/nina/nina-bias.fits",
+      "format": "fits",
+      "description": "N.I.N.A. bias frame with near-zero exposure time.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "N.I.N.A.",
+        "emulatesVersion": "3.x",
+        "sources": [
+          "https://nighttime-imaging.eu/docs/master/site/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "BIAS",
+          "EXPTIME": 0.001,
+          "EXPOSURE": 0.001,
+          "DATE-OBS": "2026-01-15T12:02:12.334",
+          "INSTRUME": "ZWO ASI2600MM Pro",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 100,
+          "OFFSET": 50,
+          "EGAIN": 0.246,
+          "CCD-TEMP": -10.1,
+          "ROWORDER": "TOP-DOWN",
+          "SWCREATE": "N.I.N.A. 3.1.2.9001",
+          "NAXIS1": 4656,
+          "NAXIS2": 3520
+        },
+        "cardCount": 25,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/nina/nina-light-mosaic-panel.fits",
+      "format": "fits",
+      "description": "N.I.N.A. mosaic-panel light frame: OBJECT carries a panel suffix ('M 31 Panel 1') that DD-005 must resolve to the parent target with a panel attribute.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "N.I.N.A.",
+        "emulatesVersion": "3.x",
+        "sources": [
+          "https://nighttime-imaging.eu/docs/master/site/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 31 Panel 1",
+          "IMAGETYP": "LIGHT",
+          "FILTER": "Ha 3nm",
+          "EXPTIME": 300,
+          "EXPOSURE": 300,
+          "DATE-OBS": "2026-01-17T02:12:55.208",
+          "TELESCOP": "Sky-Watcher Esprit 100ED",
+          "INSTRUME": "ZWO ASI2600MM Pro",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 100,
+          "OFFSET": 50,
+          "EGAIN": 0.246,
+          "CCD-TEMP": -10.1,
+          "ROWORDER": "TOP-DOWN",
+          "SWCREATE": "N.I.N.A. 3.1.2.9001",
+          "NAXIS1": 4656,
+          "NAXIS2": 3520,
+          "RA": 10.409167,
+          "DEC": 40.911389
+        },
+        "cardCount": 43,
+        "headerBytes": 5760,
+        "notes": "DD-005 mosaic groundwork: parsers store OBJECT verbatim ('M 31 Panel 1'); panel resolution to the parent target happens in the resolver, not the parser."
+      }
+    },
+    {
+      "file": "fits/sgpro/sgpro-light-precision-timestamps.fits",
+      "format": "fits",
+      "description": "SGPro light frame whose DATE-OBS/DATE-LOC carry seven fractional digits (2023-05-25T06:45:26.0000000) - the documented SGPro timestamp shape.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "SGPro",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.sequencegeneratorpro.com/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 101",
+          "IMAGETYP": "Light",
+          "FILTER": "Halpha",
+          "EXPOSURE": 300,
+          "DATE-OBS": "2023-05-25T06:45:26.0000000",
+          "DATE-LOC": "2023-05-25T01:45:26.0000000",
+          "TELESCOP": "GSO RC8",
+          "FOCALLEN": 800,
+          "NAXIS1": 6280,
+          "NAXIS2": 4210,
+          "RA": 210.802417,
+          "DEC": 54.34875,
+          "INSTRUME": "QHY268M",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 56,
+          "OFFSET": 25,
+          "CCD-TEMP": -15,
+          "CREATOR": "Sequence Generator Pro v4.2.0.1024"
+        },
+        "cardCount": 28,
+        "headerBytes": 2880,
+        "notes": "SGPro timestamps carry seven fractional digits - more precision than a JS Date holds. The manifest stores the exact original string; P1-01 must choose a truncation policy explicitly, never accidentally. Parsers persist the UTC DATE-OBS, not DATE-LOC. SGPro writes EXPOSURE; EXPTIME is deliberately absent here."
+      }
+    },
+    {
+      "file": "fits/sgpro/sgpro-light-no-focallen.fits",
+      "format": "fits",
+      "description": "SGPro light frame without FOCALLEN - the documented intermittent omission when no telescope profile is configured.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "SGPro",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.sequencegeneratorpro.com/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "NGC 891",
+          "IMAGETYP": "Light",
+          "FILTER": "Lum",
+          "EXPOSURE": 600,
+          "DATE-OBS": "2023-09-12T02:10:03.5000000",
+          "NAXIS1": 6280,
+          "NAXIS2": 4210,
+          "RA": 35.639083,
+          "DEC": 42.349167,
+          "INSTRUME": "QHY268M",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 56,
+          "OFFSET": 25,
+          "CCD-TEMP": -15,
+          "CREATOR": "Sequence Generator Pro v4.2.0.1024"
+        },
+        "cardCount": 24,
+        "headerBytes": 2880,
+        "notes": "FOCALLEN is absent by design: SGPro omits it when the equipment profile lacks a telescope. Parsers must treat focal length as optional."
+      }
+    },
+    {
+      "file": "fits/sgpro/sgpro-light-sexagesimal.fits",
+      "format": "fits",
+      "description": "SGPro light frame carrying sexagesimal OBJCTRA/OBJCTDEC pointing strings.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "SGPro",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.sequencegeneratorpro.com/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 51",
+          "IMAGETYP": "Light",
+          "FILTER": "OIII",
+          "EXPOSURE": 300,
+          "DATE-OBS": "2023-06-02T03:22:41.1234567",
+          "TELESCOP": "GSO RC8",
+          "OBJCTRA": "13 29 53",
+          "OBJCTDEC": "+47 11 43",
+          "NAXIS1": 6280,
+          "NAXIS2": 4210,
+          "INSTRUME": "QHY268M",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 56,
+          "OFFSET": 25,
+          "CCD-TEMP": -15,
+          "CREATOR": "Sequence Generator Pro v4.2.0.1024"
+        },
+        "cardCount": 26,
+        "headerBytes": 2880,
+        "notes": "Pointing is sexagesimal-only (OBJCTRA/OBJCTDEC, no RA/DEC degree cards) - parsers must handle both representations."
+      }
+    },
+    {
+      "file": "fits/sgpro/sgpro-dark.fits",
+      "format": "fits",
+      "description": "SGPro dark frame: no OBJECT, FILTER, or pointing keywords.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "SGPro",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.sequencegeneratorpro.com/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "Dark",
+          "EXPOSURE": 300,
+          "DATE-OBS": "2023-05-25T11:02:10.0000000",
+          "NAXIS1": 6280,
+          "NAXIS2": 4210,
+          "INSTRUME": "QHY268M",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 56,
+          "OFFSET": 25,
+          "CCD-TEMP": -15,
+          "CREATOR": "Sequence Generator Pro v4.2.0.1024"
+        },
+        "cardCount": 19,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/sgpro/sgpro-flat.fits",
+      "format": "fits",
+      "description": "SGPro flat frame with FILTER but no OBJECT.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "SGPro",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.sequencegeneratorpro.com/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "Flat",
+          "FILTER": "Red",
+          "EXPOSURE": 2.5,
+          "DATE-OBS": "2023-05-25T10:31:55.0000000",
+          "NAXIS1": 6280,
+          "NAXIS2": 4210,
+          "INSTRUME": "QHY268M",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "GAIN": 56,
+          "OFFSET": 25,
+          "CCD-TEMP": -15,
+          "CREATOR": "Sequence Generator Pro v4.2.0.1024"
+        },
+        "cardCount": 20,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/apt/apt-dslr-light.fits",
+      "format": "fits",
+      "description": "APT DSLR light frame: no FILTER keyword at all (exercises the DD-005 None canonical filter), with APTDIA, JD, TELESCOP, and OBSERVER.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "APT",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.astrophotography.app/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 42",
+          "IMAGETYP": "Light",
+          "EXPTIME": 240,
+          "DATE-OBS": "2026-03-19T04:03:51.000",
+          "TELESCOP": "SkyWatcher 200PDS",
+          "INSTRUME": "Canon EOS 6D",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 5472,
+          "NAXIS2": 3648,
+          "RA": 83.822083,
+          "DEC": -5.391111,
+          "SWCREATE": "Astro Photography Tool - APT v.4.10",
+          "APTDIA": 200,
+          "JD": 2461118.66934,
+          "OBSERVER": "AstroTracker Fixtures"
+        },
+        "cardCount": 23,
+        "headerBytes": 2880,
+        "notes": "DSLR capture: FILTER is structurally absent, not empty - DD-005 maps the absence to the None canonical filter. No CCD-TEMP/GAIN either (DSLR sensor)."
+      }
+    },
+    {
+      "file": "fits/apt/apt-ccd-light.fits",
+      "format": "fits",
+      "description": "APT cooled-CCD light frame with FILTER and CCD-TEMP.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "APT",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.astrophotography.app/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "IC 1396",
+          "IMAGETYP": "Light",
+          "FILTER": "Red",
+          "EXPTIME": 300,
+          "DATE-OBS": "2026-03-20T02:51:20.000",
+          "TELESCOP": "SkyWatcher 200PDS",
+          "INSTRUME": "Atik 460EX",
+          "CCD-TEMP": -10,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 2749,
+          "NAXIS2": 2199,
+          "RA": 324.746208,
+          "DEC": 57.489167,
+          "SWCREATE": "Astro Photography Tool - APT v.4.10",
+          "APTDIA": 200,
+          "JD": 2461119.61899
+        },
+        "cardCount": 25,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/apt/apt-dark.fits",
+      "format": "fits",
+      "description": "APT dark frame: no OBJECT, FILTER, or pointing keywords.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "APT",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.astrophotography.app/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "Dark",
+          "EXPTIME": 300,
+          "DATE-OBS": "2026-03-20T10:14:07.000",
+          "INSTRUME": "Atik 460EX",
+          "CCD-TEMP": -10,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 2749,
+          "NAXIS2": 2199,
+          "SWCREATE": "Astro Photography Tool - APT v.4.10"
+        },
+        "cardCount": 17,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/apt/apt-flat.fits",
+      "format": "fits",
+      "description": "APT flat frame with FILTER but no OBJECT.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "APT",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.astrophotography.app/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "Flat",
+          "FILTER": "Red",
+          "EXPTIME": 3.5,
+          "DATE-OBS": "2026-03-20T09:48:40.000",
+          "INSTRUME": "Atik 460EX",
+          "CCD-TEMP": -10,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 2749,
+          "NAXIS2": 2199,
+          "SWCREATE": "Astro Photography Tool - APT v.4.10"
+        },
+        "cardCount": 18,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/sharpcap/sharpcap-eaa-light.fits",
+      "format": "fits",
+      "description": "SharpCap EAA-style light frame with no OBJECT keyword: the frame must land in the DD-005 needs-review bucket (resolution path 5).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "SharpCap",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.sharpcap.co.uk/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "Light",
+          "EXPTIME": 8,
+          "DATE-OBS": "2026-04-02T20:15:09.412",
+          "INSTRUME": "ZWO ASI294MC",
+          "CCD-TEMP": 22.4,
+          "GAIN": 350,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 4144,
+          "NAXIS2": 2822,
+          "SWCREATE": "SharpCap v4.1.11962.0, 64 bit",
+          "BAYERPAT": "RGGB"
+        },
+        "cardCount": 20,
+        "headerBytes": 2880,
+        "notes": "OBJECT and FILTER are absent by design (EAA session). DD-005 path 5: unresolved frames go to the needs-review bucket; absent FILTER maps to the None canonical filter."
+      }
+    },
+    {
+      "file": "fits/sharpcap/sharpcap-light-vendor-keywords.fits",
+      "format": "fits",
+      "description": "SharpCap light frame carrying extra vendor keywords (BLKLEVEL, USBSPEED, STACKCNT): tolerated non-standard cards that must be preserved in headers_json (DD-004).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "SharpCap",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.sharpcap.co.uk/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 13",
+          "IMAGETYP": "Light",
+          "FILTER": "UV/IR",
+          "EXPTIME": 15,
+          "DATE-OBS": "2026-04-02T21:44:30.006",
+          "INSTRUME": "ZWO ASI294MC",
+          "CCD-TEMP": 21.8,
+          "GAIN": 250,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 4144,
+          "NAXIS2": 2822,
+          "SWCREATE": "SharpCap v4.1.11962.0, 64 bit",
+          "BLKLEVEL": 30,
+          "USBSPEED": 40,
+          "STACKCNT": 1
+        },
+        "cardCount": 24,
+        "headerBytes": 2880,
+        "notes": "BLKLEVEL/USBSPEED/STACKCNT are non-standard vendor cards: a conforming parser keeps them in headers_json (DD-004 'unknown keywords are preserved, never discarded'). 'UV/IR' maps to the DD-005 L (broadband) canonical filter."
+      }
+    },
+    {
+      "file": "fits/sharpcap/sharpcap-dark.fits",
+      "format": "fits",
+      "description": "SharpCap dark frame: no OBJECT, FILTER, or pointing keywords.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "SharpCap",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.sharpcap.co.uk/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "Dark",
+          "EXPTIME": 15,
+          "DATE-OBS": "2026-04-03T03:02:52.190",
+          "INSTRUME": "ZWO ASI294MC",
+          "CCD-TEMP": 20.9,
+          "GAIN": 250,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 4144,
+          "NAXIS2": 2822,
+          "SWCREATE": "SharpCap v4.1.11962.0, 64 bit"
+        },
+        "cardCount": 17,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/sharpcap/sharpcap-flat.fits",
+      "format": "fits",
+      "description": "SharpCap flat frame with FILTER but no OBJECT.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "SharpCap",
+        "emulatesVersion": "4.x",
+        "sources": [
+          "https://www.sharpcap.co.uk/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "Flat",
+          "FILTER": "UV/IR",
+          "EXPTIME": 0.5,
+          "DATE-OBS": "2026-04-03T05:20:11.731",
+          "INSTRUME": "ZWO ASI294MC",
+          "CCD-TEMP": 19.6,
+          "GAIN": 120,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 4144,
+          "NAXIS2": 2822,
+          "SWCREATE": "SharpCap v4.1.11962.0, 64 bit"
+        },
+        "cardCount": 18,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/asistudio/asiair-light-osc.fits",
+      "format": "fits",
+      "description": "ASIAIR one-shot-color light frame with the ASIAIR CREATOR keyword and BAYERPAT; no FILTER keyword (OSC camera without a filter wheel).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "ASIStudio/ASIAIR",
+        "emulatesVersion": "2.x",
+        "sources": [
+          "https://www.zwoastro.com/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 42",
+          "IMAGETYP": "Light",
+          "EXPTIME": 120,
+          "DATE-OBS": "2026-02-18T22:30:15.000",
+          "TELESCOP": "ZWO FF65 APO",
+          "INSTRUME": "ZWO ASI2600MC Pro",
+          "CCD-TEMP": -10,
+          "GAIN": 100,
+          "OFFSET": 50,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 6248,
+          "NAXIS2": 4176,
+          "RA": 83.822083,
+          "DEC": -5.391111,
+          "CREATOR": "ZWO ASIAIR Plus",
+          "BAYERPAT": "RGGB"
+        },
+        "cardCount": 25,
+        "headerBytes": 2880,
+        "notes": "OSC without a wheel: FILTER is structurally absent (DD-005 None canonical filter). GAIN uses the ZWO unitless 0-570 scale, not e-/ADU."
+      }
+    },
+    {
+      "file": "fits/asistudio/asistudio-light-gain-conventions.fits",
+      "format": "fits",
+      "description": "ASIStudio mono light frame with a high ZWO-scale GAIN value and a literal 'None' FILTER string (DD-005 None canonical filter, spelled out).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "ASIStudio/ASIAIR",
+        "emulatesVersion": "2.x",
+        "sources": [
+          "https://www.zwoastro.com/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "IC 434",
+          "IMAGETYP": "Light",
+          "FILTER": "None",
+          "EXPTIME": 300,
+          "DATE-OBS": "2026-02-19T01:12:40.000",
+          "INSTRUME": "ZWO ASI294MM Pro",
+          "CCD-TEMP": -14.8,
+          "GAIN": 300,
+          "OFFSET": 30,
+          "XBINNING": 2,
+          "YBINNING": 2,
+          "NAXIS1": 4144,
+          "NAXIS2": 2822,
+          "CREATOR": "ZWO ASIStudio ASIImg 4.4"
+        },
+        "cardCount": 21,
+        "headerBytes": 2880,
+        "notes": "FILTER carries the literal string 'None' (distinct from an absent card) - both map to the DD-005 None canonical filter. 2x2 binning variant."
+      }
+    },
+    {
+      "file": "fits/asistudio/asiair-dark.fits",
+      "format": "fits",
+      "description": "ASIAIR dark frame: no OBJECT, FILTER, or pointing keywords.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "ASIStudio/ASIAIR",
+        "emulatesVersion": "2.x",
+        "sources": [
+          "https://www.zwoastro.com/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "Dark",
+          "EXPTIME": 120,
+          "DATE-OBS": "2026-02-19T05:00:02.000",
+          "INSTRUME": "ZWO ASI2600MC Pro",
+          "CCD-TEMP": -10,
+          "GAIN": 100,
+          "OFFSET": 50,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 6248,
+          "NAXIS2": 4176,
+          "CREATOR": "ZWO ASIAIR Plus",
+          "BAYERPAT": "RGGB"
+        },
+        "cardCount": 19,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/asistudio/asiair-flat.fits",
+      "format": "fits",
+      "description": "ASIAIR flat frame (OSC: BAYERPAT present, FILTER absent, no OBJECT).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "ASIStudio/ASIAIR",
+        "emulatesVersion": "2.x",
+        "sources": [
+          "https://www.zwoastro.com/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "Flat",
+          "EXPTIME": 1.8,
+          "DATE-OBS": "2026-02-19T06:10:44.000",
+          "INSTRUME": "ZWO ASI2600MC Pro",
+          "CCD-TEMP": -10,
+          "GAIN": 100,
+          "OFFSET": 50,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 6248,
+          "NAXIS2": 4176,
+          "CREATOR": "ZWO ASIAIR Plus",
+          "BAYERPAT": "RGGB"
+        },
+        "cardCount": 19,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/voyager/voyager-light-full-pointing.fits",
+      "format": "fits",
+      "description": "Voyager light frame with the software-identification keyword and the full pointing set: RA/DEC degrees, sexagesimal OBJCTRA/OBJCTDEC, AIRMASS, PIERSIDE.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "Voyager",
+        "emulatesVersion": "2.x",
+        "sources": [
+          "https://software.starkeeper.it/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "NGC 6960",
+          "IMAGETYP": "LIGHT",
+          "FILTER": "S2",
+          "EXPTIME": 600,
+          "DATE-OBS": "2026-05-14T00:45:30.000",
+          "TELESCOP": "TS-Optics 130 APO",
+          "INSTRUME": "Moravian G3-16200",
+          "CCD-TEMP": -20,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 4499,
+          "NAXIS2": 3599,
+          "RA": 311.408333,
+          "DEC": 30.708333,
+          "OBJCTRA": "20 45 38",
+          "OBJCTDEC": "+30 42 30",
+          "SWCREATE": "Voyager 2.3.5",
+          "AIRMASS": 1.052,
+          "PIERSIDE": "East"
+        },
+        "cardCount": 27,
+        "headerBytes": 2880,
+        "notes": "'S2' maps to the DD-005 SII canonical filter."
+      }
+    },
+    {
+      "file": "fits/voyager/voyager-light.fits",
+      "format": "fits",
+      "description": "Voyager broadband light frame.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "Voyager",
+        "emulatesVersion": "2.x",
+        "sources": [
+          "https://software.starkeeper.it/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 13",
+          "IMAGETYP": "LIGHT",
+          "FILTER": "Lum",
+          "EXPTIME": 120,
+          "DATE-OBS": "2026-05-14T02:31:12.000",
+          "TELESCOP": "TS-Optics 130 APO",
+          "INSTRUME": "Moravian G3-16200",
+          "CCD-TEMP": -20,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 4499,
+          "NAXIS2": 3599,
+          "RA": 250.421667,
+          "DEC": 36.461667,
+          "SWCREATE": "Voyager 2.3.5"
+        },
+        "cardCount": 22,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/voyager/voyager-dark.fits",
+      "format": "fits",
+      "description": "Voyager dark frame: no OBJECT, FILTER, or pointing keywords.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "Voyager",
+        "emulatesVersion": "2.x",
+        "sources": [
+          "https://software.starkeeper.it/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "DARK",
+          "EXPTIME": 600,
+          "DATE-OBS": "2026-05-14T09:20:00.000",
+          "INSTRUME": "Moravian G3-16200",
+          "CCD-TEMP": -20,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 4499,
+          "NAXIS2": 3599,
+          "SWCREATE": "Voyager 2.3.5"
+        },
+        "cardCount": 16,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/voyager/voyager-flat.fits",
+      "format": "fits",
+      "description": "Voyager flat frame with FILTER but no OBJECT.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "Voyager",
+        "emulatesVersion": "2.x",
+        "sources": [
+          "https://software.starkeeper.it/",
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "IMAGETYP": "FLAT",
+          "FILTER": "S2",
+          "EXPTIME": 4,
+          "DATE-OBS": "2026-05-14T08:05:47.000",
+          "INSTRUME": "Moravian G3-16200",
+          "CCD-TEMP": -20,
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 4499,
+          "NAXIS2": 3599,
+          "SWCREATE": "Voyager 2.3.5"
+        },
+        "cardCount": 17,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/edge/edge-continue-longstrn.fits",
+      "format": "fits",
+      "description": "Registered CONTINUE long-string convention: OBJECT value spans CONTINUE cards with '&' continuation markers, declared by a LONGSTRN card.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "Sh2-129 Flying Bat with Ou4 Giant Squid Nebula extended widefield mosaic session Panel 3",
+          "EXPTIME": 300,
+          "LONGSTRN": "OGIP 1.0",
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 17,
+        "headerBytes": 2880,
+        "notes": "Parsers must reassemble the full OBJECT string across CONTINUE cards; the trailing '&' of each segment is not part of the value (FITS 4.0 long-string convention)."
+      }
+    },
+    {
+      "file": "fits/edge/edge-exposure-only.fits",
+      "format": "fits",
+      "description": "EXPOSURE present but EXPTIME absent - manifests must not assume EXPTIME.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 81",
+          "EXPOSURE": 180,
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 15,
+        "headerBytes": 2880,
+        "notes": "Exposure time must be read from EXPOSURE when EXPTIME is absent."
+      }
+    },
+    {
+      "file": "fits/edge/edge-exptime-only.fits",
+      "format": "fits",
+      "description": "EXPTIME present but EXPOSURE absent (the inverse pairing).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 82",
+          "EXPTIME": 180,
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 15,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/edge/edge-end-36th-card.fits",
+      "format": "fits",
+      "description": "Header of exactly 36 cards: END is the last card of the single 2880-byte block and no padding block follows (off-by-one block-loop bugs die here).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 45",
+          "EXPTIME": 60,
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 36,
+        "headerBytes": 2880,
+        "notes": "File is exactly 2880 bytes; END occupies card slot 36 of block 1."
+      }
+    },
+    {
+      "file": "fits/edge/edge-end-block2.fits",
+      "format": "fits",
+      "description": "Header of 37 cards: END sits alone at the start of a second, otherwise space-padded 2880-byte block.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 45",
+          "EXPTIME": 60,
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 37,
+        "headerBytes": 5760,
+        "notes": "File is exactly 5760 bytes; block 2 contains only END followed by space padding."
+      }
+    },
+    {
+      "file": "fits/edge/edge-commentary-hierarch.fits",
+      "format": "fits",
+      "description": "COMMENT/HISTORY/blank commentary cards mixed with a HIERARCH-style non-standard card that must parse as a tolerated unknown and be preserved in raw card storage.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 101",
+          "EXPTIME": 120,
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 21,
+        "headerBytes": 2880,
+        "notes": "The HIERARCH card is not a standard value card: parsers must tolerate it as an unknown card and keep it in headers_json (DD-004), never error on it. COMMENT/HISTORY/blank cards carry no = value indicator."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-truncated-mid-block.fits",
+      "format": "fits",
+      "description": "File truncated mid-block: size is not a multiple of 2880 and END never appears.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "TRUNCATED_HEADER",
+        "notes": "Size 2000 bytes (not a 2880 multiple); no END card at any 80-byte offset. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-missing-end.fits",
+      "format": "fits",
+      "description": "Complete 2880-byte block(s) but the END card never appears before EOF.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "MISSING_END",
+        "notes": "Block-aligned file whose header has no END card anywhere. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-lowercase-keyword.fits",
+      "format": "fits",
+      "description": "Cards with a lowercase keyword and an embedded-space keyword.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "INVALID_CARD",
+        "notes": "Card 'exptime' violates the uppercase keyword charset; card 'EXP TIME' embeds a space in the keyword field. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-bad-value-format.fits",
+      "format": "fits",
+      "description": "Unquoted free-text value where a number is implied (bad value format).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "INVALID_CARD",
+        "notes": "EXPTIME's value field contains unquoted text ('three hundred'), not a number. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-continue-no-close.fits",
+      "format": "fits",
+      "description": "CONTINUE card whose continued string never closes its quote.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "BAD_CONTINUE",
+        "notes": "OBJECT ends with '&' announcing continuation; the CONTINUE card opens a quote that never closes. Distinct from the valid CONTINUE fixture in fits/edge/. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-orphan-continue.fits",
+      "format": "fits",
+      "description": "Orphan CONTINUE card: the preceding string value has no '&' continuation marker.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "BAD_CONTINUE",
+        "notes": "OBJECT is a complete string without a trailing '&', yet the next card is a CONTINUE card - there is nothing to continue. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-non-ascii.fits",
+      "format": "fits",
+      "description": "Non-ASCII bytes (> 0x7E) inside a card image.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "INVALID_CARD",
+        "notes": "Two bytes inside the OBJECT value are 0xC3 0xA9 (UTF-8 é) - FITS card images must be restricted-ASCII (0x20-0x7E). Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-empty.fits",
+      "format": "fits",
+      "description": "Zero-length file.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "EMPTY_FILE",
+        "notes": "The file contains no bytes at all. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-not-simple.fits",
+      "format": "fits",
+      "description": "First card is SIMPLE = F: the file declares itself non-conforming.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "NOT_FITS",
+        "notes": "SIMPLE must be the first card of a primary header and must be T; this file carries SIMPLE = F. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-short-final-card.fits",
+      "format": "fits",
+      "description": "Final card is shorter than 80 bytes at EOF (torn write).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "TRUNCATED_HEADER",
+        "notes": "The last card image is only 40 bytes long, so the file size is neither card- nor block-aligned. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    }
+  ]
+}

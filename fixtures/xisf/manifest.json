@@ -1,0 +1,131 @@
+{
+  "set": "xisf",
+  "entries": [
+    {
+      "file": "xisf/pixinsight-unit-mono-ha.xisf",
+      "format": "xisf",
+      "description": "PixInsight-style monolithic XISF unit: Image element carries both FITSKeyword elements (for FITS compatibility) and native XISF Property elements (Observation:Object:Name, Instrument:ExposureTime, ...), mirroring the N.I.N.A. mono narrowband light fixture.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "PixInsight",
+        "emulatesVersion": "1.8.x (XISF 1.0)",
+        "sources": [
+          "https://pixinsight.com/xisf/"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 31",
+          "IMAGETYP": "LIGHT",
+          "FILTER": "Ha 3nm",
+          "EXPTIME": "300",
+          "DATE-OBS": "2026-01-15T03:22:10.123",
+          "TELESCOP": "Sky-Watcher Esprit 100ED",
+          "INSTRUME": "ZWO ASI2600MM Pro",
+          "CCD-TEMP": "-10.1",
+          "GAIN": "100",
+          "OFFSET": "50",
+          "XBINNING": "1",
+          "YBINNING": "1",
+          "NAXIS1": "4656",
+          "NAXIS2": "3520",
+          "RA": "10.684708",
+          "DEC": "41.26875"
+        },
+        "notes": "FITSKeyword values are XML attribute strings (unlike FITS typed cards); P1-02 decides numeric coercion. Property elements carry the native XISF namespace (Observation:*/Instrument:*) alongside the FITSKeyword compatibility set."
+      }
+    },
+    {
+      "file": "xisf/nina-unit-mono-oiii.xisf",
+      "format": "xisf",
+      "description": "N.I.N.A.-written-style XISF unit: the FITSKeyword set N.I.N.A. documents for XISF output (EXPOSURE+EXPTIME, DATE-LOC+DATE-OBS pair), no XISF-native Property elements.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "program": "N.I.N.A.",
+        "emulatesVersion": "3.x (XISF output)",
+        "sources": [
+          "https://nighttime-imaging.eu/docs/master/site/",
+          "https://pixinsight.com/xisf/"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 42",
+          "IMAGETYP": "LIGHT",
+          "FILTER": "OIII",
+          "EXPOSURE": "300",
+          "EXPTIME": "300",
+          "DATE-OBS": "2026-02-02T01:00:00.000",
+          "DATE-LOC": "2026-02-01T20:00:00.000",
+          "TELESCOP": "Sky-Watcher Esprit 100ED",
+          "INSTRUME": "ZWO ASI2600MM Pro",
+          "GAIN": "100",
+          "OFFSET": "50",
+          "RA": "83.822083",
+          "DEC": "-5.391111"
+        },
+        "notes": "DATE-LOC deliberately differs from DATE-OBS (same negative control as the FITS set)."
+      }
+    },
+    {
+      "file": "xisf/minimal-unit.xisf",
+      "format": "xisf",
+      "description": "Minimal valid XISF unit: signature + XML header with only the Image element, no keywords.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://pixinsight.com/xisf/"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {},
+        "notes": "No FITSKeyword or Property elements at all - the structural floor of a valid unit."
+      }
+    },
+    {
+      "file": "xisf/malformed-unclosed-tag.xisf",
+      "format": "xisf",
+      "description": "Well-formed 16-byte signature block, but the XML body has an unclosed <Image> tag.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://pixinsight.com/xisf/"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "MALFORMED_XML",
+        "notes": "Signature and declared header length are both valid; the XML fails well-formedness. Parser must return the structured error, never throw."
+      }
+    },
+    {
+      "file": "xisf/malformed-wrong-signature.xisf",
+      "format": "xisf",
+      "description": "First 8 bytes are not 'XISF0100' (the XML body behind it is otherwise well-formed).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://pixinsight.com/xisf/"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "BAD_SIGNATURE",
+        "notes": "Parser must check the signature before trusting the header length or XML at all."
+      }
+    }
+  ]
+}
