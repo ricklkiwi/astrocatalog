@@ -138,25 +138,47 @@ describe('run — deterministic generation', () => {
 });
 
 describe('run — requested distribution tolerance (±0.05)', () => {
-  it('realizes OBJECT/FILTER/IMAGETYP proportions within tolerance for a 1000-file run', () => {
-    const out = freshTmpDir();
-    const summary = run([
-      '--count',
-      '1000',
-      '--out',
-      out,
-      '--seed',
-      '1',
-      '--objects',
-      'M 31:0.6,M 42:0.4',
-    ]);
-    const total = Object.values(summary.realized.objects).reduce((a, b) => a + b, 0);
-    expect(total).toBe(1000);
-    expect(summary.realized.objects['M 31']! / total).toBeGreaterThan(0.55);
-    expect(summary.realized.objects['M 31']! / total).toBeLessThan(0.65);
-    expect(summary.realized.objects['M 42']! / total).toBeGreaterThan(0.35);
-    expect(summary.realized.objects['M 42']! / total).toBeLessThan(0.45);
-  });
+  it(
+    'realizes OBJECT/FILTER/IMAGETYP proportions within tolerance for a 1000-file run',
+    { timeout: 30000 },
+    () => {
+      const out = freshTmpDir();
+      const summary = run([
+        '--count',
+        '1000',
+        '--out',
+        out,
+        '--seed',
+        '1',
+        '--objects',
+        'M 31:0.6,M 42:0.4',
+        '--filters',
+        'L:0.7,Ha:0.3',
+        '--imagetypes',
+        'LIGHT:0.8,DARK:0.2',
+      ]);
+      const total = Object.values(summary.realized.objects).reduce((a, b) => a + b, 0);
+      expect(total).toBe(1000);
+      expect(summary.realized.objects['M 31']! / total).toBeGreaterThan(0.55);
+      expect(summary.realized.objects['M 31']! / total).toBeLessThan(0.65);
+      expect(summary.realized.objects['M 42']! / total).toBeGreaterThan(0.35);
+      expect(summary.realized.objects['M 42']! / total).toBeLessThan(0.45);
+
+      const filterTotal = Object.values(summary.realized.filters).reduce((a, b) => a + b, 0);
+      expect(filterTotal).toBe(1000);
+      expect(summary.realized.filters['L']! / filterTotal).toBeGreaterThan(0.65);
+      expect(summary.realized.filters['L']! / filterTotal).toBeLessThan(0.75);
+      expect(summary.realized.filters['Ha']! / filterTotal).toBeGreaterThan(0.25);
+      expect(summary.realized.filters['Ha']! / filterTotal).toBeLessThan(0.35);
+
+      const typeTotal = Object.values(summary.realized.imagetypes).reduce((a, b) => a + b, 0);
+      expect(typeTotal).toBe(1000);
+      expect(summary.realized.imagetypes['LIGHT']! / typeTotal).toBeGreaterThan(0.75);
+      expect(summary.realized.imagetypes['LIGHT']! / typeTotal).toBeLessThan(0.85);
+      expect(summary.realized.imagetypes['DARK']! / typeTotal).toBeGreaterThan(0.15);
+      expect(summary.realized.imagetypes['DARK']! / typeTotal).toBeLessThan(0.25);
+    },
+  );
 });
 
 describe('run — session-shaped DATE-OBS', () => {
