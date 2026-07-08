@@ -1,5 +1,7 @@
 import { aptDefs } from './apt.js';
 import { asistudioDefs } from './asistudio.js';
+import { edgeDefs } from './edge.js';
+import { malformedDefs } from './malformed.js';
 import { ninaDefs } from './nina.js';
 import { sgproDefs } from './sgpro.js';
 import { sharpcapDefs } from './sharpcap.js';
@@ -16,7 +18,7 @@ export const programDefs = {
   voyager: voyagerDefs,
 } as const;
 
-/** All FITS definitions in manifest order (edge/malformed appended by later steps). */
+/** All FITS definitions in manifest order: program sets, then edge, then malformed. */
 export const fitsDefs: FixtureDef[] = [
   ...ninaDefs,
   ...sgproDefs,
@@ -24,6 +26,8 @@ export const fitsDefs: FixtureDef[] = [
   ...sharpcapDefs,
   ...asistudioDefs,
   ...voyagerDefs,
+  ...edgeDefs,
+  ...malformedDefs,
 ];
 
 export const xisfDefs: FixtureDef[] = [];

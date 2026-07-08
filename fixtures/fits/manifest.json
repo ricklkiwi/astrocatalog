@@ -1040,6 +1040,366 @@
         "cardCount": 17,
         "headerBytes": 2880
       }
+    },
+    {
+      "file": "fits/edge/edge-continue-longstrn.fits",
+      "format": "fits",
+      "description": "Registered CONTINUE long-string convention: OBJECT value spans CONTINUE cards with '&' continuation markers, declared by a LONGSTRN card.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "Sh2-129 Flying Bat with Ou4 Giant Squid Nebula extended widefield mosaic session Panel 3",
+          "EXPTIME": 300,
+          "LONGSTRN": "OGIP 1.0",
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 17,
+        "headerBytes": 2880,
+        "notes": "Parsers must reassemble the full OBJECT string across CONTINUE cards; the trailing '&' of each segment is not part of the value (FITS 4.0 long-string convention)."
+      }
+    },
+    {
+      "file": "fits/edge/edge-exposure-only.fits",
+      "format": "fits",
+      "description": "EXPOSURE present but EXPTIME absent - manifests must not assume EXPTIME.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 81",
+          "EXPOSURE": 180,
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 15,
+        "headerBytes": 2880,
+        "notes": "Exposure time must be read from EXPOSURE when EXPTIME is absent."
+      }
+    },
+    {
+      "file": "fits/edge/edge-exptime-only.fits",
+      "format": "fits",
+      "description": "EXPTIME present but EXPOSURE absent (the inverse pairing).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 82",
+          "EXPTIME": 180,
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 15,
+        "headerBytes": 2880
+      }
+    },
+    {
+      "file": "fits/edge/edge-end-36th-card.fits",
+      "format": "fits",
+      "description": "Header of exactly 36 cards: END is the last card of the single 2880-byte block and no padding block follows (off-by-one block-loop bugs die here).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 45",
+          "EXPTIME": 60,
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 36,
+        "headerBytes": 2880,
+        "notes": "File is exactly 2880 bytes; END occupies card slot 36 of block 1."
+      }
+    },
+    {
+      "file": "fits/edge/edge-end-block2.fits",
+      "format": "fits",
+      "description": "Header of 37 cards: END sits alone at the start of a second, otherwise space-padded 2880-byte block.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 45",
+          "EXPTIME": 60,
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 37,
+        "headerBytes": 5760,
+        "notes": "File is exactly 5760 bytes; block 2 contains only END followed by space padding."
+      }
+    },
+    {
+      "file": "fits/edge/edge-commentary-hierarch.fits",
+      "format": "fits",
+      "description": "COMMENT/HISTORY/blank commentary cards mixed with a HIERARCH-style non-standard card that must parse as a tolerated unknown and be preserved in raw card storage.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "ok",
+        "keywords": {
+          "OBJECT": "M 101",
+          "EXPTIME": 120,
+          "IMAGETYP": "LIGHT",
+          "DATE-OBS": "2026-06-10T01:15:00.000",
+          "INSTRUME": "Fixture Cam",
+          "XBINNING": 1,
+          "YBINNING": 1,
+          "NAXIS1": 1024,
+          "NAXIS2": 768
+        },
+        "cardCount": 21,
+        "headerBytes": 2880,
+        "notes": "The HIERARCH card is not a standard value card: parsers must tolerate it as an unknown card and keep it in headers_json (DD-004), never error on it. COMMENT/HISTORY/blank cards carry no = value indicator."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-truncated-mid-block.fits",
+      "format": "fits",
+      "description": "File truncated mid-block: size is not a multiple of 2880 and END never appears.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "TRUNCATED_HEADER",
+        "notes": "Size 2000 bytes (not a 2880 multiple); no END card at any 80-byte offset. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-missing-end.fits",
+      "format": "fits",
+      "description": "Complete 2880-byte block(s) but the END card never appears before EOF.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "MISSING_END",
+        "notes": "Block-aligned file whose header has no END card anywhere. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-lowercase-keyword.fits",
+      "format": "fits",
+      "description": "Cards with a lowercase keyword and an embedded-space keyword.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "INVALID_CARD",
+        "notes": "Card 'exptime' violates the uppercase keyword charset; card 'EXP TIME' embeds a space in the keyword field. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-bad-value-format.fits",
+      "format": "fits",
+      "description": "Unquoted free-text value where a number is implied (bad value format).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "INVALID_CARD",
+        "notes": "EXPTIME's value field contains unquoted text ('three hundred'), not a number. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-continue-no-close.fits",
+      "format": "fits",
+      "description": "CONTINUE card whose continued string never closes its quote.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "BAD_CONTINUE",
+        "notes": "OBJECT ends with '&' announcing continuation; the CONTINUE card opens a quote that never closes. Distinct from the valid CONTINUE fixture in fits/edge/. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-orphan-continue.fits",
+      "format": "fits",
+      "description": "Orphan CONTINUE card: the preceding string value has no '&' continuation marker.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "BAD_CONTINUE",
+        "notes": "OBJECT is a complete string without a trailing '&', yet the next card is a CONTINUE card - there is nothing to continue. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-non-ascii.fits",
+      "format": "fits",
+      "description": "Non-ASCII bytes (> 0x7E) inside a card image.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "INVALID_CARD",
+        "notes": "Two bytes inside the OBJECT value are 0xC3 0xA9 (UTF-8 é) - FITS card images must be restricted-ASCII (0x20-0x7E). Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-empty.fits",
+      "format": "fits",
+      "description": "Zero-length file.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "EMPTY_FILE",
+        "notes": "The file contains no bytes at all. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-not-simple.fits",
+      "format": "fits",
+      "description": "First card is SIMPLE = F: the file declares itself non-conforming.",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "NOT_FITS",
+        "notes": "SIMPLE must be the first card of a primary header and must be T; this file carries SIMPLE = F. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
+    },
+    {
+      "file": "fits/malformed/malformed-short-final-card.fits",
+      "format": "fits",
+      "description": "Final card is shorter than 80 bytes at EOF (torn write).",
+      "provenance": {
+        "method": "synthesized-to-conventions",
+        "sources": [
+          "https://fits.gsfc.nasa.gov/fits_standard.html"
+        ],
+        "license": "CC0-1.0",
+        "date": "2026-07-06"
+      },
+      "expected": {
+        "status": "error",
+        "errorCode": "TRUNCATED_HEADER",
+        "notes": "The last card image is only 40 bytes long, so the file size is neither card- nor block-aligned. Conforming parser: return this structured error, never throw across the worker boundary, never hang, never abort the batch (DD-004 error isolation)."
+      }
     }
   ]
 }
