@@ -1,0 +1,35 @@
+appId: com.astrotracker.desktop
+productName: AstroTracker
+
+directories:
+  output: release
+
+# No custom `files` override: electron-builder's default already packages
+# `out/**` (electron-vite's production output) plus `node_modules/**` with
+# devDependencies auto-pruned from package.json, plus package.json itself —
+# exactly what's needed (no src, no tests) without hand-listing patterns.
+asar: true
+# better-sqlite3/sharp ship native .node binaries that must be loadable from
+# outside the asar archive (dlopen cannot read into an asar).
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
+  - '**/node_modules/sharp/**'
+  - '**/node_modules/@img/**'
+
+# Rebuilds better-sqlite3/sharp against Electron's headers during packaging —
+# this IS the rebuild pipeline the Step 6 native smoke proves works.
+npmRebuild: true
+
+artifactName: '${productName}-${version}-${arch}.${ext}'
+
+mac:
+  target: dmg
+  # Unsigned for Phase 0 (plan default #6 / Edge Cases); signing and
+  # notarization land in P1-33. Gatekeeper workaround is documented in README.
+  identity: null
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
