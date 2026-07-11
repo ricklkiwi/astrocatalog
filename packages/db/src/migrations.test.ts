@@ -1,10 +1,20 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { isUuid } from '@astrotracker/core';
+import { isUuid, uuidv7 } from '@astrotracker/core';
 import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { openDatabase, type AstroDatabase } from './index.js';
@@ -395,4 +405,128 @@ describe('migration folder resolution (src/ vs dist/)', () => {
       distDb.close();
     },
   );
+});
+
+describe('migration 0002 (scan_jobs queue columns) against a pre-existing P0-04 install', () => {
+  /**
+   * Builds a migrations folder containing only 0000/0001 (byte-identical
+   * copies of the committed files, so their sha256 hashes match what the
+   * full migrate() run will see) to bring a fresh DB file to the exact
+   * pre-0002 schema, simulating an existing install that predates this issue.
+   *
+   * drizzle's migrate() decides "already applied" by comparing each
+   * migration's journal `when` (folderMillis) against the latest applied
+   * row's `created_at` — NOT by hash — so the legacy journal's `when` values
+   * for 0000/0001 must match the real committed journal exactly, or the full
+   * migrate() run (0000..0002) will treat them as still-pending and re-run
+   * their CREATE TABLEs against a database that already has those tables.
+   */
+  function buildLegacyMigrationsFolder(dir: string): string {
+    const legacyFolder = join(dir, 'legacy-migrations');
+    mkdirSync(join(legacyFolder, 'meta'), { recursive: true });
+    const fullFolder = resolveMigrationsFolder();
+    copyFileSync(
+      join(fullFolder, '0000_numerous_dreadnoughts.sql'),
+      join(legacyFolder, '0000_numerous_dreadnoughts.sql'),
+    );
+    copyFileSync(
+      join(fullFolder, '0001_fts5_search.sql'),
+      join(legacyFolder, '0001_fts5_search.sql'),
+    );
+    const realJournal = JSON.parse(
+      readFileSync(join(fullFolder, 'meta', '_journal.json'), 'utf8'),
+    ) as { entries: Array<{ idx: number; when: number; tag: string }> };
+    const legacyEntries = realJournal.entries.filter((e) => e.idx <= 1);
+    writeFileSync(
+      join(legacyFolder, 'meta', '_journal.json'),
+      JSON.stringify({
+        version: '7',
+        dialect: 'sqlite',
+        entries: legacyEntries.map((e) => ({ ...e, breakpoints: true, version: '6' })),
+      }),
+    );
+    return legacyFolder;
+  }
+
+  it("backfills job_type='scan' and preserves original columns on pre-existing rows", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'astrotracker-legacy-migration-'));
+    const legacyFilePath = join(dir, 'legacy.db');
+    try {
+      // 1. Bring a fresh file to the exact pre-0002 (P0-04) schema.
+      const legacyConnection = new Database(legacyFilePath);
+      legacyConnection.pragma('foreign_keys = ON');
+      migrate(drizzle(legacyConnection), {
+        migrationsFolder: buildLegacyMigrationsFolder(dir),
+      });
+
+      // 2. Seed a legacy scan_jobs row using only pre-0002 columns (no
+      // job_type/payload_json/progress_*/priority/worker_id/etc. — those
+      // didn't exist yet).
+      const watchFolderId = uuidv7();
+      const now = Date.now();
+      legacyConnection
+        .prepare(
+          `INSERT INTO watch_folders (id, created_at, updated_at, path, is_active)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(watchFolderId, now, now, '/Volumes/Legacy', 1);
+      const legacyJobId = uuidv7();
+      legacyConnection
+        .prepare(
+          `INSERT INTO scan_jobs
+             (id, created_at, updated_at, watch_folder_id, status, files_seen, files_added,
+              files_updated, started_at, finished_at, error)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(legacyJobId, now, now, watchFolderId, 'completed', 42, 10, 2, now, now, null);
+      legacyConnection.close();
+
+      // 3. Apply the full migration set (0000..0002) — only 0002 is pending,
+      // since 0000/0001 hashes already match the applied bookkeeping.
+      const db: AstroDatabase = openDatabase({ filePath: legacyFilePath });
+      try {
+        const raw = new Database(legacyFilePath);
+        try {
+          const row = raw
+            .prepare('SELECT * FROM scan_jobs WHERE id = ?')
+            .get(legacyJobId) as Record<string, unknown>;
+          expect(row['job_type']).toBe('scan');
+          expect(row['status']).toBe('completed');
+          expect(row['files_seen']).toBe(42);
+          expect(row['files_added']).toBe(10);
+          expect(row['files_updated']).toBe(2);
+          expect(row['started_at']).toBe(now);
+          expect(row['finished_at']).toBe(now);
+          expect(row['watch_folder_id']).toBe(watchFolderId);
+          // New generic queue columns get their schema defaults.
+          expect(row['progress_current']).toBe(0);
+          expect(row['progress_total']).toBeNull();
+          expect(row['priority']).toBe(0);
+          expect(row['cancel_requested']).toBe(0);
+          expect(row['worker_id']).toBeNull();
+        } finally {
+          raw.close();
+        }
+      } finally {
+        db.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('applies cleanly on a fresh empty DB (0000→0002 in sequence)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'astrotracker-fresh-migration-'));
+    try {
+      const db = openDatabase({ filePath: join(dir, 'fresh.db') });
+      try {
+        const job = db.repos.scanJobs.insert({ jobType: 'demo', status: 'queued' });
+        expect(job.jobType).toBe('demo');
+      } finally {
+        db.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

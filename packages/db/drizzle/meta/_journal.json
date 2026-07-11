@@ -15,6 +15,13 @@
       "when": 1783376942630,
       "tag": "0001_fts5_search",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1783795945645,
+      "tag": "0002_scan_jobs_queue_columns",
+      "breakpoints": true
     }
   ]
 }
