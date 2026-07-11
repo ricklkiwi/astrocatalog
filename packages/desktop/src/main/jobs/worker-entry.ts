@@ -45,11 +45,22 @@ port.on('message', (message: MainToWorkerMessage) => {
     return;
   }
   cancelled = false;
-  void runJob(message);
+  const runner: JobRunner | undefined = registry[message.jobType];
+  if (runner === undefined) {
+    // An unrecognized job type reaching a worker means the main process and
+    // this worker's registry have drifted (a dispatch bug, not a
+    // recoverable per-job condition) — thrown synchronously here, OUTSIDE
+    // runJob's try/catch, so it's a genuine uncaught exception: the pool's
+    // `worker.on('error', ...)` crash-recovery path applies (fail the
+    // in-flight job, respawn the slot), the same path a real runner bug
+    // takes if it somehow escapes runDemoJob's own error handling.
+    throw new Error(`Unknown job type "${message.jobType}"`);
+  }
+  void runJob(message, runner);
 });
 
-async function runJob(message: RunMessage): Promise<void> {
-  const { jobId, jobType, payload } = message;
+async function runJob(message: RunMessage, runner: JobRunner): Promise<void> {
+  const { jobId, payload } = message;
   const ctx: JobContext = {
     isCancelled: () => cancelled,
     reportProgress: (current, total, progressMessage) => {
@@ -65,12 +76,6 @@ async function runJob(message: RunMessage): Promise<void> {
   };
 
   try {
-    const runner = registry[jobType];
-    if (runner === undefined) {
-      const error: ErrorMessage = { type: 'error', jobId, error: `Unknown job type "${jobType}"` };
-      port.postMessage(error);
-      return;
-    }
     await runner(payload, ctx);
     if (cancelled) {
       const cancelledMsg: CancelledMessage = { type: 'cancelled', jobId };
