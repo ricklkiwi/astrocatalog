@@ -14,7 +14,7 @@ Verification-mode legend used on every criterion below:
   equivalent (same commands this spec already requires locally) and is not called out separately.
 
 This harness is foundational: every later Phase 1 UI-touching issue is required to add its own
-spec using the pattern this issue ships. Criteria below therefore verify the *pattern* is
+spec using the pattern this issue ships. Criteria below therefore verify the _pattern_ is
 mechanically enforced and genuinely reusable (Steps 4/5), not only that the one shipped smoke
 spec passes.
 
@@ -34,7 +34,7 @@ spec passes.
 - [ ] **[local]** Given `packages/desktop/package.json`, when read, then a `pree2e` script builds
       the `electron-builder --dir` unpacked artifact and an `e2e` script runs
       `playwright test` (or equivalent `electron-vite build && electron-rebuild ... &&
-      electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and the root
+electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and the root
       `package.json` gains an `e2e` script equal to `pnpm --filter @astrotracker/desktop e2e`.
 - [ ] **[local]** Given `packages/desktop/tsconfig.json`, when read, then `include` contains
       `"e2e"` in addition to the existing `"src"` / `"electron.vite.config.ts"` entries, and
@@ -86,7 +86,7 @@ spec passes.
       `fs.rm(..., { recursive: true })` a bounded number of times on `EBUSY`/`EPERM` before
       throwing, rather than either retrying unboundedly or failing on the first transient error.
       (The retry firing under real Windows file-lock contention is `[github]`-only signal — it
-      cannot be reproduced on macOS — but the bounded-retry *code path existing* is `[local]`.)
+      cannot be reproduced on macOS — but the bounded-retry _code path existing_ is `[local]`.)
 - [ ] **[local]** Given neither helper is passed a real/ambient OS user-data path, when
       `packages/desktop/e2e/support/temp-dirs.ts` is grepped for hardcoded paths outside the OS
       temp directory, then none are found (Core Invariants: non-destructive guarantee).
@@ -106,7 +106,7 @@ spec passes.
       reverted afterward.
 - [ ] **[local]** Given the top of `packages/desktop/e2e/fixtures.ts`, when read, then it contains
       a comment documenting how to add a new E2E spec (`import { test, expect } from
-      '../fixtures'`, destructure `electronApp`, call `electronApp.app.firstWindow()`), matching
+'../fixtures'`, destructure `electronApp`, call `electronApp.app.firstWindow()`), matching
       the plan's Defaults #4 rationale for why specs must not call `_electron.launch()` directly.
 - [ ] **[local]** Given the root `eslint.config.mjs`, when read, then it contains a rule scoped to
       `packages/desktop/e2e/**/*.spec.ts` that forbids importing `_electron` from
@@ -121,7 +121,7 @@ spec passes.
       marked done) that imports `test`/`expect` from `../fixtures`, uses `electronApp`, calls
       `createTempLibraryDir` indirectly via the fixture's `libraryDir`, and asserts something
       independent of the shipped smoke spec (e.g. `electronApp.appDataDir !== <the first spec's
-      appDataDir>` captured via a shared temp marker, or simply that `libraryDir` exists and is
+appDataDir>` captured via a shared temp marker, or simply that `libraryDir` exists and is
       writable), when `pnpm e2e` is run with both specs present, then both pass independently, in
       the same `workers: 1` run, without one spec's temp dirs colliding with or being visible to
       the other — proving the fixture pattern generalizes beyond the one shipped spec, not just
@@ -163,7 +163,7 @@ spec passes.
       `temp-dirs.ts`'s Windows cleanup retry all work end-to-end — none of this is reproducible on
       the local mac).
 - [ ] **[local]** Given a clean workspace on this mac, when `pnpm --filter @astrotracker/desktop
-      pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-latest` leg's
+pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-latest` leg's
       command sequence, run locally).
 
 **AC7 — Docs (Step 7)**
@@ -290,7 +290,7 @@ spec passes.
   assert it names the import path and the `electronApp` fixture explicitly.
 - **eslint-blocks-direct-electron-import**: add `import { _electron } from '@playwright/test';`
   to a scratch file under `e2e/*.spec.ts`, run `pnpm -r lint`, assert non-zero exit citing the
-  scoped rule; assert the same import inside `fixtures.ts` itself does *not* trigger the rule;
+  scoped rule; assert the same import inside `fixtures.ts` itself does _not_ trigger the rule;
   revert the scratch file.
 - **reusability-second-spec**: add a temporary second `.spec.ts` using `electronApp` from
   `fixtures.ts` with an assertion independent of `app-launch.spec.ts`, run `pnpm e2e` with both

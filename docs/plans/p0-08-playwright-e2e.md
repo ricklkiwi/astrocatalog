@@ -13,7 +13,7 @@ the actual `electron-builder`-packaged desktop app (not a dev-mode `electron .` 
 proves the whole stack boots — a window opens, its title is "AstroTracker", and a renderer→
 preload→main IPC round trip (`app.version`, which itself proves the native `better-sqlite3`/
 `sharp` rebuild works per P0-03 Step 6) returns real data. Equally important as the one smoke
-test is the *harness* it establishes: every later Phase 1 issue that touches the UI is required
+test is the _harness_ it establishes: every later Phase 1 issue that touches the UI is required
 (per the working agreement that motivated this issue) to add its own Playwright spec before its
 PR opens, so this issue's job is to make that cheap and consistent — a documented pattern for
 adding a new spec (`packages/desktop/e2e/fixtures.ts`), and a reusable helper for seeding an
@@ -26,10 +26,10 @@ job is added).
 
 1. **Launch the `electron-builder --dir` unpacked build, not a full installer/DMG and not a raw
    `pnpm -r build` + `electron .` dev build.** Three options were considered:
-   - *Full installer (NSIS/DMG)*: closest to what a user runs, but requires silently installing
+   - _Full installer (NSIS/DMG)_: closest to what a user runs, but requires silently installing
      an app or mounting a DMG in CI — slow and platform-fragile — and the installer wrapper adds
      no test signal beyond what the unpacked bundle inside it already has.
-   - *Dev build (`electron .` against `pnpm -r build` output)*: fast, but skips `asar` packing,
+   - _Dev build (`electron .` against `pnpm -r build` output)_: fast, but skips `asar` packing,
      `asarUnpack`, and `npmRebuild` entirely — exactly the machinery P0-03 Step 6 flagged as the
      fragile part (native-module ABI mismatches, `.node` binaries unloadable from inside an
      asar). A dev-mode E2E run could pass while the artifact real users install is broken, which
@@ -175,7 +175,7 @@ and the demo IPC round trip works end-to-end by evaluating
 result shape — `appVersion`, `electronVersion`, `chromeVersion`, `nodeVersion`, `platform` are
 non-empty strings, and critically `sqliteVersion`/`sharpVersion` are present and not the
 `'unknown'` fallback, which is the same signal P0-03 Step 6's native smoke was built to
-surface, now proven through the *packaged* asar-unpacked binary rather than only in unit tests.
+surface, now proven through the _packaged_ asar-unpacked binary rather than only in unit tests.
 **Files:** `packages/desktop/e2e/app-launch.spec.ts`
 **Depends on:** Step 4
 
@@ -203,7 +203,7 @@ Scope) so a flaky/slow E2E leg cannot block every PR merge on day one; folding i
 
 **Outcome:** `README.md`'s command table gains `pnpm e2e`, and a short "Adding an E2E spec"
 paragraph names `packages/desktop/e2e/fixtures.ts` as the required entry point (linking back to
-this plan's Defaults #4 for *why* specs must not call `_electron.launch()` directly).
+this plan's Defaults #4 for _why_ specs must not call `_electron.launch()` directly).
 `CONTRIBUTING.md`'s CI section gains one line describing `.github/workflows/e2e.yml` alongside
 the existing `ci.yml`/`package.yml` description, including the note that it is not yet part of
 the `ci-ok` required check (Step 6).
@@ -230,7 +230,7 @@ the `ci-ok` required check (Step 6).
   surfacing the error, rather than letting one flaky teardown fail the whole spec.
 - **`--user-data-dir` isolates Electron's profile but not `packages/desktop/release/`
   itself** — the packaged binary is shared read-only across all specs/workers in a run; only
-  per-run *state* (temp app-data, temp library dir) is isolated. This is intentional (rebuilding
+  per-run _state_ (temp app-data, temp library dir) is isolated. This is intentional (rebuilding
   the app per spec would be far too slow) and is why `workers: 1` (Step 1) is the safer starting
   default until it's confirmed multiple Electron instances launched from the same binary don't
   interfere with each other.
@@ -272,7 +272,7 @@ the `ci-ok` required check (Step 6).
 - [x] Timestamps stored UTC: N/A, nothing persisted by this issue.
 - [x] Long-running work goes through the worker job queue: N/A, no runtime app logic added —
       this issue is test infrastructure only.
-- [x] Performance budgets (PRD §8.4): N/A, no runtime code path affected. CI *wall-clock* time
+- [x] Performance budgets (PRD §8.4): N/A, no runtime code path affected. CI _wall-clock_ time
       grows (native rebuild + packaging + Electron boot per OS, Step 6's `timeout-minutes: 20`),
       which is a CI-cost note, not a PRD §8.4 application-performance regression.
 
@@ -298,7 +298,7 @@ the `ci-ok` required check (Step 6).
 - Code signing / notarization / Gatekeeper handling for the packaged artifact under test — this
   issue's builds are unsigned exactly like `pnpm package`'s (P1-33 territory); since CI builds
   and runs the app on the same machine (no download/quarantine step), Gatekeeper's
-  quarantine-attribute behavior that affects a *distributed* unsigned DMG does not apply to a
+  quarantine-attribute behavior that affects a _distributed_ unsigned DMG does not apply to a
   freshly-built local unpacked binary.
 - Cross-platform artifact caching/reuse between CI jobs, or trimming `pree2e`'s rebuild cost
   (e.g. caching `electron-rebuild` output) — a performance follow-up once the suite exists and
