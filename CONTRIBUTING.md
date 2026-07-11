@@ -48,6 +48,12 @@ succeeded.
 `.github/workflows/package.yml` is a manual-dispatch (`workflow_dispatch`) packaging stub
 on Windows + macOS; P0-03 fills in the electron-builder steps.
 
+`.github/workflows/e2e.yml` (P0-08) runs `pnpm e2e` — Playwright against the
+`electron-builder --dir` unpacked packaged app — on a `windows-latest` / `macos-latest`
+matrix for every pull request and push to `main`. It is **not yet part of the `ci-ok`
+required check**: a new, unproven GUI leg must not block merges on day one; folding it into
+the required aggregate is a follow-up once the suite has proven stable.
+
 ## Branch protection for `main` (one-time repo-admin setup)
 
 1. Go to **Settings → Branches**.
