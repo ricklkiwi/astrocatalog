@@ -13,3 +13,7 @@ all-issues.json
 fixtures/generated/
 packages/desktop/out/
 packages/desktop/release/
+
+# Playwright default output directories (P0-08)
+packages/desktop/playwright-report/
+packages/desktop/test-results/

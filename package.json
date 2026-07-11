@@ -16,6 +16,7 @@
     "lint:root": "eslint eslint.config.mjs vitest.config.ts && prettier --check .",
     "test": "vitest run",
     "package": "pnpm --filter @astrotracker/desktop package",
+    "e2e": "pnpm --filter @astrotracker/desktop e2e",
     "format": "prettier --write .",
     "fixtures:generate": "pnpm --filter @astrotracker/fixtures run generate"
   },
