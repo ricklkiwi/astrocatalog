@@ -10,10 +10,20 @@
  * implementation a compile error; contract.test.ts pins registration).
  */
 
-/** Every channel in the contract, as runtime data (preload whitelist source). */
-export const IPC_CHANNELS = ['app.version'] as const;
+/** Every request/response channel in the contract, as runtime data (preload whitelist source). */
+export const IPC_CHANNELS = [
+  'app.version',
+  'jobs.enqueueDemo',
+  'jobs.cancel',
+  'jobs.list',
+] as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
+
+/** Every main→renderer event channel in the contract, as runtime data (preload whitelist source). */
+export const IPC_EVENT_CHANNELS = ['jobs.progress'] as const;
+
+export type IpcEventChannel = (typeof IPC_EVENT_CHANNELS)[number];
 
 /** Output of `app.version` — the demo procedure proving the full round trip. */
 export interface AppVersionInfo {
@@ -27,16 +37,51 @@ export interface AppVersionInfo {
   sharpVersion: string;
 }
 
+export interface EnqueueDemoInput {
+  totalSteps?: number;
+  stepMs?: number;
+}
+
+export interface EnqueueDemoOutput {
+  jobId: string;
+}
+
+export interface CancelJobInput {
+  jobId: string;
+}
+
+export interface JobSummary {
+  id: string;
+  jobType: string;
+  status: string;
+  progressCurrent: number;
+  progressTotal: number | null;
+  progressMessage: string | null;
+}
+
+export interface JobProgressEvent extends JobSummary {
+  message: string | null;
+}
+
 /**
  * Channel → { input, output } map. Keyed by IpcChannel so a channel cannot be
  * listed in IPC_CHANNELS without a contract entry (and vice versa).
  */
 export interface IpcContract extends Record<IpcChannel, { input: unknown; output: unknown }> {
   'app.version': { input: void; output: AppVersionInfo };
+  'jobs.enqueueDemo': { input: EnqueueDemoInput | void; output: EnqueueDemoOutput };
+  'jobs.cancel': { input: CancelJobInput; output: void };
+  'jobs.list': { input: void; output: JobSummary[] };
 }
 
 export type IpcInput<C extends IpcChannel> = IpcContract[C]['input'];
 export type IpcOutput<C extends IpcChannel> = IpcContract[C]['output'];
+
+export interface IpcEventContract extends Record<IpcEventChannel, { payload: unknown }> {
+  'jobs.progress': { payload: JobProgressEvent };
+}
+
+export type IpcEventPayload<C extends IpcEventChannel> = IpcEventContract[C]['payload'];
 
 /**
  * The one API the preload exposes as `window.astrotracker`. Input-less
@@ -45,6 +90,14 @@ export type IpcOutput<C extends IpcChannel> = IpcContract[C]['output'];
 export interface AstroTrackerBridge {
   invoke<C extends IpcChannel>(
     channel: C,
-    ...args: IpcInput<C> extends void ? [] : [input: IpcInput<C>]
+    ...args: undefined extends IpcInput<C>
+      ? [] | [input: Exclude<IpcInput<C>, void>]
+      : IpcInput<C> extends void
+        ? []
+        : [input: IpcInput<C>]
   ): Promise<IpcOutput<C>>;
+  on<C extends IpcEventChannel>(
+    channel: C,
+    listener: (payload: IpcEventPayload<C>) => void,
+  ): () => void;
 }

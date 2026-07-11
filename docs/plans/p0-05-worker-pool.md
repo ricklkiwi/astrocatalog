@@ -14,7 +14,7 @@ Drizzle migration with generic queue columns — job type, payload, progress, pr
 cancel bookkeeping), an orchestrator that claims queued rows, dispatches them to idle workers,
 persists progress, and requeues anything left `running` at the previous app exit (crash or
 graceful quit — both look the same at boot, since no worker survives a process restart), and a
-main→renderer IPC *event* channel (new to the typed contract, alongside the existing
+main→renderer IPC _event_ channel (new to the typed contract, alongside the existing
 request/response `invoke` pattern) that streams progress to the UI. A demo job — sleep in N
 steps, reporting progress after each — exercises the full path end to end and is resumable: a
 job interrupted mid-run continues from its last persisted step instead of restarting. Per DD-002's
@@ -37,12 +37,12 @@ re-architecting later.
 2. **`job_type` is a free-form `TEXT NOT NULL` column, no CHECK constraint.** DD-002 lists four
    future worker kinds (FileScanner, HeaderParser, Hasher, ThumbnailGenerator) plus this issue's
    `'demo'`; a CHECK enum would need a migration every time Phase 1 adds a job type. `status`
-   *does* get a CHECK (`'queued'|'running'|'completed'|'failed'|'cancelled'`) — that lifecycle is
+   _does_ get a CHECK (`'queued'|'running'|'completed'|'failed'|'cancelled'`) — that lifecycle is
    closed and a bad value is a correctness bug worth catching in the DB. The `JobType` union
    (`'demo'` for now) lives in `packages/desktop` (only desktop's worker registry knows what job
    types exist); `packages/db` only knows `status`.
 3. **Workers never touch SQLite.** DD-002's diagram places "Drizzle/SQLite | job queue" under the
-   *main process* box, with `worker_threads` drawn as a separate box below reporting up. This
+   _main process_ box, with `worker_threads` drawn as a separate box below reporting up. This
    plan reads DD-003's "single writer (worker)" phrase as "one writer, using the synchronous
    better-sqlite3 API, on the queue-orchestration path" — not literally inside a `worker_threads`
    worker. The main process already owns the one `AstroDatabase` handle (P0-04); workers post
@@ -302,7 +302,7 @@ function returned by `on`.
 - **App died while a cancel was in flight** (cancel message sent, `'cancelled'` ack never
   arrived): `requeueOrphaned()` must **not** clear `cancelRequested`. The resumed job's worker
   sees `cancelRequested=true` immediately (via `resumeFrom`/payload) and the orchestrator must
-  check it *before* dispatching to a fresh worker at all, marking the job `'cancelled'` directly
+  check it _before_ dispatching to a fresh worker at all, marking the job `'cancelled'` directly
   rather than spinning up a worker just to cancel it.
 - **Late cancel on an already-finished job** (renderer's cancel click races the job's own
   completion): `requestCancel`/`markCancelled` on a row already in a terminal state is a no-op,
@@ -341,7 +341,7 @@ function returned by `on`.
       UUIDv7 PK + `updated_at`; no new table needed
 - [x] Timestamps stored UTC: `claimedAt`/`startedAt`/`finishedAt` reuse the existing
       `timestamp_ms` column mode (epoch-ms, UTC by construction)
-- [x] Long-running work goes through the worker job queue: this issue *builds* that mechanism;
+- [x] Long-running work goes through the worker job queue: this issue _builds_ that mechanism;
       the demo job is the first thing to use it, proving the path P1-06+ real scanning jobs will
       reuse
 - [x] Performance budgets (PRD §8.4): the composite `(status, priority, createdAt)` index keeps

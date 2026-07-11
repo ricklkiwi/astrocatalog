@@ -26,7 +26,6 @@
   },
   "devDependencies": {
     "@astrotracker/core": "workspace:*",
-    "@astrotracker/db": "workspace:*",
     "@electron/rebuild": "^4.2.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.1.0",
@@ -37,6 +36,7 @@
     "vite": "^7.3.6"
   },
   "dependencies": {
+    "@astrotracker/db": "workspace:*",
     "better-sqlite3": "^12.11.1",
     "sharp": "^0.35.3"
   }

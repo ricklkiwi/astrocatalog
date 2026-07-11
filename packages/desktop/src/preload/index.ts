@@ -8,9 +8,14 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 import type { AstroTrackerBridge } from '../ipc/contract.js';
 import { createInvoke } from './create-invoke.js';
+import { createListen } from './create-listen.js';
 
 const bridge: AstroTrackerBridge = {
   invoke: createInvoke((channel, ...args) => ipcRenderer.invoke(channel, ...args)),
+  on: createListen(
+    (channel, listener) => ipcRenderer.on(channel, listener),
+    (channel, listener) => ipcRenderer.removeListener(channel, listener),
+  ),
 };
 
 contextBridge.exposeInMainWorld('astrotracker', bridge);

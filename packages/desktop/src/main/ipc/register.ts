@@ -7,7 +7,7 @@
  * `ipcMain` is injected (IpcMainLike) so this module never imports Electron
  * and stays unit-testable under plain Node (contract.test.ts).
  */
-import { IPC_CHANNELS, type IpcContract } from '../../ipc/contract.js';
+import { IPC_CHANNELS, type EnqueueDemoInput, type IpcContract } from '../../ipc/contract.js';
 
 export type IpcHandlers = {
   [C in keyof IpcContract]: (
@@ -28,6 +28,11 @@ export interface IpcHandlerDeps {
   versions: Partial<Record<'electron' | 'chrome' | 'node', string>>;
   /** Step 6 native-module smoke, injected so this module needs no native deps to unit test. */
   nativeSmoke: () => { sqliteVersion: string; sharpVersion: string };
+  jobs: {
+    enqueueDemo(input?: EnqueueDemoInput): { jobId: string };
+    cancel(jobId: string): void;
+    list(): IpcContract['jobs.list']['output'];
+  };
 }
 
 export function createIpcHandlers(deps: IpcHandlerDeps): IpcHandlers {
@@ -44,6 +49,11 @@ export function createIpcHandlers(deps: IpcHandlerDeps): IpcHandlers {
         sharpVersion,
       };
     },
+    'jobs.enqueueDemo': (input) => deps.jobs.enqueueDemo(input ?? undefined),
+    'jobs.cancel': (input) => {
+      deps.jobs.cancel(input.jobId);
+    },
+    'jobs.list': () => deps.jobs.list(),
   };
 }
 
