@@ -34,33 +34,39 @@ orchestrator to retry or continue with the strongest available coding/reasoning 
 ## Coding Standards
 
 ### Layering (DD-002 — violations are review-blocking)
+
 - Domain logic (parsers, resolvers, session detection, calibration matching, integration math) lives in `packages/core` — pure TypeScript, **no Electron imports, no fs side effects**; parsers accept Buffers/streams/read-callbacks
 - Renderer never touches fs/db/network — everything through the typed IPC contract; add new procedures to the shared router type, never ad-hoc `ipcRenderer` channels
 - CPU/IO-heavy work (scanning, hashing, thumbnails) goes through the worker job queue (DD-004), never the main-process event loop or renderer
 
 ### Non-destructive guarantee (DD-002 rule 5 — CRITICAL, read every time)
+
 - Never write, move, rename, or delete user image files. The only writes outside app-data are explicit user-invoked exports
 - Before using `fs.rename/unlink/writeFile` or `sharp(...).toFile`, verify the target is inside app-data or a user-chosen export path
 
 ### Database (DD-003)
+
 - Schema changes only via new Drizzle migrations; never edit an applied migration
 - Every table: UUIDv7 string PK, `updated_at`; every timestamp UTC
 - Never store image data in the DB — paths and metadata only
 - Aggregation hot paths may use raw SQL with a comment referencing the DD
 
 ### Parsing (DD-004)
+
 - Header-only reads: never read pixel payloads except in the thumbnail pipeline
 - Unknown/non-standard keywords are preserved in `headers_json`, never discarded
 - Malformed input produces structured errors, never throws across a worker boundary or aborts a batch
 - Software-specific quirks go in the profile data table + a fixture, not inline conditionals
 
 ### TypeScript & React
+
 - Strict mode; no `any` without `// justified:` comment
 - Explicit prop interfaces; Zustand for UI state; TanStack Query for IPC data
 - Virtualize any list that can exceed ~200 rows (100k-file target)
 - Tailwind utility classes; theme colors via CSS custom properties only (dark/light/red-night themes)
 
 ### Tests (part of every step, not an afterthought)
+
 - Core logic: table-driven Vitest tests against `fixtures/` with expected-output manifests
 - New fixtures need a manifest entry and provenance note
 - Repositories/pipeline: integration tests against temp SQLite

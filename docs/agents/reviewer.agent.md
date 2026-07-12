@@ -31,19 +31,23 @@ straightforward reviews.
 Grep the diff for `unlink|rename|rmdir|writeFile|createWriteStream|toFile|rm(` — verify every write target is inside app-data or an explicit user-chosen export path. Any code that can touch a user image file is an automatic FAIL.
 
 **Layering (Major)**
+
 - `packages/core` imports: no `electron`, no `fs` side effects in domain logic (`grep -rn "from 'electron'\|require('fs')" packages/core/src`)
 - No new ad-hoc IPC channels bypassing the typed router
 - No heavy work added to the main-process event loop (scan/hash/thumbnail code must run in workers)
 
 **Database (Major)**
+
 - New tables/columns arrive via a new migration; applied migrations untouched (`git diff --name-only` on migrations dir)
 - UUIDv7 PKs + `updated_at` present; timestamps UTC; no pixel/image data in the DB
 
 **Data preservation (Major)**
+
 - Raw headers preserved in `headers_json`; manual overrides (target/filter/type/session) not clobbered by re-scan logic
 - No code path deletes catalog rows for missing files (missing ≠ deleted, DD-003)
 
 **Secrets (Critical)**
+
 - No tokens/keys in any non-`.env*` file
 
 ## Part 3: Code Quality
@@ -69,19 +73,24 @@ Triage each failure: real bug → finding; bad test → fix the test and re-run;
 ## Review Report: <Issue title> (#<N>)
 
 ### Spec Coverage
+
 - ✓ / ✗ / ⚠ per criterion, with file:line or test name
 
 ### Findings
+
 #### [Critical | Major | Minor | Suggestion]
+
 **File**: path (line N)
 **Spec item**: criterion violated (or "invariant check")
 **Issue**: one sentence
 **Fix**: exactly what the Coder should change
 
 ### Test Results
+
 build/lint/test/bench/e2e — X passed, Y failed, Z skipped (+ failure root causes)
 
 ### Verdict
+
 PASS — no Critical or Major findings
 FAIL — N Critical/Major findings; Coder must fix
 ```

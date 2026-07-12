@@ -30,12 +30,12 @@ The Git repository root is `repo/`, not the outer `AstrophotographyTracker/` fol
 
 Top-level duplicates currently exist outside Git:
 
-| Outer folder | In-repo location | Status |
-| --- | --- | --- |
-| `agents/` | `repo/docs/agents/` | Same document set, but content drift exists. |
-| `design/` | `repo/design/` | Byte-for-byte duplicate. |
-| `planning/` | `repo/planning/` | Same major docs, but formatting/content drift exists. |
-| `requirements/PRD-AstroTracker-v1.md` | `repo/planning/PRD-AstroTracker-v1.md` | PRD copy drift exists. |
+| Outer folder                          | In-repo location                       | Status                                                |
+| ------------------------------------- | -------------------------------------- | ----------------------------------------------------- |
+| `agents/`                             | `repo/docs/agents/`                    | Same document set, but content drift exists.          |
+| `design/`                             | `repo/design/`                         | Byte-for-byte duplicate.                              |
+| `planning/`                           | `repo/planning/`                       | Same major docs, but formatting/content drift exists. |
+| `requirements/PRD-AstroTracker-v1.md` | `repo/planning/PRD-AstroTracker-v1.md` | PRD copy drift exists.                                |
 
 Known model-routing drift:
 

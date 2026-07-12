@@ -34,13 +34,13 @@ that accept only simple aliases.
 
 Current role routing:
 
-| Role | Preferred models |
-| --- | --- |
-| Orchestrator | Fable 5 -> GPT-5.6 -> GPT-5.5 -> Opus |
-| Planner | Fable 5 -> GPT-5.6 -> GPT-5.5 -> Opus |
-| Spec Writer | Opus -> GPT-5.4 -> Sonnet |
-| Coder | GPT-5.6 -> GPT-5.5 -> Sonnet -> GPT-5.4 |
-| Reviewer | GPT-5.5 -> Opus -> Sonnet |
+| Role         | Preferred models                        |
+| ------------ | --------------------------------------- |
+| Orchestrator | Fable 5 -> GPT-5.6 -> GPT-5.5 -> Opus   |
+| Planner      | Fable 5 -> GPT-5.6 -> GPT-5.5 -> Opus   |
+| Spec Writer  | Opus -> GPT-5.4 -> Sonnet               |
+| Coder        | GPT-5.6 -> GPT-5.5 -> Sonnet -> GPT-5.4 |
+| Reviewer     | GPT-5.5 -> Opus -> Sonnet               |
 
 ## Consequences
 
