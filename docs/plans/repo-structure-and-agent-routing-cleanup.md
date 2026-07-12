@@ -1,6 +1,6 @@
 # Repository Structure And Agent Routing Cleanup Plan
 
-**Status:** Proposed
+**Status:** Completed
 **Date:** 2026-07-12
 
 ## Goals
@@ -12,6 +12,17 @@
 - Remove drift between top-level working folders and the Git repository.
 - Preserve the most current copy of every document before deleting or archiving duplicates.
 - Leave a repeatable audit trail in commits.
+
+## Completion Notes
+
+Completed on 2026-07-12.
+
+- Added `AGENTS.md` for Codex-style harnesses.
+- Kept Sonnet as the Coder fallback in `docs/agents/MODEL_SELECTION.md` and
+  `docs/adr/ADR-001-agent-harness-model-routing.md`.
+- Moved the reusable GitHub bootstrap script and `.env.example` into the repo.
+- Removed outer duplicate folders/files after confirming the repo copies were canonical.
+- Left local-only `.env`, `.claude/`, `.pnpm-store/`, `repo/`, and `worktrees/` in place.
 
 ## Current Findings
 

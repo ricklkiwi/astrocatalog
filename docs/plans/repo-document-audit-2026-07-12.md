@@ -1,6 +1,7 @@
 # Repository Document Audit
 
 **Date:** 2026-07-12
+**Status:** Completed
 
 ## Scope
 
@@ -37,5 +38,5 @@ This matches `docs/agents/MODEL_SELECTION.md` and
 
 ## Cleanup Decision
 
-After this audit is committed, the outer duplicate document folders can be removed so future work
-only happens in the Git repository.
+The outer duplicate document folders and obsolete top-level helper files were removed after the
+canonical repo copies were committed. The real `.env` file remains local-only and uncommitted.
