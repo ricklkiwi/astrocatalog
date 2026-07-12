@@ -158,9 +158,9 @@ verifies these on the PR, not the Reviewer locally).
       check delta magnitude — per the plan's stated first response, not "raise the threshold").
 - [ ] `[local]` Given root `README.md`, when read, then its Commands section lists `pnpm bench`.
 - [ ] `[local]` Given `pnpm-lock.yaml`, when inspected after adding the `bench` workspace member
-      and its dependency edges, then it is regenerated/committed in this PR — `pnpm install
-      --frozen-lockfile` (as CI's `bench`/`test` jobs run it) succeeds against the committed
-      lockfile without modification.
+      and its dependency edges, then it is regenerated/committed in this PR —
+      `pnpm install --frozen-lockfile` (as CI's `bench`/`test` jobs run it) succeeds against the
+      committed lockfile without modification.
 
 ### Data Integrity
 
@@ -211,7 +211,7 @@ verifies these on the PR, not the Reviewer locally).
 - [ ] `[local]` Given `bench/src/compare.ts`, when read, then the 20% regression threshold is a
       single named constant (not duplicated/hardcoded in multiple places), and its value is
       documented in `bench/README.md` alongside the computation formula.
-- [ ] No hard-coded *absolute*-time pass/fail assertion is required anywhere in `bench/` beyond
+- [ ] No hard-coded _absolute_-time pass/fail assertion is required anywhere in `bench/` beyond
       the relative regression gate — the plan deliberately scopes this issue to relative
       regression detection against a committed baseline, not absolute-budget enforcement inside
       the benchmark files themselves; the Reviewer must not require one.
@@ -268,7 +268,7 @@ Copied from the plan and expanded — the Reviewer must not flag any of the foll
 - Any `packages/desktop` or IPC changes.
 - Exact numeric baseline values committed in `bench/baselines/results.json` — these are
   hardware-dependent (ubuntu-latest GitHub Actions runner) and not independently verifiable by
-  the Reviewer from a local machine; Reviewer checks the file's *shape* (one entry per benchmark,
+  the Reviewer from a local machine; Reviewer checks the file's _shape_ (one entry per benchmark,
   non-zero/non-placeholder values) and that it was generated via `bench:update-baseline`, not its
   exact numbers.
 - Exact Vitest `bench()` `time`/`iterations` tuning values — the plan requires "adequate samples
@@ -324,7 +324,7 @@ Copied from the plan and expanded — the Reviewer must not flag any of the foll
 - **github-regression-gate-fires** `[github]`: orchestrator, on a scratch branch/PR off this
   change, deliberately lowers a baseline value in `bench/baselines/results.json` (simulating a
   regression without needing a real perf change) and pushes; assert the `bench` job's `pnpm
-  bench` step fails and `ci-ok` goes red — the actual end-to-end firing of the regression gate on
-  GitHub Actions, which cannot be established by reading the diff alone.
+bench` step fails and `ci-ok` goes red — the actual end-to-end firing of the regression gate
+  on GitHub Actions, which cannot be established by reading the diff alone.
 
 Spec written: docs/specs/p0-07-benchmark-harness.md — 48 criteria

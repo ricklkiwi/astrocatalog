@@ -33,6 +33,9 @@ import { generateFrames, type GeneratedFrame, type WeightedEntry } from '@astrot
  */
 export const INSERT_CHUNK_SIZE = 1000;
 
+/** SQLite filename inside each seed's temp directory (see `SeedContext.filePath`). */
+export const SEED_DB_FILENAME = 'bench.sqlite';
+
 /**
  * Bench-specific target-name pool: dozens of real object designations (not
  * `generate.ts`'s 3-object CLI default) with a rough power-law weighting so
@@ -115,6 +118,8 @@ export interface SeedContext {
   db: AstroDatabase;
   /** Temp directory holding the SQLite file (never inside the repo). */
   dir: string;
+  /** Full path to the SQLite file — `join(dir, SEED_DB_FILENAME)`. */
+  filePath: string;
   watchFolderId: string;
   targetIdByName: ReadonlyMap<string, string>;
   filterIdByName: ReadonlyMap<string, string>;
@@ -127,7 +132,8 @@ export interface SeedContext {
  */
 export function createSeedContext(): SeedContext {
   const dir = mkdtempSync(join(tmpdir(), 'astrotracker-bench-'));
-  const db = openDatabase({ filePath: join(dir, 'bench.sqlite') });
+  const filePath = join(dir, SEED_DB_FILENAME);
+  const db = openDatabase({ filePath });
 
   const watchFolder = db.repos.watchFolders.insert({
     path: dir,
@@ -153,7 +159,7 @@ export function createSeedContext(): SeedContext {
     filterIdByName.set(entry.name, row.id);
   }
 
-  return { db, dir, watchFolderId: watchFolder.id, targetIdByName, filterIdByName };
+  return { db, dir, filePath, watchFolderId: watchFolder.id, targetIdByName, filterIdByName };
 }
 
 /**
@@ -163,8 +169,19 @@ export function createSeedContext(): SeedContext {
  * a future scanning-pipeline (DD-004) caller would use; no new repository
  * method is added. Returns the number of rows inserted (files + frames
  * combined) for rows/sec reporting.
+ *
+ * `relativePathPrefix` disambiguates repeated calls against the same `ctx`
+ * (`files_watch_folder_relative_path_uq` is a unique index on
+ * `(watch_folder_id, relative_path)`) — `db-insert.bench.ts` calls this once
+ * per tinybench invocation of its benchmark function, including an
+ * unrecorded probe call tinybench issues before the first timed sample, so a
+ * fixed `frame.fileName` would collide on the second call.
  */
-export function insertGeneratedFrames(ctx: SeedContext, frames: readonly GeneratedFrame[]): number {
+export function insertGeneratedFrames(
+  ctx: SeedContext,
+  frames: readonly GeneratedFrame[],
+  relativePathPrefix = '',
+): number {
   let rowsInserted = 0;
   for (let start = 0; start < frames.length; start += INSERT_CHUNK_SIZE) {
     const chunk = frames.slice(start, start + INSERT_CHUNK_SIZE);
@@ -173,7 +190,7 @@ export function insertGeneratedFrames(ctx: SeedContext, frames: readonly Generat
         const dateObsUtc = new Date(`${frame.dateObs}Z`);
         const fileRow = repos.files.insert({
           watchFolderId: ctx.watchFolderId,
-          relativePath: frame.fileName,
+          relativePath: `${relativePathPrefix}${frame.fileName}`,
           filename: frame.fileName,
           extension: '.fits',
           sizeBytes: frame.bytes.length,
@@ -219,17 +236,24 @@ export interface SeedOptions {
 export interface SeedResult {
   db: AstroDatabase;
   dir: string;
+  filePath: string;
   frames: GeneratedFrame[];
 }
 
-/** Full build: fresh context + `generateFrames()` + chunked insert, in one call. */
-export function seedDatabase(opts: SeedOptions): SeedResult {
-  const ctx = createSeedContext();
+/**
+ * Calls `generateFrames()` with the bench-specific target/filter/exptime/
+ * imagetype pools — the pure, in-memory synthesis step shared by
+ * `seedDatabase()` and by `db-insert.bench.ts`/`aggregate-query.bench.ts`,
+ * which call this directly so their own "already generated in memory before
+ * timing starts" dataset is built with the exact same distribution
+ * `seedDatabase()` uses.
+ */
+export function generateBenchFrames(opts: SeedOptions): GeneratedFrame[] {
   const { frames } = generateFrames({
     count: opts.count,
-    // Unused by generateFrames (pure, in-memory) — only `run()`'s CLI
-    // writer touches `out`. Never written to.
-    out: ctx.dir,
+    // Unused by generateFrames (pure, in-memory) — only `run()`'s CLI writer
+    // touches `out`. Never written to.
+    out: 'unused-generateFrames-is-pure-in-memory',
     seed: opts.seed ?? 1,
     profile: 'nina',
     objects: [...BENCH_TARGETS],
@@ -239,8 +263,15 @@ export function seedDatabase(opts: SeedOptions): SeedResult {
     dateStart: '2026-01-01',
     nights: Math.max(1, Math.ceil(opts.count / 200)),
   });
+  return frames;
+}
+
+/** Full build: fresh context + `generateBenchFrames()` + chunked insert, in one call. */
+export function seedDatabase(opts: SeedOptions): SeedResult {
+  const ctx = createSeedContext();
+  const frames = generateBenchFrames(opts);
   insertGeneratedFrames(ctx, frames);
-  return { db: ctx.db, dir: ctx.dir, frames };
+  return { db: ctx.db, dir: ctx.dir, filePath: ctx.filePath, frames };
 }
 
 /** Closes the DB connection and removes its temp directory. */

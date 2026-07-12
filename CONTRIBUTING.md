@@ -37,13 +37,18 @@ Root script reference:
 | `pnpm lint`      | `lint:root` (ESLint on root configs + `prettier --check .`) then `pnpm -r lint`  |
 | `pnpm test`      | Root `vitest run` across all four projects (`core`, `db`, `desktop`, `renderer`) |
 | `pnpm format`    | `prettier --write .` — fix formatting failures from `pnpm lint`                  |
+| `pnpm bench`     | P0-07 benchmark regression gate against `bench/baselines/results.json`           |
+
+Run `pnpm bench` before PRs that touch DB inserts, aggregate queries, fixture generation, or
+header scanning. Use `pnpm bench:update-baseline` only for intentional performance changes and
+commit the refreshed baseline with the implementation.
 
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request and on pushes to `main`: install →
 build/typecheck → lint → test across an `ubuntu-latest` / `windows-latest` / `macos-latest`
-matrix, plus a final aggregate job named **`ci-ok`** that fails unless every matrix leg
-succeeded.
+matrix, runs the benchmark regression gate on `ubuntu-latest`, plus a final aggregate job named
+**`ci-ok`** that fails unless every matrix leg and the benchmark job succeeded.
 
 `.github/workflows/package.yml` is a manual-dispatch (`workflow_dispatch`) packaging stub
 on Windows + macOS; P0-03 fills in the electron-builder steps.

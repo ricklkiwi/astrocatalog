@@ -14,9 +14,12 @@
   "dependencies": {
     "@astrotracker/core": "workspace:*",
     "@astrotracker/db": "workspace:*",
-    "@astrotracker/fixtures": "workspace:*"
+    "@astrotracker/fixtures": "workspace:*",
+    "better-sqlite3": "^12.2.0",
+    "drizzle-orm": "^0.44.2"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.0.0",
     "tsx": "^4.20.0"
   }

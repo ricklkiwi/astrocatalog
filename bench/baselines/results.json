@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T00:00:56.547Z",
+  "results": [
+    {
+      "name": "db-insert-100k-files-frames-rows-per-sec",
+      "unit": "rows/sec",
+      "value": 5571.709017038256,
+      "higherIsBetter": true,
+      "samples": [5571.709017038256]
+    },
+    {
+      "name": "aggregate-target-filter-type-rollup-queries-per-sec",
+      "unit": "queries/sec",
+      "value": 14.749810949266845,
+      "higherIsBetter": true,
+      "samples": [14.504912347043835, 15.259187986327508, 14.485332514429196]
+    },
+    {
+      "name": "aggregate-single-target-filter-rollup-queries-per-sec",
+      "unit": "queries/sec",
+      "value": 66.6223450712669,
+      "higherIsBetter": true,
+      "samples": [65.29929575676067, 67.47249817937931, 67.09524127766069]
+    },
+    {
+      "name": "fits-header-end-block-scan-headers-per-sec",
+      "unit": "headers/sec",
+      "value": 527139.2036902518,
+      "higherIsBetter": true,
+      "samples": [529539.594193342, 519887.89985784434, 531990.1170195692]
+    }
+  ]
+}

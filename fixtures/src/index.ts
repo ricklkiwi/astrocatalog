@@ -17,3 +17,4 @@ export {
   type WeightedEntry,
   type ProfileName,
 } from './generate.js';
+export { BLOCK_BYTES, CARD_BYTES } from './lib/fits.js';

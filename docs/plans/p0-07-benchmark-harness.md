@@ -22,7 +22,7 @@ full suite, prints the table, and gates; a new `bench` CI job (ubuntu-latest onl
 Questions/rationale) runs the same command and is folded into the existing `ci-ok` aggregate
 required check.
 
-**Scope note surfaced up front (see Open Questions):** no FITS header *parser* exists in the
+**Scope note surfaced up front (see Open Questions):** no FITS header _parser_ exists in the
 repo yet — `packages/core` only exports a UUIDv7 generator (P1-01, the real FITS parser, has
 not landed). The issue's "header parse throughput" criterion is therefore met with a narrower,
 honestly-scoped benchmark: bounded-read + END-card block-boundary detection (the I/O-bound half
@@ -145,7 +145,7 @@ row counts, FK integrity, index population — not a benchmark).
 
 ### Step 4 — Bulk DB insert-rate benchmark
 
-**Outcome:** `bench/src/db-insert.bench.ts` times *only* the insert loop (files + frames rows,
+**Outcome:** `bench/src/db-insert.bench.ts` times _only_ the insert loop (files + frames rows,
 chunked-transaction strategy from Step 3) for a 100k-frame synthetic dataset that has already
 been generated in memory before timing starts — so the benchmark measures
 `@astrotracker/db` write throughput, not `generateFrames()`'s synthesis cost. Reports rows/sec
@@ -177,7 +177,7 @@ part of either bench's timed region).
 `generateFrames()` already produced (no disk I/O — `GeneratedFrame.bytes`), a bounded scan that
 walks 2880-byte blocks (reusing `BLOCK_BYTES`/`CARD_BYTES` constants re-exported from
 `@astrotracker/fixtures`'s FITS builder lib) looking for the literal `END` card, returning the
-header's total byte length / block count. This is explicitly *not* full card/keyword/value
+header's total byte length / block count. This is explicitly _not_ full card/keyword/value
 decoding (no quoting, no CONTINUE convention, no `headers_json` construction) — a header
 comment block and `bench/README.md` both say so plainly, and both note this file should be
 revisited once P1-01's real parser exists (either replaced by calling into it directly, or its

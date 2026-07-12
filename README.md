@@ -65,15 +65,17 @@ pnpm test           # root vitest run across all four projects (core, db, deskto
 pnpm -r test        # same tests, run per package instead
 pnpm dev            # launch the Electron app with hot reload (P0-03)
 pnpm package        # build an installable artifact for this OS (P0-03)
+pnpm bench          # run P0-07 benchmark regression gate against committed baselines
+pnpm bench:update-baseline # intentionally refresh bench/baselines/results.json
 ```
 
 ## Contributing / CI
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the PR workflow, the local gate
-(`pnpm install && pnpm -r build && pnpm lint && pnpm test`), and the branch-protection
-setup. CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same gate on
-ubuntu/windows/macos for every PR and push to `main`; the aggregate `ci-ok` job is the
-required status check.
+(`pnpm install && pnpm -r build && pnpm lint && pnpm test`), the benchmark gate
+(`pnpm bench`), and the branch-protection setup. CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
+runs build/lint/test on ubuntu/windows/macos and runs benchmarks on ubuntu only; the aggregate
+`ci-ok` job is the required status check.
 
 ## Electron shell (P0-03)
 
