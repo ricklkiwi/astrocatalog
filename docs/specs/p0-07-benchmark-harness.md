@@ -28,18 +28,27 @@ verifies these on the PR, not the Reviewer locally).
       one row per defined benchmark and columns for name, baseline value, current value, delta
       %, and status (`OK`/`REGRESSED`/`NEW`/`MISSING`).
 - [ ] `[local]` Given `bench/baselines/results.json`, when the repo is inspected, then the file
-      exists, is tracked by git (not gitignored), and contains non-placeholder, non-zero timing
-      values for every benchmark defined in `bench/src/*.bench.ts` (an all-zero or
-      trivially-passing baseline does not satisfy "baselines stored in repo").
+      exists, is tracked by git (not gitignored), and contains one result entry per benchmark
+      defined in `bench/src/*.bench.ts`, each with `name`, `unit`, `higherIsBetter: true`,
+      non-zero finite `value`, and a finite `samples[]` array (an all-zero, placeholder, `NaN`,
+      or `Infinity` baseline does not satisfy "baselines stored in repo").
 - [ ] `[local]` Given `bench/src/compare.ts`, when a benchmark's current-run value regresses
-      more than 20% versus its baseline entry (matched by benchmark name, lower-is-better timing
-      metric), then the process exits non-zero and that row prints `REGRESSED` in the table.
+      more than 20% versus its baseline entry (matched by benchmark name on a higher-is-better
+      rate metric), then the process exits non-zero and that row prints `REGRESSED` in the table;
+      exactly `-20.0%` remains `OK`.
 - [ ] `[local]` Given a benchmark name present in the current run but absent from the baseline
       (or vice versa — present in baseline, absent from current), then that row prints
       `NEW`/`MISSING` respectively and does **not** affect the process exit code.
+- [ ] `[local]` Given `bench/src/compare.ts`, when a current-run or baseline metric is malformed
+      (missing required fields), declares an unexpected unit or `higherIsBetter` flag, or carries
+      a non-finite numeric value, then `pnpm bench` fails fast with an explicit error instead of
+      silently computing a misleading delta or passing the gate.
 - [ ] `[github]` Given `.github/workflows/ci.yml`, when a PR triggers CI, then a `bench` job runs
       on `ubuntu-latest` only, executes `pnpm bench`, and the `ci-ok` aggregate job's result
       depends on both `test` and `bench` succeeding.
+- [ ] `[local]` Given `.github/workflows/ci.yml`, when read, then the existing `test` job remains
+      a three-OS matrix over `ubuntu-latest`, `windows-latest`, and `macos-latest`; the new
+      `bench` job is additive and ubuntu-only, not a replacement for cross-OS CI coverage.
 - [ ] `[local]` Given `.github/workflows/ci.yml`, when read, then the `bench` job follows the
       same checkout → `pnpm/action-setup` (no `version:` key) → `actions/setup-node`
       (`node-version: 24`, `cache: pnpm`) → `pnpm install --frozen-lockfile` → `pnpm -r build`
@@ -55,6 +64,10 @@ verifies these on the PR, not the Reviewer locally).
       variance, not a real regression), and the exact `bench:update-baseline` workflow for
       intentionally updating baselines (regenerate, inspect the diff, commit in the same PR,
       explain why per `CLAUDE.md`'s "evidence: benchmark output" rule).
+- [ ] `[local]` Given `bench/README.md`, when read, then it makes the current suite's scope
+      explicit: DB insert and aggregate-query benchmarks operate on a deterministic 100k-frame
+      synthetic dataset today, while DD-004's full 10k-file stages-1-3 scan budget remains a
+      follow-up and is not claimed as implemented by this issue.
 
 **Header-scan scope-reduction disclosure (orchestrator decision item 1):**
 
@@ -110,6 +123,10 @@ verifies these on the PR, not the Reviewer locally).
       for N synthetic frames, and inserts corresponding `files`/`frames` rows with
       `frameTypeSource: 'header'` and `targetId`/`filterId` resolved from the pre-created lookup
       tables — returning both the open `AstroDatabase` handle and the raw `GeneratedFrame[]`.
+- [ ] `[local]` Given `bench/src/benchmarks.ts`, when read, then the suite's dataset-shaping
+      inputs are fixed named constants — including the 100k-frame corpus size, deterministic seed,
+      and fixed header-scan subset/repeat counts — so every gated run measures the same synthetic
+      workload shape rather than an ad hoc or time-varying one.
 - [ ] `[local]` Given `bench/src/lib/seed-db.ts`'s row-insertion strategy, when read, then rows
       are inserted via fixed-size sub-transactions (neither one 200k-statement transaction nor
       one transaction per row) — a chunk size is a named constant, not a magic inline number.
@@ -139,13 +156,15 @@ verifies these on the PR, not the Reviewer locally).
       `BLOCK_BYTES`/`CARD_BYTES` constants imported from `@astrotracker/fixtures`'s FITS builder
       lib (not re-declared locally), and returns header byte-length/block-count by locating the
       literal `END` card.
-- [ ] `[local]` Given `bench/src/run.ts`, when read, then it invokes Vitest's `bench` mode with
-      `outputJson` pointed at a temp file, then passes that JSON plus the committed
-      `bench/baselines/results.json` to `compare.ts`; a `--update-baseline` flag instead writes
-      the fresh run straight to `bench/baselines/results.json` and always exits 0 (no gating).
+- [ ] `[local]` Given `bench/src/run.ts`, when read, then it calls `runAllBenchmarks()` directly
+      (not Vitest JSON output) to obtain the fresh metrics, prints the comparator table against
+      `bench/baselines/results.json`, and on `--update-baseline` writes `schemaVersion`,
+      `generatedAt`, and the fresh metric records (`name`, `unit`, `higherIsBetter`, `value`,
+      `samples`) straight to `bench/baselines/results.json` before exiting 0 without gating.
 - [ ] `[local]` Given `bench/src/compare.ts`, when read, then its regression math is
-      `(current - baseline) / baseline` on the lower-is-better metric, matched by benchmark name
-      (string equality, not positional/index matching).
+      `(current - baseline) / baseline` on higher-is-better rate metrics, matched by benchmark
+      name (string equality, not positional/index matching), and a row is `REGRESSED` only when
+      `deltaPercent < -0.20` (not when it is exactly `-0.20`).
 - [ ] `[local]` Given the root `vitest.config.ts`, when read, then it gains a `bench` project
       (`root: './bench'`, `include: ['src/**/*.test.ts']`) matching the existing
       `core`/`db`/`desktop`/`fixtures` project shape, and this glob does **not** match
@@ -156,7 +175,8 @@ verifies these on the PR, not the Reviewer locally).
 - [ ] `[local]` Given `CONTRIBUTING.md`, when read, then its local-gate section now mentions
       `pnpm bench` and how to distinguish hardware variance from a real local regression (rerun,
       check delta magnitude — per the plan's stated first response, not "raise the threshold").
-- [ ] `[local]` Given root `README.md`, when read, then its Commands section lists `pnpm bench`.
+- [ ] `[local]` Given root `README.md`, when read, then its Commands section lists both
+      `pnpm bench` and `pnpm bench:update-baseline`.
 - [ ] `[local]` Given `pnpm-lock.yaml`, when inspected after adding the `bench` workspace member
       and its dependency edges, then it is regenerated/committed in this PR —
       `pnpm install --frozen-lockfile` (as CI's `bench`/`test` jobs run it) succeeds against the
@@ -221,16 +241,20 @@ verifies these on the PR, not the Reviewer locally).
 - [ ] Table-driven unit tests in `bench/src/compare.test.ts` cover, against fixed fake result/baseline
       JSON (no real benchmark execution): an unregressed run (small negative or positive delta
       under threshold) prints `OK` and exits 0; a >20% regression prints `REGRESSED` and exits
-      non-zero; a benchmark improving (negative delta, current faster than baseline) prints `OK`
+      non-zero; a benchmark improving (positive delta, current higher than baseline) prints `OK`
       (never flagged as a problem); a benchmark name present only in the current run prints `NEW`
       and does not affect exit code; a benchmark name present only in the baseline prints
       `MISSING` and does not affect exit code; multiple simultaneous regressions across different
       benchmarks are all reported and the process still exits non-zero exactly once (not once per
       regression).
 - [ ] `bench/src/compare.test.ts` explicitly asserts the comparator's behavior at exactly a 20.0%
-      delta (the Coder chooses inclusive `>` vs `>=`, but the choice must be a single documented
-      comparison operator with a passing test asserting that exact boundary value's outcome —
-      not left ambiguous or untested).
+      regression: the row remains `OK`, `hasRegression(...)` stays false, and the test locks in
+      the exact plan-mandated `deltaPercent < -0.20` semantics instead of leaving `>` vs `>=`
+      ambiguous.
+- [ ] `bench/src/compare.test.ts` includes malformed-metric cases covering: a non-finite
+      `value`/sample, a missing required field, and unexpected unit or `higherIsBetter` metadata;
+      each case fails deterministically with an explicit error instead of yielding `OK`/`NEW`/
+      `MISSING` output from partially-invalid input.
 - [ ] `bench/src/lib/seed-db.test.ts` is a small-N (not 100k) smoke test asserting: row counts in
       `files`/`frames`/`targets`/`filters` match the requested count/lookup-table size, every
       `frames.targetId`/`frames.filterId` foreign key resolves to a row that exists (no orphan
@@ -292,13 +316,16 @@ Copied from the plan and expanded — the Reviewer must not flag any of the foll
 - **compare-regressed**: feed `compare.ts` a fake current-run JSON with a benchmark 25% slower
   than its baseline entry; assert non-zero exit, row status `REGRESSED`.
 - **compare-boundary**: feed `compare.ts` a fake current-run JSON with a benchmark exactly 20.0%
-  slower; assert the outcome matches whatever comparison operator `compare.ts` documents (`>` vs
-  `>=`), and that this exact case is covered by a `compare.test.ts` assertion.
+  slower; assert the row remains `OK`, `hasRegression(...)` is false, and this exact
+  `deltaPercent === -0.20` case is covered by a `compare.test.ts` assertion.
 - **compare-new-missing**: feed `compare.ts` fake JSON with one benchmark name absent from the
   baseline and one baseline benchmark name absent from the current run; assert exit 0 (neither
   affects gating) and rows print `NEW`/`MISSING` respectively.
 - **compare-improvement**: feed `compare.ts` a fake current-run JSON with a benchmark 15% faster
   than baseline; assert exit 0, row status `OK` (never flagged).
+- **compare-invalid-metric**: feed `compare.ts` fake JSON containing `NaN`, `Infinity`, a missing
+  `value`, or mismatched `unit`/`higherIsBetter`; assert it throws or exits non-zero with an
+  explicit invalid-metric error rather than producing a comparison row.
 - **update-baseline-writes-unconditionally**: run `pnpm bench:update-baseline` against a scratch
   copy of the repo where the in-memory run would have "regressed" versus the existing baseline;
   assert `bench/baselines/results.json` is overwritten with the new numbers and the process still
@@ -314,9 +341,15 @@ Copied from the plan and expanded — the Reviewer must not flag any of the foll
   exists with `runs-on: ubuntu-latest` (no matrix), the same setup-step sequence as `test`, a
   `pnpm bench` step, and `ci-ok`'s `needs` is `[test, bench]` with an explicit check that both
   results are `success`.
+- **ci-workflow-cross-os-matrix** `[local]`: read `.github/workflows/ci.yml`; assert the `test`
+  job still declares the `ubuntu-latest` / `windows-latest` / `macos-latest` matrix after the
+  `bench` job is added.
 - **readme-scope-disclosure** `[local]`: `grep -n "P1-01"` `bench/README.md` and
   `bench/src/header-scan.bench.ts`; assert both mention the scope reduction (boundary-detection
   only, not full card decode) and the P1-01 follow-up.
+- **readme-10k-vs-100k-scope** `[local]`: read `bench/README.md`; assert it states that today's
+  DB/query benchmarks use a deterministic 100k-frame synthetic dataset and that the full DD-004
+  10k-file stages-1-3 scan benchmark remains future work, not current scope.
 - **lockfile-frozen-install** `[local]`: from a clean checkout, run
   `pnpm install --frozen-lockfile`; assert it succeeds without modifying `pnpm-lock.yaml`.
 - **github-bench-ci-green** `[github]`: on this issue's own PR, fetch check-run statuses for
@@ -327,4 +360,4 @@ Copied from the plan and expanded — the Reviewer must not flag any of the foll
 bench` step fails and `ci-ok` goes red — the actual end-to-end firing of the regression gate
   on GitHub Actions, which cannot be established by reading the diff alone.
 
-Spec written: docs/specs/p0-07-benchmark-harness.md — 48 criteria
+Spec written: docs/specs/p0-07-benchmark-harness.md — 53 criteria
