@@ -74,7 +74,7 @@ job is added).
 - `packages/desktop/playwright.config.ts` — new; `testDir: './e2e'`, CI-friendly reporter,
   trace/screenshot-on-failure, single worker (see Edge Cases)
 - `packages/desktop/e2e/support/resolve-build.ts` — new; locates the `electron-builder --dir`
-  output executable per OS
+  output's packaged `app.asar` payload per OS
 - `packages/desktop/e2e/support/temp-dirs.ts` — new; `createTempAppDataDir()` and
   `createTempLibraryDir()` helpers, `fs.mkdtemp`-based, with Windows-tolerant cleanup
 - `packages/desktop/e2e/fixtures.ts` — new; the extended Playwright `test`/`expect` every spec
@@ -117,17 +117,20 @@ noted so a later issue doesn't need an "Open Question," just flip the config).
 
 ### Step 2 — Locate the packaged build (`resolve-build.ts`)
 
-**Outcome:** A function that returns the absolute path to the `electron-builder --dir` output
-executable for the current OS: on `darwin`, it globs `packages/desktop/release/mac*/*.app`
-(there is deliberately no hardcoded `mac` vs `mac-arm64` vs `mac-universal` — electron-builder's
-default arch for an unqualified `--dir` build is not pinned by this repo's config, so the
-resolver discovers whichever directory exists rather than guessing); on `win32`, it resolves
-`packages/desktop/release/win-unpacked/AstroTracker.exe` directly (this repo's
+**Outcome:** A function that returns the absolute path to the `electron-builder --dir` output's
+packaged `app.asar` payload for the current OS: on `darwin`, it globs
+`packages/desktop/release/mac*/*.app` (there is deliberately no hardcoded `mac` vs `mac-arm64`
+vs `mac-universal` — electron-builder's default arch for an unqualified `--dir` build is not
+pinned by this repo's config, so the resolver discovers whichever directory exists rather than
+guessing), then returns that bundle's `Contents/Resources/app.asar`; on `win32`, it resolves
+`packages/desktop/release/win-unpacked/resources/app.asar` directly (this repo's
 `electron-builder.yml` pins Windows to a single `nsis`/x64 target, so the output directory name
 is deterministic). If zero or more than one candidate is found, it throws an error naming every
 candidate and instructing the developer to run `pnpm --filter @astrotracker/desktop pree2e`
 (or `rm -rf packages/desktop/release` first if stale artifacts from a prior `pnpm package` run
-are the cause).
+are the cause). Playwright's `_electron.launch()` still uses the repo's Electron test runner so
+it can inject its loader/debug hooks; the app argument is the packaged `app.asar`, which keeps
+the asar/asarUnpack/native payload signal without launching the raw source directory.
 **Files:** `packages/desktop/e2e/support/resolve-build.ts`
 **Depends on:** Step 1
 
@@ -151,8 +154,8 @@ before giving up loudly.
 ### Step 4 — The shared fixture and spec-authoring pattern (`fixtures.ts`)
 
 **Outcome:** An extended Playwright `test` (re-exporting `expect`) with one fixture,
-`electronApp`, that composes Steps 2 and 3: resolves the packaged executable, creates both temp
-dirs, launches via `_electron.launch({ executablePath, args: ['--user-data-dir=' + appDataDir] })`,
+`electronApp`, that composes Steps 2 and 3: resolves the packaged `app.asar`, creates both temp
+dirs, launches via `_electron.launch({ args: [appAsar, '--user-data-dir=' + appDataDir] })`,
 yields `{ app, appDataDir, libraryDir }` to the test, and in teardown always closes the Electron
 app and cleans up both temp dirs — even on test failure, because Playwright fixture teardown
 runs regardless of test outcome. This file's top-of-file comment is the "how to add a new E2E

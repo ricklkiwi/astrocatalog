@@ -47,14 +47,15 @@ electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and th
       land), when `pnpm --filter @astrotracker/desktop exec playwright test` is run, then it
       exits 0 reporting zero tests found — proves config wiring independent of any spec content.
 
-**AC2 — `resolve-build.ts` locates the packaged executable per OS (Step 2)**
+**AC2 — `resolve-build.ts` locates the packaged app payload per OS (Step 2)**
 
 - [ ] **[local]** Given a single matching build under `packages/desktop/release/mac*/*.app` on
-      `darwin`, when `resolveBuild()` is called, then it returns that `.app`'s absolute
-      executable path without hardcoding `mac`, `mac-arm64`, or `mac-universal` in the glob.
-- [ ] **[local]** Given `packages/desktop/release/win-unpacked/AstroTracker.exe` on `win32`, when
-      `resolveBuild()` is called, then it returns that path directly (deterministic, no glob,
-      since `electron-builder.yml` pins Windows to a single nsis/x64 target).
+      `darwin`, when `resolveBuild()` is called, then it returns that `.app`'s packaged
+      `Contents/Resources/app.asar` path without hardcoding `mac`, `mac-arm64`, or
+      `mac-universal` in the glob.
+- [ ] **[local]** Given `packages/desktop/release/win-unpacked/resources/app.asar` on `win32`,
+      when `resolveBuild()` is called, then it returns that path directly (deterministic, no
+      glob, since `electron-builder.yml` pins Windows to a single nsis/x64 target).
 - [ ] **[local]** Given zero matching build directories under `packages/desktop/release/` for the
       current OS, when `resolveBuild()` is called, then it throws an error whose message names
       the `pree2e` command to run.
@@ -96,7 +97,7 @@ electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and th
 - [ ] **[local]** Given `packages/desktop/e2e/fixtures.ts`, when read, then it exports an
       extended Playwright `test` (and re-exports `expect`) with one fixture, `electronApp`, that
       composes `resolveBuild()` + both `temp-dirs.ts` helpers and launches via
-      `_electron.launch({ executablePath, args: ['--user-data-dir=' + appDataDir] })`, yielding
+      `_electron.launch({ args: [appAsar, '--user-data-dir=' + appDataDir] })`, yielding
       `{ app, appDataDir, libraryDir }` to the test.
 - [ ] **[local]** Given a spec using the `electronApp` fixture that is made to fail deliberately
       (Reviewer adds a throwing assertion to a scratch copy of the smoke spec), when
@@ -268,7 +269,8 @@ pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-lates
 - **toolchain-wired-no-specs**: with `e2e/` empty (Step 1 alone), run
   `pnpm --filter @astrotracker/desktop exec playwright test`, assert exit 0 and "no tests found".
 - **resolve-build-single-mac-candidate**: with exactly one `release/mac*/*.app` present, call
-  `resolveBuild()`, assert the returned path points inside that `.app`.
+  `resolveBuild()`, assert the returned `appPath` points to `Contents/Resources/app.asar` inside
+  that `.app`.
 - **resolve-build-zero-candidates-throws**: with `release/` absent or empty, call
   `resolveBuild()`, assert it throws mentioning `pree2e`.
 - **resolve-build-multiple-candidates-throws-naming-both**: create two sibling

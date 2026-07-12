@@ -33,7 +33,7 @@ import { resolveBuild } from './support/resolve-build.js';
 import { createTempAppDataDir, createTempLibraryDir } from './support/temp-dirs.js';
 
 export interface ElectronAppFixture {
-  /** The launched packaged app (electron-builder --dir output). */
+  /** The launched packaged app payload (electron-builder --dir app.asar output). */
   app: ElectronApplication;
   /** This run's isolated Electron user-data directory (temp, auto-removed). */
   appDataDir: string;
@@ -44,14 +44,22 @@ export interface ElectronAppFixture {
 export const test = base.extend<{ electronApp: ElectronAppFixture }>({
   // eslint-disable-next-line no-empty-pattern -- Playwright fixture functions must destructure their (here empty) dependencies.
   electronApp: async ({}, use) => {
-    const executablePath = resolveBuild();
+    const build = resolveBuild();
     const appData = await createTempAppDataDir();
     const library = await createTempLibraryDir();
     let app: ElectronApplication | undefined;
     try {
+      const env = Object.fromEntries(
+        Object.entries(process.env).filter(
+          (entry): entry is [string, string] => entry[1] !== undefined,
+        ),
+      );
+      // Some agent shells set this so Electron behaves like plain Node; clear
+      // it or Playwright's Electron/Chromium switches are rejected before boot.
+      delete env['ELECTRON_RUN_AS_NODE'];
       app = await _electron.launch({
-        executablePath,
-        args: [`--user-data-dir=${appData.path}`],
+        args: [build.appPath, `--user-data-dir=${appData.path}`],
+        env,
       });
       await use({ app, appDataDir: appData.path, libraryDir: library.path });
     } finally {
