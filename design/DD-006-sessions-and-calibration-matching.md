@@ -7,7 +7,7 @@
 
 A **session** is one imaging night on one equipment profile.
 
-- **Astronomical day rule:** a frame belongs to the session dated by local noon-to-noon window (a 01:30 frame on Jul 6 belongs to the Jul 5 session). Local time derived from `DATE-OBS` (UTC) + site longitude when available, else system timezone (user-configurable per watch folder).
+- **Astronomical day rule:** a frame belongs to the session dated by local noon-to-noon window (a 01:30 frame on Jul 6 belongs to the Jul 5 session). Local time is computed from an IANA timezone stored on the watch folder/site settings and copied onto the detected session. When a timezone is unknown, default to the system timezone and flag it as user-confirmable; do not infer civil time from longitude alone because DST and timezone boundaries make that unstable.
 - **Gap splitting:** within one astronomical day, a gap > 4 h (configurable) between consecutive frames splits sessions (e.g., evening + pre-dawn runs).
 - **Equipment split:** different equipment profiles on the same night are separate sessions (Remote Rita, multi-rig).
 - Detection is a **pure function**: `detectSessions(frames[], config) → SessionAssignment[]`, re-runnable idempotently after every scan batch. Manual session edits (merge/split/notes) are preserved via explicit assignment locks.

@@ -102,6 +102,9 @@ importers:
 
   packages/desktop:
     dependencies:
+      '@astrotracker/db':
+        specifier: workspace:*
+        version: link:../db
       better-sqlite3:
         specifier: ^12.11.1
         version: 12.11.1
@@ -112,9 +115,6 @@ importers:
       '@astrotracker/core':
         specifier: workspace:*
         version: link:../core
-      '@astrotracker/db':
-        specifier: workspace:*
-        version: link:../db
       '@electron/rebuild':
         specifier: ^4.2.0
         version: 4.2.0

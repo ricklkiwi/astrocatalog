@@ -11,7 +11,7 @@ Three-process Electron architecture with strict layering. The renderer is a pure
 ┌────────────────────────────────────────────────────────┐
 │ Renderer (React + TS)                                  │
 │  Pages: Dashboard | Targets | Sessions | Calibration   │
-│         Projects | Equipment | Settings                │
+│         Review Queue | Settings                        │
 │  - TanStack Query against typed IPC                    │
 │  - No direct fs/db/network access (contextIsolation)   │
 └──────────────────────┬─────────────────────────────────┘

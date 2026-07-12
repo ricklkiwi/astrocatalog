@@ -8,14 +8,22 @@
  *   renderer index.html resolved relative to this module (never process.cwd()).
  */
 import path from 'node:path';
+import os from 'node:os';
 
+import { openDatabase, type AstroDatabase } from '@astrotracker/db';
 import { app, BrowserWindow, ipcMain } from 'electron';
 
+import { createJobQueueOrchestrator, type JobQueueOrchestrator } from './jobs/orchestrator.js';
+import { createWorkerPool, type WorkerPool } from './jobs/pool.js';
+import { broadcastIpcEvent, toIpcJobProgressEvent } from './ipc/broadcast.js';
 import { createIpcHandlers, registerIpcHandlers } from './ipc/register.js';
 import { runNativeSmoke } from './native-smoke.js';
 
 /** Set by electron-vite dev; absent in packaged/preview builds. */
 const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
+let database: AstroDatabase | undefined;
+let orchestrator: JobQueueOrchestrator | undefined;
+let pool: WorkerPool | undefined;
 
 function isAllowedNavigation(url: string): boolean {
   if (devServerUrl !== undefined) {
@@ -64,6 +72,22 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(() => {
+  database = openDatabase({ filePath: path.join(app.getPath('userData'), 'astrotracker.db') });
+  orchestrator = createJobQueueOrchestrator({
+    scanJobs: database.repos.scanJobs,
+    createPool: (callbacks) => {
+      pool = createWorkerPool(Math.min(4, Math.max(1, os.cpus().length - 1)), callbacks);
+      return pool;
+    },
+  });
+  orchestrator.onEvent((event) => {
+    broadcastIpcEvent(
+      () => BrowserWindow.getAllWindows().map((window) => window.webContents),
+      'jobs.progress',
+      toIpcJobProgressEvent(event),
+    );
+  });
+
   registerIpcHandlers(
     ipcMain,
     createIpcHandlers({
@@ -71,9 +95,15 @@ void app.whenReady().then(() => {
       platform: process.platform,
       versions: process.versions,
       nativeSmoke: runNativeSmoke,
+      jobs: {
+        enqueueDemo: (input) => orchestrator!.enqueueDemo(input),
+        cancel: (jobId) => orchestrator!.cancel(jobId),
+        list: () => orchestrator!.list(),
+      },
     }),
   );
 
+  orchestrator.start();
   createWindow();
 
   // macOS convention: re-create the window on dock activation.
@@ -88,5 +118,14 @@ void app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+app.on('before-quit', () => {
+  void pool?.terminateAll();
+  try {
+    database?.close();
+  } catch {
+    // Best effort shutdown; orphaned running jobs are requeued at next boot.
   }
 });

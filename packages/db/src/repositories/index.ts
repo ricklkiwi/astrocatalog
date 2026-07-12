@@ -21,7 +21,13 @@ import type { FiltersRepository } from './filters.js';
 import type { FramesListFilter, FramesRepository } from './frames.js';
 import type { MasterFramesRepository } from './master-frames.js';
 import type { ProjectsRepository } from './projects.js';
-import type { ScanJobsRepository } from './scan-jobs.js';
+import type {
+  EnqueueJobInput,
+  JobStatus,
+  ProgressUpdate,
+  ScanJob,
+  ScanJobsRepository,
+} from './scan-jobs.js';
 import type { SearchHit, SearchRepository } from './search.js';
 import type { SessionsRepository } from './sessions.js';
 import type { SettingsRepository } from './settings.js';
@@ -75,6 +81,10 @@ export type {
   EquipmentProfilesRepository,
   MasterFramesRepository,
   ProjectsRepository,
+  EnqueueJobInput,
+  JobStatus,
+  ProgressUpdate,
+  ScanJob,
   ScanJobsRepository,
   SettingsRepository,
   SearchHit,
