@@ -9,22 +9,23 @@
 This issue adds a new root-level dev-tooling workspace member, `bench/` (peer to `fixtures/`,
 per DD-002's module layout — neither is an app package under `packages/`), that measures three
 things against a deterministic, seeded 100k-frame synthetic dataset: bulk `@astrotracker/db`
-insert throughput, DD-003 aggregate-query latency (the integration-time rollup pattern the
-schema's indexes exist for), and FITS header-region I/O throughput. Results are produced by
-Vitest's built-in `bench()` (tinybench-backed, confirmed to support `outputJson`/`compare` in
-the installed Vitest 3.2 line), fed through a small custom comparator that prints a results
-table and exits non-zero if any benchmark regresses more than 20% against a committed baseline
-JSON file — satisfying the issue's "Vitest bench or custom" latitude by using Vitest for
-execution/timing and custom code only for the gate itself, which needs precise, testable
-control over the 20% threshold and exit behavior that Vitest's own `--compare` output does not
-document as CI-gate-ready. `pnpm bench` (already named in `CLAUDE.md`'s command table) runs the
-full suite, prints the table, and gates; a new `bench` CI job (ubuntu-latest only — see Open
-Questions/rationale) runs the same command and is folded into the existing `ci-ok` aggregate
-required check.
+insert throughput, DD-003 aggregate-query throughput (the integration-time rollup pattern the
+schema's indexes exist for), and FITS header-region throughput. CI uses a custom
+`tsx src/run.ts` runner for deterministic measurement and output control: each benchmark is a
+named function returning a rate metric (`rows/sec`, `queries/sec`, or `headers/sec`) plus its
+sample values, while the `*.bench.ts` files remain Vitest wrappers for humans who want
+`vitest bench` discoverability. A small custom comparator prints a results table and exits
+non-zero if any matched metric regresses more than 20% against a committed baseline JSON file.
+Because all committed metrics are rates, higher is better: the regression formula is
+`(current - baseline) / baseline`, and a row is `REGRESSED` only when that delta is less than
+`-0.20` (exactly `-20.0%` still passes). `pnpm bench` (already named in `CLAUDE.md`'s command
+table) runs the full suite, prints the table, and gates; a new `bench` CI job (`ubuntu-latest`
+only — see resolved scoping notes below) runs the same command and is folded into the existing
+`ci-ok` aggregate required check.
 
-**Scope note surfaced up front (see Open Questions):** no FITS header _parser_ exists in the
-repo yet — `packages/core` only exports a UUIDv7 generator (P1-01, the real FITS parser, has
-not landed). The issue's "header parse throughput" criterion is therefore met with a narrower,
+**Scope note surfaced up front (see Resolved Scoping Notes):** no FITS header _parser_ exists
+in the repo yet — `packages/core` only exports a UUIDv7 generator (P1-01, the real FITS parser,
+has not landed). The issue's "header parse throughput" criterion is therefore met with a narrower,
 honestly-scoped benchmark: bounded-read + END-card block-boundary detection (the I/O-bound half
 of DD-004's Stage 2 "header-only reads... seek + bounded read") over synthetic FITS bytes — not
 the full 80-char card/keyword/value decode, CONTINUE-convention handling, etc., which is P1-01's
@@ -50,19 +51,22 @@ domain logic and does not exist to benchmark. This plan does not invent that par
   `noEmit: true` — bench has no consumers of its own)
 - `bench/vitest.config.ts` — new; local config (same "stop the upward project-config lookup"
   reason as `packages/db/vitest.config.ts`) plus a `test.benchmark.include` glob for
-  `src/**/*.bench.ts`
+  `src/**/*.bench.ts`; CI's `pnpm bench` does not depend on Vitest JSON output, but these
+  wrappers keep the benchmark functions discoverable for local human exploration
 - `bench/src/lib/seed-db.ts` — new; deterministic 100k-frame `AstroDatabase` builder shared by
   the insert and query benchmarks
 - `bench/src/db-insert.bench.ts` — new; bulk insert-rate benchmark
-- `bench/src/aggregate-query.bench.ts` — new; DD-003 rollup-query latency benchmarks
+- `bench/src/aggregate-query.bench.ts` — new; DD-003 rollup-query throughput benchmarks
 - `bench/src/header-scan.bench.ts` — new; header-region boundary-detection throughput
-  benchmark (scoped-down per Open Questions)
-- `bench/src/compare.ts` — new; loads a fresh `outputJson` result + the committed baseline,
-  computes per-benchmark % delta, prints the results table, exits non-zero on >20% regression
+  benchmark (scoped-down per Resolved Scoping Notes)
+- `bench/src/compare.ts` — new; compares fresh higher-is-better rate metrics against the
+  committed baseline by benchmark name, computes per-benchmark % delta, prints the results
+  table, exits non-zero when a matched metric is more than 20% below baseline
 - `bench/src/compare.test.ts` — new; unit tests for the regression math against fixed fake
   result JSON (no real benchmark run needed)
-- `bench/src/run.ts` — new; the `pnpm bench` entry point — invokes `vitest bench --outputJson`
-  against a temp file, then calls `compare.ts`; a `--update-baseline` mode instead overwrites
+- `bench/src/run.ts` — new; the `pnpm bench` entry point — calls `runAllBenchmarks()`, prints
+  the comparator table against `bench/baselines/results.json`, and exits non-zero on a gated
+  regression; a `--update-baseline` mode instead writes the fresh rates straight to
   `bench/baselines/results.json` and skips gating
 - `bench/baselines/results.json` — new; committed baseline (ubuntu-latest GitHub Actions
   runner numbers), generated by Step 9 and re-generated deliberately via
@@ -89,7 +93,7 @@ Not touched (verified, reasons noted):
   `db.transaction()` surface exactly as P0-04 shipped it; adding a formal bulk-insert or
   aggregation API is a product decision for a later Phase 1 issue, informed by these numbers,
   not this one.
-- `packages/core/src/*` — no header parser added. See Open Questions.
+- `packages/core/src/*` — no header parser added. See Resolved Scoping Notes.
 - `.github/workflows/package.yml` — unrelated packaging stub, no changes.
 
 ## Implementation Steps
@@ -145,62 +149,67 @@ row counts, FK integrity, index population — not a benchmark).
 
 ### Step 4 — Bulk DB insert-rate benchmark
 
-**Outcome:** `bench/src/db-insert.bench.ts` times _only_ the insert loop (files + frames rows,
-chunked-transaction strategy from Step 3) for a 100k-frame synthetic dataset that has already
-been generated in memory before timing starts — so the benchmark measures
-`@astrotracker/db` write throughput, not `generateFrames()`'s synthesis cost. Reports rows/sec
-(files+frames combined) via the `bench()` name so the results table is self-explanatory. No
-new repository methods; the benchmark calls `repos.files.insert()`/`repos.frames.insert()`
-inside `db.transaction()` exactly as any future scanning-pipeline caller would (DD-004 Stage 2
-target).
-**Files:** `bench/src/db-insert.bench.ts`.
+**Outcome:** `bench/src/db-insert.bench.ts` and the shared `runDbInsertBenchmark()` function
+time _only_ the insert loop (files + frames rows, chunked-transaction strategy from Step 3) for
+a 100k-frame synthetic dataset that has already been generated in memory before timing starts
+— so the benchmark measures `@astrotracker/db` write throughput, not `generateFrames()`'s
+synthesis cost. The CI runner records one heavy macro sample and reports a higher-is-better
+`rows/sec` rate for files+frames combined; the Vitest wrapper uses the same core function/name
+for local discoverability. No new repository methods; the benchmark calls
+`repos.files.insert()`/`repos.frames.insert()` inside `db.transaction()` exactly as any future
+scanning-pipeline caller would (DD-004 Stage 2 target).
+**Files:** `bench/src/db-insert.bench.ts`, `bench/src/benchmarks.ts`.
 **Depends on:** Step 3
 
-### Step 5 — Aggregate query-latency benchmark
+### Step 5 — Aggregate query-throughput benchmark
 
-**Outcome:** `bench/src/aggregate-query.bench.ts` seeds one 100k-frame DB once (untimed
-`beforeAll`-equivalent setup), then times two DD-003-documented query shapes, each a raw
-Drizzle `sql`/query-builder statement (no new repository method — this is read-only
-measurement, not a new domain API): (a) the global integration-time rollup
-`SUM(exposure_seconds) GROUP BY target_id, filter_id` restricted to `frame_type = 'light'`,
-which is DD-003's own worked example and exercises `frames_target_filter_type_idx` directly;
-(b) a single-target "dashboard" drill-down (`WHERE target_id = :id AND frame_type = 'light'
-GROUP BY filter_id`), mapping directly to PRD §8.4's "target dashboard with full statistics
-renders in under 1 second" budget. Both benchmarks reuse the one seeded DB (setup cost isn't
-part of either bench's timed region).
-**Files:** `bench/src/aggregate-query.bench.ts`.
+**Outcome:** `bench/src/aggregate-query.bench.ts` and the shared aggregate-query runner seed
+one 100k-frame DB once (untimed setup), then time two DD-003-documented query shapes against a
+read-only SQLite handle: (a) the global integration-time rollup `SUM(exposure_seconds)
+GROUP BY target_id, filter_id` restricted to `frame_type = 'light'`, which is DD-003's own
+worked example and exercises `frames_target_filter_type_idx` directly; (b) a single-target
+"dashboard" drill-down (`WHERE target_id = :id AND frame_type = 'light' GROUP BY filter_id`),
+mapping directly to PRD §8.4's "target dashboard with full statistics renders in under
+1 second" budget. Each shape is warmed once, then measured as three samples of 50 statement
+executions and reported as higher-is-better `queries/sec`; DB seed/setup cost is outside the
+timed region. These are raw SQL/read-only measurements, not new repository methods.
+**Files:** `bench/src/aggregate-query.bench.ts`, `bench/src/benchmarks.ts`.
 **Depends on:** Step 3
 
 ### Step 6 — Header-region boundary-detection throughput benchmark (scoped down)
 
-**Outcome:** `bench/src/header-scan.bench.ts` times, over the in-memory FITS byte buffers
-`generateFrames()` already produced (no disk I/O — `GeneratedFrame.bytes`), a bounded scan that
-walks 2880-byte blocks (reusing `BLOCK_BYTES`/`CARD_BYTES` constants re-exported from
-`@astrotracker/fixtures`'s FITS builder lib) looking for the literal `END` card, returning the
-header's total byte length / block count. This is explicitly _not_ full card/keyword/value
+**Outcome:** `bench/src/header-scan.bench.ts` and the shared header-scan runner time, over the
+in-memory FITS byte buffers `generateFrames()` already produced (no disk I/O —
+`GeneratedFrame.bytes`), a bounded scan that walks 2880-byte blocks (reusing
+`BLOCK_BYTES`/`CARD_BYTES` constants re-exported from `@astrotracker/fixtures`'s FITS builder
+lib) looking for the literal `END` card, returning the header's total byte length / block
+count. The CI runner measures three samples over a fixed 500-frame subset repeated 1,000 times
+and reports higher-is-better `headers/sec`. This is explicitly _not_ full card/keyword/value
 decoding (no quoting, no CONTINUE convention, no `headers_json` construction) — a header
 comment block and `bench/README.md` both say so plainly, and both note this file should be
 revisited once P1-01's real parser exists (either replaced by calling into it directly, or its
-boundary-detection logic absorbed by it). See Open Questions for why this scoping was chosen
-over inventing a full parser.
-**Files:** `bench/src/header-scan.bench.ts`.
+boundary-detection logic absorbed by it). See Resolved Scoping Notes for why this scoping was
+chosen over inventing a full parser.
+**Files:** `bench/src/header-scan.bench.ts`, `bench/src/benchmarks.ts`.
 **Depends on:** Step 1 (needs the `bytes`/constants export surface)
 
 ### Step 7 — Baseline storage + comparator/gate (`pnpm bench`)
 
-**Outcome:** `bench/src/run.ts` (the `bench` script's entry point) runs the three-ish
-`*.bench.ts` files via Vitest's `bench` mode with `outputJson` pointed at a temp file, then
-hands that JSON plus the committed `bench/baselines/results.json` to `bench/src/compare.ts`,
-which: matches benchmarks by name, computes `(current - baseline) / baseline` on the
-lower-is-better timing metric, prints a console table (name | baseline | current | delta % |
-status: OK/REGRESSED/NEW/MISSING), and sets a non-zero process exit code if any matched
-benchmark regressed more than 20%. Benchmarks present only in one side (a brand-new bench, or
-one removed) are reported informationally and never fail the gate. `--update-baseline` (wired
-to `bench:update-baseline`) runs the same benchmarks and writes straight to
-`bench/baselines/results.json` instead of comparing — an explicit, reviewed act, never done
-automatically by CI (the workflow's `permissions: contents: read` already forecloses that).
-`compare.ts`'s pure comparison logic is unit-tested (Step 3 of this section) against fixed fake
-JSON, independent of actually running benchmarks.
+**Outcome:** `bench/src/run.ts` (the `bench` script's entry point) calls
+`runAllBenchmarks()` directly, producing deterministic named rate metrics without relying on
+Vitest's JSON schema for CI behavior. It hands the fresh results plus the committed
+`bench/baselines/results.json` to `bench/src/compare.ts`, which: matches benchmarks by name,
+computes `(current - baseline) / baseline` on the higher-is-better rate metric, prints a
+console table (name | baseline | current | delta % | status: OK/REGRESSED/NEW/MISSING), and
+sets a non-zero process exit code if any matched benchmark is more than 20% below baseline
+(`deltaPercent < -0.20`; exactly `-20.0%` is still `OK`). Benchmarks present only in one side
+(a brand-new bench, or one removed) are reported informationally and never fail the gate.
+`--update-baseline` (wired to `bench:update-baseline`) runs the same benchmark functions and
+writes `schemaVersion`, `generatedAt`, result names, units, higher-is-better flags, mean
+values, and sample arrays straight to `bench/baselines/results.json` instead of comparing — an
+explicit, reviewed act, never done automatically by CI (the workflow's `permissions:
+contents: read` already forecloses that). `compare.ts`'s pure comparison logic is unit-tested
+against fixed fake JSON, independent of actually running benchmarks.
 **Files:** `bench/src/run.ts`, `bench/src/compare.ts`, `bench/src/compare.test.ts`,
 `bench/package.json` (script wiring).
 **Depends on:** Steps 4–6
@@ -208,7 +217,7 @@ JSON, independent of actually running benchmarks.
 ### Step 8 — CI wiring
 
 **Outcome:** `.github/workflows/ci.yml` gains a `bench` job, `runs-on: ubuntu-latest` only
-(not the 3-OS matrix — see Open Questions/rationale), following the exact
+(not the 3-OS matrix — see Resolved Scoping Notes/rationale), following the exact
 checkout/`pnpm/action-setup`/`actions/setup-node`(`cache: pnpm`)/`pnpm install
 --frozen-lockfile`/`pnpm -r build` sequence the `test` job already uses (bench imports built
 `dist/` output from `core`/`db`/`fixtures`, same as any workspace-linked test), then runs
@@ -249,10 +258,11 @@ something to compare against — not a zero-baseline that trivially "passes" for
   benchmark is by far the highest-volume exercise of it to date — informational, not expected
   to fail, but worth a passing assertion in Step 3's smoke test.
 - **CI runner variance (shared vCPU, noisy neighbor) near the 20% boundary:** a single noisy
-  run can false-positive. Not fully solvable in code; mitigated by choosing adequate Vitest
-  `bench()` `time`/`iterations` per benchmark (enough samples to reduce variance) and documented
-  in `bench/README.md` as a known operational risk with "rerun the job" as the first response,
-  not "raise the threshold" (the threshold is the issue's own acceptance criterion).
+  run can false-positive. Not fully solvable in code; mitigated by fixed sample/repeat counts
+  in the custom runner (one heavy insert sample, three query samples of 50 executions, three
+  header-scan samples over a repeated fixed frame set) and documented in `bench/README.md` as a
+  known operational risk with "rerun the job" as the first response, not "raise the threshold"
+  (the threshold is the issue's own acceptance criterion).
 - **`--frozen-lockfile` after adding the `bench` workspace member and its new dependency
   edges:** the lockfile must be regenerated and committed in this PR (same class of edge case
   P0-02's plan already documented for other packages) or CI's `pnpm install --frozen-lockfile`
@@ -293,7 +303,7 @@ something to compare against — not a zero-baseline that trivially "passes" for
       in-app runtime code
 - [x] Performance budgets (PRD §8.4): this issue **is** the enforcement mechanism; flag for
       the Reviewer that the header-scan benchmark (Step 6) is a deliberately narrower stand-in
-      for "header parse throughput" pending P1-01 — see Open Questions
+      for "header parse throughput" pending P1-01 — see Resolved Scoping Notes
 
 ## Out of Scope
 
@@ -310,34 +320,30 @@ something to compare against — not a zero-baseline that trivially "passes" for
   method) — benchmarks call the existing public surface; a later Phase 1 issue may formalize
   these APIs using this issue's numbers as justification
 - Non-ubuntu CI benchmark gating (windows/macos legs) — `test` still runs on all 3 OSes;
-  `bench` is ubuntu-only for cost/noise reasons (see Open Questions)
+  `bench` is ubuntu-only for cost/noise reasons (see Resolved Scoping Notes)
 - Thumbnail-generation throughput ("50 FITS files/sec", PRD §8.4) — no thumbnail pipeline
   exists yet (later phase)
 - UI/renderer render-latency benchmarks ("dashboard renders in under 1 second" as perceived in
   the app) — only the backing SQL query latency is measured; no React UI exists yet to render
 - Any `packages/desktop` or IPC changes
 
+## Resolved Scoping Notes
+
+1. **"Header parse throughput" scope:** no FITS header parser exists in the repo (P1-01
+   hasn't landed; `packages/core` only has the UUIDv7 generator). This issue therefore
+   benchmarks bounded-read + END-card block-boundary detection — a genuine, narrow I/O
+   primitive that DD-004 Stage 2 explicitly calls out ("seek + bounded read") — rather than
+   inventing a second full FITS parser outside `packages/core`. `bench/src/header-scan.bench.ts`
+   and `bench/README.md` must state that this is not full card/keyword/value decode and should
+   be revisited after P1-01 lands.
+2. **CI OS scope:** the `bench` CI job is deliberately `ubuntu-latest` only and folded into the
+   required `ci-ok` gate. Cross-OS benchmark comparison would need separate baselines and
+   materially more CI noise/cost for numbers that are used as relative regression signals, not
+   absolute Windows/macOS performance certification. The normal `test` job still runs on
+   ubuntu/windows/macos per DD-001 and P0-02.
+
 ## Open Questions
 
-1. **"Header parse throughput" scoping — flagged as a real, if narrow, blocker.** No FITS
-   header parser exists in the repo (P1-01 hasn't landed; `packages/core` only has the UUIDv7
-   generator). This plan's **recommended default** (Step 6) is to benchmark bounded-read +
-   END-card block-boundary detection — a genuine, narrow I/O primitive that DD-004 Stage 2
-   explicitly calls out ("seek + bounded read") and that will very likely be reused unchanged
-   once P1-01 lands — rather than the full card/keyword/value decode, which is P1-01's domain
-   logic and would mean writing (and later discarding or reconciling) a second FITS parser
-   outside `packages/core`. The alternative, **not** chosen by default, is to drop "header
-   parse throughput" from this issue's deliverables entirely (ship only bulk-insert +
-   aggregate-query benchmarks now, both fully real) and open a fast-follow issue for the
-   header-parse benchmark once P1-01 merges — a cleaner acceptance-criteria story but a
-   partial delivery against the issue text as written. Please confirm the recommended default
-   (scoped-down proxy benchmark, Step 6 as planned) or direct a switch to the fast-follow
-   option before Step 6 starts; Steps 1–5 and 7–9 are unaffected either way.
-2. **`bench` CI job scoped to ubuntu-latest only, and folded into the required `ci-ok` gate**
-   (defaults chosen, flagged for review, not blocking): cross-OS benchmark comparison would
-   need three separate baselines and triples CI cost/noise for numbers that are about relative
-   regression, not absolute cross-platform performance; `CLAUDE.md` ("treat regressions as
-   build breaks") implies the gate should block merges the same way `test` does, hence folding
-   into `ci-ok` rather than making it an advisory-only check.
+None.
 
 Plan written: docs/plans/p0-07-benchmark-harness.md — 9 steps
