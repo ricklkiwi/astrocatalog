@@ -35,6 +35,35 @@ export interface IpcHandlerDeps {
   };
 }
 
+const DEMO_DEFAULTS = { totalSteps: 10, stepMs: 500 } as const;
+
+function validateDemoInteger(
+  field: keyof EnqueueDemoInput,
+  value: number | undefined,
+  max: number,
+): number {
+  if (value === undefined) {
+    return DEMO_DEFAULTS[field];
+  }
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value < 1 || value > max) {
+    throw new Error(`${field} must be a finite integer in the inclusive range 1..${max}`);
+  }
+  return value;
+}
+
+function validateEnqueueDemoInput(input: EnqueueDemoInput | void): Required<EnqueueDemoInput> {
+  if (
+    input !== undefined &&
+    (input === null || typeof input !== 'object' || Array.isArray(input))
+  ) {
+    throw new Error('jobs.enqueueDemo input must be an object when provided');
+  }
+  return {
+    totalSteps: validateDemoInteger('totalSteps', input?.totalSteps, 1000),
+    stepMs: validateDemoInteger('stepMs', input?.stepMs, 10000),
+  };
+}
+
 export function createIpcHandlers(deps: IpcHandlerDeps): IpcHandlers {
   return {
     'app.version': () => {
@@ -49,7 +78,7 @@ export function createIpcHandlers(deps: IpcHandlerDeps): IpcHandlers {
         sharpVersion,
       };
     },
-    'jobs.enqueueDemo': (input) => deps.jobs.enqueueDemo(input ?? undefined),
+    'jobs.enqueueDemo': (input) => deps.jobs.enqueueDemo(validateEnqueueDemoInput(input)),
     'jobs.cancel': (input) => {
       deps.jobs.cancel(input.jobId);
     },

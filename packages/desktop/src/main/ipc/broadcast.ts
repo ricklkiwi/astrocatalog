@@ -1,4 +1,25 @@
-import type { IpcEventChannel, IpcEventPayload } from '../../ipc/contract.js';
+import type { IpcEventChannel, IpcEventPayload, JobProgressEvent } from '../../ipc/contract.js';
+
+export interface OrchestratorJobProgressEvent {
+  jobId: string;
+  jobType: string;
+  status: string;
+  current: number;
+  total: number | null;
+  message: string | null;
+}
+
+export function toIpcJobProgressEvent(event: OrchestratorJobProgressEvent): JobProgressEvent {
+  return {
+    id: event.jobId,
+    jobType: event.jobType,
+    status: event.status,
+    progressCurrent: event.current,
+    progressTotal: event.total,
+    progressMessage: event.message,
+    message: event.message,
+  };
+}
 
 export interface IpcSenderLike {
   send(channel: string, payload: unknown): void;

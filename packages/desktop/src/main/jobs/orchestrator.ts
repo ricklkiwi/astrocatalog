@@ -95,7 +95,11 @@ export function createJobQueueOrchestrator({
       if (!dispatched) {
         return;
       }
-      emit(claimed);
+      // Do not reuse the last persisted progress message on a resumed claim:
+      // renderer consumers distinguish real worker progress ticks by their
+      // step message, and replaying it here would duplicate the restart
+      // sequence even though no step ran twice.
+      emit(claimed, 'running');
     }
   }
 

@@ -15,7 +15,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 
 import { createJobQueueOrchestrator, type JobQueueOrchestrator } from './jobs/orchestrator.js';
 import { createWorkerPool, type WorkerPool } from './jobs/pool.js';
-import { broadcastIpcEvent } from './ipc/broadcast.js';
+import { broadcastIpcEvent, toIpcJobProgressEvent } from './ipc/broadcast.js';
 import { createIpcHandlers, registerIpcHandlers } from './ipc/register.js';
 import { runNativeSmoke } from './native-smoke.js';
 
@@ -84,15 +84,7 @@ void app.whenReady().then(() => {
     broadcastIpcEvent(
       () => BrowserWindow.getAllWindows().map((window) => window.webContents),
       'jobs.progress',
-      {
-        id: event.jobId,
-        jobType: event.jobType,
-        status: event.status,
-        progressCurrent: event.current,
-        progressTotal: event.total,
-        progressMessage: event.message,
-        message: event.message,
-      },
+      toIpcJobProgressEvent(event),
     );
   });
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createIpcHandlers, registerIpcHandlers } from '../main/ipc/register.js';
 import {
@@ -62,6 +62,84 @@ describe('jobs handlers', () => {
     expect(await handlers['jobs.cancel']({ jobId: 'job-1' })).toBeUndefined();
     const jobs: JobSummary[] = await handlers['jobs.list']();
     expect(jobs[0]?.id).toBe('job-1');
+  });
+
+  it.each([
+    [undefined, { totalSteps: 10, stepMs: 500 }],
+    [{ totalSteps: 12 }, { totalSteps: 12, stepMs: 500 }],
+    [{ stepMs: 75 }, { totalSteps: 10, stepMs: 75 }],
+    [
+      { totalSteps: 1, stepMs: 1 },
+      { totalSteps: 1, stepMs: 1 },
+    ],
+    [
+      { totalSteps: 1000, stepMs: 10000 },
+      { totalSteps: 1000, stepMs: 10000 },
+    ],
+  ])('validates and defaults enqueue input %j before delegation', async (input, expected) => {
+    const enqueueDemo = vi.fn(() => ({ jobId: 'validated-job' }));
+    const handlers = createIpcHandlers({
+      appVersion: 'test',
+      platform: 'test',
+      versions: {},
+      nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
+      jobs: { enqueueDemo, cancel: vi.fn(), list: vi.fn(() => []) },
+    });
+
+    expect(handlers['jobs.enqueueDemo'](input)).toEqual({ jobId: 'validated-job' });
+    expect(enqueueDemo).toHaveBeenCalledExactlyOnceWith(expected);
+  });
+
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 1001])(
+    'rejects invalid totalSteps %s before enqueue',
+    async (totalSteps) => {
+      const enqueueDemo = vi.fn(() => ({ jobId: 'must-not-exist' }));
+      const handlers = createIpcHandlers({
+        appVersion: 'test',
+        platform: 'test',
+        versions: {},
+        nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
+        jobs: { enqueueDemo, cancel: vi.fn(), list: vi.fn(() => []) },
+      });
+
+      expect(() => handlers['jobs.enqueueDemo']({ totalSteps, stepMs: 5 })).toThrow(
+        /totalSteps.*1\.\.1000/,
+      );
+      expect(enqueueDemo).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 10001])(
+    'rejects invalid stepMs %s before enqueue',
+    async (stepMs) => {
+      const enqueueDemo = vi.fn(() => ({ jobId: 'must-not-exist' }));
+      const handlers = createIpcHandlers({
+        appVersion: 'test',
+        platform: 'test',
+        versions: {},
+        nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
+        jobs: { enqueueDemo, cancel: vi.fn(), list: vi.fn(() => []) },
+      });
+
+      expect(() => handlers['jobs.enqueueDemo']({ totalSteps: 5, stepMs })).toThrow(
+        /stepMs.*1\.\.10000/,
+      );
+      expect(enqueueDemo).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([null, [], 42, 'demo'])('rejects malformed runtime input %j before enqueue', (input) => {
+    const enqueueDemo = vi.fn(() => ({ jobId: 'must-not-exist' }));
+    const handlers = createIpcHandlers({
+      appVersion: 'test',
+      platform: 'test',
+      versions: {},
+      nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
+      jobs: { enqueueDemo, cancel: vi.fn(), list: vi.fn(() => []) },
+    });
+
+    expect(() => handlers['jobs.enqueueDemo'](input as never)).toThrow(/input must be an object/);
+    expect(enqueueDemo).not.toHaveBeenCalled();
   });
 });
 

@@ -117,34 +117,34 @@ export function createScanJobsRepository(db: DrizzleDb): ScanJobsRepository {
     },
 
     claimNext(workerId: string): ScanJob | undefined {
-      const candidate = db
-        .select()
-        .from(scanJobs)
-        .where(eq(scanJobs.status, 'queued'))
-        // priority desc, then created_at asc (FIFO) drives the composite
-        // index; `id` asc is a tie-breaker for same-millisecond inserts —
-        // UUIDv7 is strictly lexically increasing per process (@astrotracker/
-        // core), so it stays a correct secondary sort where created_at alone
-        // (millisecond resolution) can't distinguish insertion order.
-        .orderBy(desc(scanJobs.priority), asc(scanJobs.createdAt), asc(scanJobs.id))
-        .limit(1)
-        .get();
-      if (candidate === undefined) {
-        return undefined;
-      }
-      const now = new Date();
-      return db
-        .update(scanJobs)
-        .set({
-          status: 'running',
-          workerId,
-          claimedAt: now,
-          startedAt: candidate.startedAt ?? now,
-          updatedAt: now,
-        })
-        .where(and(eq(scanJobs.id, candidate.id), eq(scanJobs.status, 'queued')))
-        .returning()
-        .get();
+      return db.transaction((tx) => {
+        const candidate = tx
+          .select()
+          .from(scanJobs)
+          .where(eq(scanJobs.status, 'queued'))
+          // priority desc, then created_at asc (FIFO) drives the composite
+          // index; id asc is the explicit deterministic tie-breaker when
+          // multiple rows share the same millisecond timestamp.
+          .orderBy(desc(scanJobs.priority), asc(scanJobs.createdAt), asc(scanJobs.id))
+          .limit(1)
+          .get();
+        if (candidate === undefined) {
+          return undefined;
+        }
+        const now = new Date();
+        return tx
+          .update(scanJobs)
+          .set({
+            status: 'running',
+            workerId,
+            claimedAt: now,
+            startedAt: candidate.startedAt ?? now,
+            updatedAt: now,
+          })
+          .where(and(eq(scanJobs.id, candidate.id), eq(scanJobs.status, 'queued')))
+          .returning()
+          .get();
+      });
     },
 
     updateProgress(id: string, progress: ProgressUpdate): ScanJob | undefined {

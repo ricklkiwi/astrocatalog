@@ -81,6 +81,9 @@ describe('JobQueueOrchestrator', () => {
     await waitUntil(() => first.db.repos.scanJobs.getById(jobId)!.progressCurrent >= 3);
     const beforeRestartProgress = first.db.repos.scanJobs.getById(jobId)!.progressCurrent;
     await first.pool.terminateAll();
+    const beforeRestartSequence = first.events
+      .filter((event) => event.jobId === jobId && event.message?.startsWith('step '))
+      .map((event) => event.current);
     const firstIndex = harnesses.indexOf(first);
     if (firstIndex >= 0) {
       harnesses.splice(firstIndex, 1);
@@ -92,12 +95,40 @@ describe('JobQueueOrchestrator', () => {
     second.orchestrator.start();
     await waitUntil(() => second.db.repos.scanJobs.getById(jobId)?.status === 'completed');
 
-    const resumedProgress = second.events.find(
-      (event) => event.jobId === jobId && event.current > beforeRestartProgress,
+    const afterRestartSequence = second.events
+      .filter((event) => event.jobId === jobId && event.message?.startsWith('step '))
+      .map((event) => event.current);
+    expect(beforeRestartSequence).toEqual(
+      Array.from({ length: beforeRestartProgress }, (_, index) => index + 1),
     );
-    expect(resumedProgress?.current).toBeGreaterThan(beforeRestartProgress);
+    expect([...beforeRestartSequence, ...afterRestartSequence]).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(second.db.repos.scanJobs.getById(jobId)?.progressCurrent).toBe(8);
   }, 15000);
+
+  it('marks a requeued cancel-requested job cancelled before worker dispatch', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'astro-p0-05-cancel-restart-'));
+    const filePath = path.join(dir, 'astrotracker.db');
+    const seed = openDatabase({ filePath });
+    const job = seed.repos.scanJobs.enqueue({
+      jobType: 'demo',
+      payloadJson: JSON.stringify({ totalSteps: 3, stepMs: 5 }),
+    });
+    seed.repos.scanJobs.claimNext('worker-before-restart');
+    seed.repos.scanJobs.requestCancel(job.id);
+    seed.close();
+
+    const restarted = createHarness(filePath);
+    restarted.dir = dir;
+    restarted.orchestrator.start();
+    await waitUntil(() => restarted.db.repos.scanJobs.getById(job.id)?.status === 'cancelled');
+
+    expect(
+      restarted.events.filter(
+        (event) => event.jobId === job.id && event.message?.startsWith('step '),
+      ),
+    ).toEqual([]);
+    expect(restarted.pool.idleCount()).toBe(1);
+  });
 
   it('cancels a running job and frees the slot for the next queued job', async () => {
     const harness = createHarness();

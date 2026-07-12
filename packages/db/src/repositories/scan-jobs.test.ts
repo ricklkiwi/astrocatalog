@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { openDatabase, type AstroDatabase } from '../index.js';
 
@@ -14,6 +14,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   db.close();
 });
 
@@ -50,10 +51,16 @@ describe('enqueue', () => {
 });
 
 describe('claimNext', () => {
-  it('claims in priority-desc, then created_at-asc (FIFO) order', () => {
-    const a = db.repos.scanJobs.enqueue({ jobType: 'demo', priority: 0 }); // enqueued first
-    const b = db.repos.scanJobs.enqueue({ jobType: 'demo', priority: 0 }); // enqueued second
-    const c = db.repos.scanJobs.enqueue({ jobType: 'demo', priority: 1 }); // higher priority, enqueued last
+  it('claims in priority-desc, then created_at-asc and id-asc order', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-12T12:00:00.000Z'));
+    const a = db.repos.scanJobs.enqueue({ jobType: 'demo', priority: 0 });
+    const b = db.repos.scanJobs.enqueue({ jobType: 'demo', priority: 0 });
+    const c = db.repos.scanJobs.enqueue({ jobType: 'demo', priority: 1 });
+    vi.useRealTimers();
+
+    expect(a.createdAt.getTime()).toBe(b.createdAt.getTime());
+    expect(a.id < b.id).toBe(true);
 
     const first = db.repos.scanJobs.claimNext('worker-1');
     const second = db.repos.scanJobs.claimNext('worker-1');
