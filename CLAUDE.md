@@ -8,6 +8,15 @@ Instructions for coding agents working in this repository. Read this fully befor
 2. `planning/task-breakdown.md` is the source of all issues; `planning/development-plan.md` defines milestones and working agreements.
 3. The PRD (`planning/PRD-AstroTracker-v1.md`) is background context; where PRD and DDs conflict, DDs win.
 
+## Agent harness policy
+
+Agent prompts and model-routing policy are repo artifacts:
+
+- `docs/agents/` contains the orchestrator/planner/spec-writer/coder/reviewer prompts and `MODEL_SELECTION.md`.
+- `docs/adr/` records durable decisions about agent harness design and workflow.
+
+When changing agent behavior, update the relevant prompt in `docs/agents/`. If the change affects model routing, orchestration workflow, safety policy, or harness design, add or update an ADR in `docs/adr/` in the same PR.
+
 ## Hard rules
 
 - **Non-destructive guarantee:** no code path may modify, move, rename, or delete user image files. Only explicit user-invoked exports write outside the app-data directory. PRs violating this are rejected.
