@@ -7,4 +7,5 @@ import type { AstroTrackerBridge } from '@astrotracker/desktop';
 
 export const ipc: AstroTrackerBridge = {
   invoke: (channel, ...args) => window.astrotracker.invoke(channel, ...args),
+  on: (channel, listener) => window.astrotracker.on(channel, listener),
 };

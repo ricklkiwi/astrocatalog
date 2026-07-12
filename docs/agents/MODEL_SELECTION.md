@@ -18,13 +18,13 @@ selection, prefer the role-specific lists below.
 
 ## Role Defaults
 
-| Role | Preferred models | Use when |
-| --- | --- | --- |
-| Orchestrator | Fable 5 -> GPT-5.6 -> GPT-5.5 -> Opus | Issue triage, dependency checks, pipeline control, PR creation, cross-agent handoff |
-| Planner | Fable 5 -> GPT-5.6 -> GPT-5.5 -> Opus | Deep repo/design research, ambiguous scope, sequencing, risk identification |
-| Spec Writer | Opus -> GPT-5.4 -> Sonnet | Turning plan and issue acceptance criteria into precise, verifiable criteria |
-| Coder | GPT-5.6 -> GPT-5.5 -> Sonnet -> GPT-5.4 | Implementation, refactors, migrations, frontend/Electron work, test repair |
-| Reviewer | GPT-5.5 -> Opus -> Sonnet | Spec conformance, bug/risk review, test/benchmark verification |
+| Role         | Preferred models                        | Use when                                                                            |
+| ------------ | --------------------------------------- | ----------------------------------------------------------------------------------- |
+| Orchestrator | Fable 5 -> GPT-5.6 -> GPT-5.5 -> Opus   | Issue triage, dependency checks, pipeline control, PR creation, cross-agent handoff |
+| Planner      | Fable 5 -> GPT-5.6 -> GPT-5.5 -> Opus   | Deep repo/design research, ambiguous scope, sequencing, risk identification         |
+| Spec Writer  | Opus -> GPT-5.4 -> Sonnet               | Turning plan and issue acceptance criteria into precise, verifiable criteria        |
+| Coder        | GPT-5.6 -> GPT-5.5 -> Sonnet -> GPT-5.4 | Implementation, refactors, migrations, frontend/Electron work, test repair          |
+| Reviewer     | GPT-5.5 -> Opus -> Sonnet               | Spec conformance, bug/risk review, test/benchmark verification                      |
 
 ## Coder Routing
 

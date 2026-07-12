@@ -31,28 +31,34 @@ plans with no implementation ambiguity.
 ```markdown
 # Plan: <Issue title>
 
-**Slug:** <slug>   **Issue:** #<N>   **Date:** <YYYY-MM-DD>
+**Slug:** <slug> **Issue:** #<N> **Date:** <YYYY-MM-DD>
 **Governing DDs:** <list>
 **Status:** READY_FOR_SPEC
 
 ## Summary
+
 One paragraph: what this accomplishes and why.
 
 ## Affected Files
+
 - `packages/.../file.ts` — what changes and why
 
 ## Implementation Steps
+
 Ordered. Each step has:
+
 - **Outcome**: what the system can do after this step (not how to code it)
 - **Files**: created/modified
 - **Depends on**: prior step(s) or "none"
 
 ## Edge Cases
+
 Specific non-obvious states. Not "handle errors" — instead e.g. "FITS header
 with CONTINUE card but no closing quote", "watch folder on a drive that
 disconnects mid-scan", "two frames with identical DATE-OBS".
 
 ## Invariant Checklist
+
 - [ ] Non-destructive: no code path writes/moves/renames/deletes user image files
 - [ ] Layering: new domain logic lives in packages/core, pure (no Electron, no fs side effects — parsers take Buffers/streams)
 - [ ] DB: new tables/columns use UUIDv7 PKs + updated_at, added via a Drizzle migration
@@ -61,9 +67,11 @@ disconnects mid-scan", "two frames with identical DATE-OBS".
 - [ ] Performance budgets respected (PRD §8.4) — flag any step that could regress benchmarks
 
 ## Out of Scope
+
 Explicit list — becomes the Reviewer's "do not check" list.
 
 ## Open Questions
+
 Decisions needing a human answer before work starts, or "None."
 ```
 
