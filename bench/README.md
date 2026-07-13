@@ -31,7 +31,7 @@ the missing pipeline stages land.
 
 ```sh
 pnpm bench
-pnpm bench -- --output-current bench-current/results.json
+pnpm bench -- --output-current ../bench-current/results.json
 pnpm bench:update-baseline
 ```
 
@@ -40,7 +40,9 @@ current results in the same `BenchBaseline` JSON shape as `bench/baselines/resul
 still prints the comparison table and still exits nonzero if the 20% gate fails. It never updates
 the committed baseline. CI uses this option and uploads the file as the `benchmark-current-results`
 artifact with `if: always()`, so exact `ubuntu-latest` samples are available even when the
-benchmark job fails.
+benchmark job fails. The path is resolved from the `@astrotracker/bench` package's working
+directory; `../bench-current/results.json` writes the artifact file at the repo root as
+`bench-current/results.json`.
 
 Use `pnpm bench:update-baseline` only when an intentional implementation change moves the
 performance envelope:

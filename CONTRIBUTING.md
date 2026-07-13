@@ -46,7 +46,9 @@ variance: rerun it, inspect the reported delta magnitude, and compare the result
 `ubuntu-latest` CI job before treating it as a real regression. Do not raise the threshold to
 paper over one noisy run. When CI's benchmark gate fails, download the
 `benchmark-current-results` artifact; it contains the exact current `BenchBaseline` JSON emitted
-by `pnpm bench -- --output-current bench-current/results.json` before the job returned nonzero.
+by `pnpm bench -- --output-current ../bench-current/results.json` before the job returned nonzero.
+That path is resolved from the `@astrotracker/bench` package working directory, so CI uploads the
+repo-root `bench-current/results.json` file.
 
 ## CI
 
