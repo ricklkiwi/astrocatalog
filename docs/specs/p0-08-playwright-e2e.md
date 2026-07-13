@@ -53,9 +53,10 @@ electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and th
       `darwin`, when `resolveBuild()` is called, then it returns that `.app`'s packaged
       `Contents/Resources/app.asar` path without hardcoding `mac`, `mac-arm64`, or
       `mac-universal` in the glob.
-- [ ] **[local]** Given `packages/desktop/release/win-unpacked/resources/app.asar` on `win32`,
-      when `resolveBuild()` is called, then it returns that path directly (deterministic, no
-      glob, since `electron-builder.yml` pins Windows to a single nsis/x64 target).
+- [ ] **[github]** Given `packages/desktop/release/win-unpacked/resources/app.asar` on a
+      `windows-latest` runner, when `resolveBuild()` is exercised by `pnpm e2e`, then it returns
+      that path directly (deterministic, no glob, since `electron-builder.yml` pins Windows to a
+      single nsis/x64 target).
 - [ ] **[local]** Given zero matching build directories under `packages/desktop/release/` for the
       current OS, when `resolveBuild()` is called, then it throws an error whose message names
       the `pree2e` command to run.
@@ -63,6 +64,10 @@ electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and th
       simultaneously (e.g. a stale Intel build plus a fresh arm64 build), when `resolveBuild()`
       is called, then it throws an error naming every candidate path found, and does not silently
       pick one.
+- [ ] **[local]** Given `packages/desktop/e2e/support/resolve-build.ts`, when read, then it never
+      deletes, prunes, rewrites, or rebuilds anything under `packages/desktop/release/` — it only
+      reads existing candidates and throws descriptive errors, leaving artifact cleanup/rebuild to
+      explicit developer commands outside the resolver.
 
 **AC3 — Temp app-data + temp library-folder helper (Step 3) — the issue's named acceptance criterion**
 
@@ -85,9 +90,17 @@ electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and th
       a traversal seed such as `../outside.fit`, when it rejects, then it does so before any file
       is copied and cleans up the just-created temp directory rather than reading outside the repo
       `fixtures/` root or leaving partial state behind.
+- [ ] **[local]** Given `createTempLibraryDir(seedFiles)` is called with a fixture-root-relative
+      path that resolves through a symlink to a target outside `fixtures/`, when it rejects, then
+      it does so before copying and surfaces the escape rather than following the symlink out of
+      the fixture root.
 - [ ] **[local]** Given `createTempLibraryDir(seedFiles)` is called with two fixture-relative
       paths whose basenames collide, when it rejects, then it names the colliding basename and
       does not silently overwrite the first copied file with the second.
+- [ ] **[local]** Given `createTempLibraryDir(seedFiles)` has already copied one earlier seed into
+      its temp directory and a later seed is missing, unreadable, or `copyFile()` throws, when
+      the helper rejects, then it removes the partially populated temp directory before surfacing
+      the copy failure.
 - [ ] **[local]** Given either helper's `cleanup()` is called, when it resolves, then the temp
       directory no longer exists on disk.
 - [ ] **[local]** Given `temp-dirs.ts`'s `cleanup()` implementation, when read, then it retries
@@ -96,8 +109,10 @@ electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and th
       (The retry firing under real Windows file-lock contention is `[github]`-only signal — it
       cannot be reproduced on macOS — but the bounded-retry _code path existing_ is `[local]`.)
 - [ ] **[local]** Given neither helper is passed a real/ambient OS user-data path, when
-      `packages/desktop/e2e/support/temp-dirs.ts` is grepped for hardcoded paths outside the OS
-      temp directory, then none are found (Core Invariants: non-destructive guarantee).
+      `packages/desktop/e2e/support/temp-dirs.ts` is read, then every write/delete/copy target
+      comes from the helper-created temp directory or the repo `fixtures/` source, with no
+      hardcoded ambient user-data/library path and no `copyFile()` destination outside the temp
+      directory (Core Invariants: non-destructive guarantee).
 
 **AC4 — Shared fixture is the sole, mechanically-enforced entry point (Step 4) — reusability**
 
@@ -187,9 +202,9 @@ appDataDir>` captured via a shared temp marker, or simply that `libraryDir` exis
       `resolve-build.ts`'s `win32` branch, native-module `npmRebuild` on Windows, and
       `temp-dirs.ts`'s Windows cleanup retry all work end-to-end — none of this is reproducible on
       the local mac).
-- [ ] **[local]** Given a clean workspace on this mac, when `pnpm --filter @astrotracker/desktop
-pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-latest` leg's
-      command sequence, run locally).
+- [ ] **[local]** Given a clean workspace on this mac, when
+      `pnpm --filter @astrotracker/desktop pree2e` then `pnpm e2e` are run at repo root, then
+      both exit 0 (the `macos-latest` leg's command sequence, run locally).
 
 **AC7 — Docs (Step 7)**
 
@@ -220,9 +235,10 @@ pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-lates
 - [ ] **[local]** No code path in the diff writes, moves, renames, or deletes files outside a
       freshly created OS-temp directory or the gitignored `packages/desktop/release/` build
       output — Reviewer greps `packages/desktop/e2e/**` for `fs.write*`/`fs.rename*`/
-      `fs.unlink*`/`fs.rm*`/`fs.cp*` calls and verifies every target path derives from
-      `os.tmpdir()`/`fs.mkdtemp` (via `temp-dirs.ts`) or from a value returned by those helpers,
-      never a hardcoded real user-data or library path.
+      `fs.unlink*`/`fs.rm*`/`fs.cp*`/`copyFile` calls and for named imports from
+      `node:fs/promises`, and verifies every target path derives from `os.tmpdir()`/`fs.mkdtemp`
+      (via `temp-dirs.ts`) or from a value returned by those helpers, never a hardcoded real
+      user-data or library path.
 - [ ] **[local]** New domain logic is in `packages/core` with no Electron/fs imports — N/A/
       adapted: this issue makes no `packages/core` changes; verified via `git diff --name-only`
       showing no `packages/core/**` paths touched.
@@ -301,8 +317,14 @@ pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-lates
 - **resolve-build-single-mac-candidate**: with exactly one `release/mac*/*.app` present, call
   `resolveBuild()`, assert the returned `appPath` points to `Contents/Resources/app.asar` inside
   that `.app`.
+- **resolve-build-never-mutates-release-candidates**: read `resolve-build.ts`, assert it contains
+  no delete/prune/rewrite/rebuild side effect against `packages/desktop/release/` (no `rm`,
+  `unlink`, `rename`, `writeFile`, `mkdir`, `copyFile`, or spawned `pree2e` command).
 - **resolve-build-zero-candidates-throws**: with `release/` absent or empty, call
   `resolveBuild()`, assert it throws mentioning `pree2e`.
+- **resolve-build-win32-path-on-ci**: on the `windows-latest` `pnpm e2e` run, assert the
+  resolver reaches `release/win-unpacked/resources/app.asar` rather than globbing for mac
+  artifacts or requiring a local platform shim.
 - **resolve-build-multiple-candidates-throws-naming-both**: create two sibling
   `release/mac*/*.app` directories (e.g. copy one), call `resolveBuild()`, assert the thrown
   error message names both paths; delete the extra copy afterward.
@@ -314,9 +336,15 @@ pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-lates
 - **temp-library-dir-rejects-unsafe-seed**: call `createTempLibraryDir(['/tmp/outside.fit'])`
   and `createTempLibraryDir(['../outside.fit'])`, assert both reject before copying anything and
   leave no temp directory behind.
+- **temp-library-dir-rejects-symlink-escape**: create a fixture-root-relative symlink whose target
+  points outside `fixtures/`, call `createTempLibraryDir([<that path>])`, assert it rejects and
+  copies nothing.
 - **temp-library-dir-basename-collision-rejected**: call `createTempLibraryDir()` with two
   fixture-relative paths that end in the same basename, assert it rejects naming the collision
   and does not leave the temp dir behind.
+- **temp-library-dir-cleans-up-partial-copy-failure**: call `createTempLibraryDir()` with one good
+  seed followed by one missing/unreadable seed, assert the helper rejects and the temp directory
+  containing the first copied file has already been removed.
 - **temp-library-dir-empty-when-no-seed**: call `createTempLibraryDir()`, assert `path` exists
   and `fs.readdir(path)` is `[]`.
 - **cleanup-removes-directory**: call either helper, then `cleanup()`, assert `fs.stat(path)`
@@ -359,4 +387,4 @@ pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-lates
 - **docs-present**: grep `README.md` for `pnpm e2e` and `fixtures.ts`; grep `CONTRIBUTING.md` for
   `e2e.yml`.
 
-Spec written: docs/specs/p0-08-playwright-e2e.md — 57 criteria
+Spec written: docs/specs/p0-08-playwright-e2e.md — 60 criteria
