@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { ipc } from './ipc';
+import { JobDemo } from './JobDemo';
 
 /**
  * The P0-03 renderer is a single version screen: it fetches `app.version`
@@ -42,6 +43,7 @@ export function App() {
           </div>
         ))}
       </dl>
+      <JobDemo />
     </main>
   );
 }

@@ -33,6 +33,34 @@ importers:
         specifier: ^3.2.4
         version: 3.2.6(@types/debug@4.1.13)(@types/node@26.1.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(tsx@4.23.0)
 
+  bench:
+    dependencies:
+      '@astrotracker/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@astrotracker/db':
+        specifier: workspace:*
+        version: link:../packages/db
+      '@astrotracker/fixtures':
+        specifier: workspace:*
+        version: link:../fixtures
+      better-sqlite3:
+        specifier: ^12.2.0
+        version: 12.11.1
+      drizzle-orm:
+        specifier: ^0.44.2
+        version: 0.44.7(@types/better-sqlite3@7.6.13)(better-sqlite3@12.11.1)
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.2
+      tsx:
+        specifier: ^4.20.0
+        version: 4.23.0
+
   fixtures:
     devDependencies:
       '@types/node':
@@ -74,6 +102,9 @@ importers:
 
   packages/desktop:
     dependencies:
+      '@astrotracker/db':
+        specifier: workspace:*
+        version: link:../db
       better-sqlite3:
         specifier: ^12.11.1
         version: 12.11.1
@@ -84,9 +115,6 @@ importers:
       '@astrotracker/core':
         specifier: workspace:*
         version: link:../core
-      '@astrotracker/db':
-        specifier: workspace:*
-        version: link:../db
       '@electron/rebuild':
         specifier: ^4.2.0
         version: 4.2.0

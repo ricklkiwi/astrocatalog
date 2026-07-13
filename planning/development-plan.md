@@ -1,7 +1,7 @@
 # AstroTracker — Development Plan
 
 **Repo:** https://github.com/ricklkiwi/astrocatalog
-**PRD:** `../requirements/PRD-AstroTracker-v1.md`
+**PRD:** `PRD-AstroTracker-v1.md`
 **Design decisions:** `../design/` (DD-001 … DD-008) — authoritative for all tasks
 **Task breakdown:** `task-breakdown.md` (issue-ready, agent-readable)
 **Date:** 2026-07-05

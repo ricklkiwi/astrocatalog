@@ -25,7 +25,7 @@ Stage 5 ENRICH     background: SHA-256 hashing → duplicate marking;
 - **Incremental:** a file is re-parsed only if `size` or `mtime` changed. Unchanged files skip stages 2-3.
 - **Header-only reads:** Stage 2 reads at most the header region (seek + bounded read), never the pixel payload. This is what makes "10,000 FITS in < 5 min" feasible.
 - **Resumable:** each stage records progress in `scan_jobs`; app restart resumes pending work.
-- **Move detection:** a "new" file whose (size, sha256) matches a `missing` file is treated as a move — the `files` row is re-pathed, preserving frame/session/project links.
+- **Move detection:** a "new" file whose (size, sha256) matches a `missing` file is treated as a move — the `files` row is re-pathed, preserving frame/session/project links. Because hashing is lazy, move detection performs hash-on-demand for candidate matches: if either the new file or plausible missing rows lack `sha256`, the scanner hashes only those candidates before deciding whether to create a new row.
 - **Classification order** for frame type: `IMAGETYP` header → path heuristics (`/lights/`, `/darks/`, `_flat_`, etc.) → `unknown` (user resolves in UI). Source recorded in `frame_type_source`; manual overrides always win and survive rescans.
 - **Watch mode:** chokidar watches active folders; new files debounce 30 s (capture software writes sequentially all night) then enter the pipeline.
 - **Error isolation:** a malformed file logs a parse error on its `files` row and never aborts the batch.

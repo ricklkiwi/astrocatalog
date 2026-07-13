@@ -1,0 +1,26 @@
+{
+  "name": "@astrotracker/bench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Benchmark harness (P0-07): bulk @astrotracker/db insert throughput, DD-003 aggregate-query latency, and FITS header-region I/O throughput, gated against a committed baseline. Root-level dev-tooling workspace member, peer to fixtures/ (DD-002).",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src && prettier --check src README.md",
+    "test": "vitest run --dir src",
+    "bench": "tsx src/run.ts",
+    "bench:update-baseline": "tsx src/run.ts --update-baseline"
+  },
+  "dependencies": {
+    "@astrotracker/core": "workspace:*",
+    "@astrotracker/db": "workspace:*",
+    "@astrotracker/fixtures": "workspace:*",
+    "better-sqlite3": "^12.2.0",
+    "drizzle-orm": "^0.44.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0"
+  }
+}

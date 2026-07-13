@@ -50,12 +50,42 @@ jobs:
       - name: Test
         run: pnpm test
 
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (typecheck)
+        run: pnpm -r build
+
+      - name: Benchmark regression gate
+        run: pnpm bench -- --output-current ../bench-current/results.json
+
+      - name: Upload benchmark current results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-current-results
+          path: bench-current/results.json
+          if-no-files-found: warn
+          retention-days: 14
+
   # Aggregate gate: the one stable required status check for branch
   # protection. `if: always()` is required — without it this job would be
   # skipped (not failed) when a leg fails, and a skipped required check does
   # not block a merge.
   ci-ok:
-    needs: [test]
+    needs: [test, bench]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -63,6 +93,10 @@ jobs:
         run: |
           if [ "${{ needs.test.result }}" != "success" ]; then
             echo "test matrix result: ${{ needs.test.result }}"
+            exit 1
+          fi
+          if [ "${{ needs.bench.result }}" != "success" ]; then
+            echo "benchmark result: ${{ needs.bench.result }}"
             exit 1
           fi
           echo "All matrix legs succeeded."
