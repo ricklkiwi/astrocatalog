@@ -21,7 +21,14 @@ test('packaged app boots with one titled window and a live IPC round trip', asyn
   expect(electronApp.app.windows()).toHaveLength(1);
 
   // Title comes from renderer/index.html's <title>.
-  expect(await page.title()).toBe('AstroTracker');
+  await expect(page).toHaveTitle('AstroTracker');
+
+  // Wait through renderer hydration and its first IPC-backed render. This is
+  // intentionally web-first: no fixed sleep or one-shot DOM read on cold CI.
+  await expect(page.getByRole('heading', { name: 'AstroTracker' })).toBeVisible();
+  await expect(
+    page.getByText('Versions reported by the main process over typed IPC:'),
+  ).toBeVisible();
 
   // Full renderer → preload → main round trip over the typed IPC contract.
   const version: AppVersionInfo = await page.evaluate(() =>

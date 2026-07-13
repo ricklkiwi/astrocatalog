@@ -41,34 +41,92 @@ export interface ElectronAppFixture {
   libraryDir: string;
 }
 
+interface FixtureDependencies {
+  resolveBuild: typeof resolveBuild;
+  createTempAppDataDir: typeof createTempAppDataDir;
+  createTempLibraryDir: typeof createTempLibraryDir;
+  launch: (appPath: string, appDataDir: string) => Promise<ElectronApplication>;
+}
+
+async function launchElectron(appPath: string, appDataDir: string): Promise<ElectronApplication> {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
+  );
+  // Some agent shells set this so Electron behaves like plain Node; clear it
+  // or Playwright's Electron/Chromium switches are rejected before boot.
+  delete env['ELECTRON_RUN_AS_NODE'];
+  return _electron.launch({ args: [appPath, `--user-data-dir=${appDataDir}`], env });
+}
+
+const fixtureDependencies: FixtureDependencies = {
+  resolveBuild,
+  createTempAppDataDir,
+  createTempLibraryDir,
+  launch: launchElectron,
+};
+
+async function attemptCleanup(name: string, cleanup: () => Promise<void>, errors: Error[]) {
+  try {
+    await cleanup();
+  } catch (error) {
+    errors.push(new Error(`Failed to clean up ${name}`, { cause: error }));
+  }
+}
+
+/** @internal Exported only so support specs can regression-test lifecycle failures. */
+export async function runElectronAppFixture(
+  use: (fixture: ElectronAppFixture) => Promise<void>,
+  dependencies: FixtureDependencies = fixtureDependencies,
+): Promise<void> {
+  let app: ElectronApplication | undefined;
+  let appData: Awaited<ReturnType<typeof createTempAppDataDir>> | undefined;
+  let library: Awaited<ReturnType<typeof createTempLibraryDir>> | undefined;
+  let primaryError: unknown;
+
+  try {
+    const build = dependencies.resolveBuild();
+    appData = await dependencies.createTempAppDataDir();
+    library = await dependencies.createTempLibraryDir();
+    app = await dependencies.launch(build.appPath, appData.path);
+    await use({ app, appDataDir: appData.path, libraryDir: library.path });
+  } catch (error) {
+    primaryError = error;
+  }
+
+  const cleanupErrors: Error[] = [];
+  if (app !== undefined) {
+    await attemptCleanup('Electron app', () => app!.close(), cleanupErrors);
+  }
+  if (appData !== undefined) {
+    await attemptCleanup('app-data directory', appData.cleanup, cleanupErrors);
+  }
+  if (library !== undefined) {
+    await attemptCleanup('library directory', library.cleanup, cleanupErrors);
+  }
+
+  if (primaryError !== undefined) {
+    if (cleanupErrors.length > 0) {
+      throw new AggregateError(
+        [primaryError, ...cleanupErrors],
+        'Electron fixture failed and one or more resources could not be cleaned up',
+        { cause: primaryError },
+      );
+    }
+    throw primaryError;
+  }
+  if (cleanupErrors.length > 0) {
+    throw new AggregateError(
+      cleanupErrors,
+      'One or more Electron fixture resources failed cleanup',
+    );
+  }
+}
+
 export const test = base.extend<{ electronApp: ElectronAppFixture }>({
   // eslint-disable-next-line no-empty-pattern -- Playwright fixture functions must destructure their (here empty) dependencies.
-  electronApp: async ({}, use) => {
-    const build = resolveBuild();
-    const appData = await createTempAppDataDir();
-    const library = await createTempLibraryDir();
-    let app: ElectronApplication | undefined;
-    try {
-      const env = Object.fromEntries(
-        Object.entries(process.env).filter(
-          (entry): entry is [string, string] => entry[1] !== undefined,
-        ),
-      );
-      // Some agent shells set this so Electron behaves like plain Node; clear
-      // it or Playwright's Electron/Chromium switches are rejected before boot.
-      delete env['ELECTRON_RUN_AS_NODE'];
-      app = await _electron.launch({
-        args: [build.appPath, `--user-data-dir=${appData.path}`],
-        env,
-      });
-      await use({ app, appDataDir: appData.path, libraryDir: library.path });
-    } finally {
-      // Teardown runs on failure too (Playwright always runs fixture teardown).
-      await app?.close();
-      await appData.cleanup();
-      await library.cleanup();
-    }
-  },
+  electronApp: async ({}, use) => runElectronAppFixture(use),
 });
 
 export { expect };

@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const releaseDir = path.join(import.meta.dirname, '../../release');
+const defaultReleaseDir = path.join(import.meta.dirname, '../../release');
 
 const REBUILD_HINT =
   'Run `pnpm --filter @astrotracker/desktop pree2e` to produce the unpacked build ' +
@@ -46,7 +46,7 @@ function requirePackagedAppAsar(appBundle: string): string {
   return appPath;
 }
 
-function resolveMacBuild(): PackagedBuild {
+function resolveMacBuild(releaseDir: string): PackagedBuild {
   const candidates = listDirectories(releaseDir)
     .filter((dir) => path.basename(dir).startsWith('mac'))
     .flatMap((macDir) =>
@@ -70,7 +70,7 @@ function resolveMacBuild(): PackagedBuild {
   return { appPath: requirePackagedAppAsar(appBundle), artifactPath: appBundle };
 }
 
-function resolveWinBuild(): PackagedBuild {
+function resolveWinBuild(releaseDir: string): PackagedBuild {
   const appPath = path.join(releaseDir, 'win-unpacked', 'resources', 'app.asar');
   if (!fs.existsSync(appPath)) {
     throw new Error(`No packaged app.asar found at ${appPath}. ${REBUILD_HINT}`);
@@ -83,15 +83,24 @@ function resolveWinBuild(): PackagedBuild {
  * descriptive error (naming every candidate found and the `pree2e` command)
  * when there is not exactly one unambiguous build to test.
  */
-export function resolveBuild(): PackagedBuild {
-  switch (process.platform) {
+export interface ResolveBuildOptions {
+  /** Test seam for exercising both OS layouts without touching release/. */
+  platform?: NodeJS.Platform;
+  /** Test seam for exercising candidate selection in a temp directory. */
+  releaseDir?: string;
+}
+
+export function resolveBuild(options: ResolveBuildOptions = {}): PackagedBuild {
+  const releaseDir = options.releaseDir ?? defaultReleaseDir;
+  const platform = options.platform ?? process.platform;
+  switch (platform) {
     case 'darwin':
-      return resolveMacBuild();
+      return resolveMacBuild(releaseDir);
     case 'win32':
-      return resolveWinBuild();
+      return resolveWinBuild(releaseDir);
     default:
       throw new Error(
-        `E2E supports darwin and win32 only (DD-001 packages Windows + macOS); got ${process.platform}.`,
+        `E2E supports darwin and win32 only (DD-001 packages Windows + macOS); got ${platform}.`,
       );
   }
 }
