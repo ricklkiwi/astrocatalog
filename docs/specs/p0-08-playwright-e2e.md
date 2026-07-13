@@ -81,6 +81,13 @@ electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and th
       exist under `fixtures/`, when it resolves or rejects, then it does not silently produce a
       directory missing that file without surfacing an error (Reviewer reads the implementation
       to confirm a missing seed file is not swallowed).
+- [ ] **[local]** Given `createTempLibraryDir(seedFiles)` is called with an absolute seed path or
+      a traversal seed such as `../outside.fit`, when it rejects, then it does so before any file
+      is copied and cleans up the just-created temp directory rather than reading outside the repo
+      `fixtures/` root or leaving partial state behind.
+- [ ] **[local]** Given `createTempLibraryDir(seedFiles)` is called with two fixture-relative
+      paths whose basenames collide, when it rejects, then it names the colliding basename and
+      does not silently overwrite the first copied file with the second.
 - [ ] **[local]** Given either helper's `cleanup()` is called, when it resolves, then the temp
       directory no longer exists on disk.
 - [ ] **[local]** Given `temp-dirs.ts`'s `cleanup()` implementation, when read, then it retries
@@ -105,10 +112,18 @@ electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and th
       and both temp directories are removed — verified by checking the temp paths no longer exist
       after the run (proves teardown runs on failure, not just success); the scratch copy is
       reverted afterward.
+- [ ] **[local]** Given `packages/desktop/e2e/fixtures.ts`, when read, then any failure after one
+      resource is acquired but before the test body runs (for example `createTempLibraryDir()` or
+      `_electron.launch()` throwing after app-data creation) still triggers cleanup of every
+      already-created temp directory before the original error is surfaced.
+- [ ] **[local]** Given the same fixture's teardown path, when `app.close()` or one directory's
+      `cleanup()` throws, then teardown still attempts the remaining cleanup operations before
+      surfacing the failure rather than aborting at the first cleanup error.
 - [ ] **[local]** Given the top of `packages/desktop/e2e/fixtures.ts`, when read, then it contains
-      a comment documenting how to add a new E2E spec (`import { test, expect } from
-'../fixtures'`, destructure `electronApp`, call `electronApp.app.firstWindow()`), matching
-      the plan's Defaults #4 rationale for why specs must not call `_electron.launch()` directly.
+      a comment documenting how to add a new E2E spec (for a sibling spec file,
+      `import { test, expect } from './fixtures.js';`, destructure `electronApp`, call
+      `electronApp.app.firstWindow()`), matching the plan's Defaults #4 rationale for why specs
+      must not call `_electron.launch()` directly.
 - [ ] **[local]** Given the root `eslint.config.mjs`, when read, then it contains a rule scoped to
       `packages/desktop/e2e/**/*.spec.ts` that forbids importing `_electron` from
       `@playwright/test` directly, and the rule's scope does **not** match `fixtures.ts` itself
@@ -119,7 +134,7 @@ electron-builder --dir` / `playwright test` split across `pree2e`/`e2e`), and th
       `pnpm -r lint` exits 0.
 - [ ] **[local] Reusability proof — second, throwaway spec.** Given a second scratch spec file
       (e.g. `packages/desktop/e2e/_reusability-check.spec.ts`, deleted before this criterion is
-      marked done) that imports `test`/`expect` from `../fixtures`, uses `electronApp`, calls
+      marked done) that imports `test`/`expect` from `./fixtures.js`, uses `electronApp`, calls
       `createTempLibraryDir` indirectly via the fixture's `libraryDir`, and asserts something
       independent of the shipped smoke spec (e.g. `electronApp.appDataDir !== <the first spec's
 appDataDir>` captured via a shared temp marker, or simply that `libraryDir` exists and is
@@ -132,8 +147,13 @@ appDataDir>` captured via a shared temp marker, or simply that `libraryDir` exis
 
 - [ ] **[local]** Given `packages/desktop/e2e/app-launch.spec.ts`, when `pnpm e2e` runs it against
       the `--dir` unpacked mac build, then `electronApp.app.windows()` has length exactly 1.
-- [ ] **[local]** Given the same run, when the first window's `page.title()` is read, then it is
-      exactly `"AstroTracker"` (matches `packages/desktop/renderer/index.html`'s `<title>`).
+- [ ] **[local]** Given the same run, when the first window is observed with Playwright's
+      web-first assertions, then `expect(page).toHaveTitle('AstroTracker')` eventually passes
+      (matching `packages/desktop/renderer/index.html`'s `<title>`).
+- [ ] **[local]** Given the same run, when the packaged renderer finishes hydrating, then the
+      spec waits for a visible version-screen element (for example the `AstroTracker` heading or a
+      rendered version row) before invoking IPC, proving the window is visibly ready rather than
+      only created.
 - [ ] **[local]** Given the same run, when `window.astrotracker.invoke('app.version')` is
       evaluated inside the renderer page context, then the result has non-empty string values for
       `appVersion`, `electronVersion`, `chromeVersion`, `nodeVersion`, `platform`.
@@ -141,8 +161,12 @@ appDataDir>` captured via a shared temp marker, or simply that `libraryDir` exis
       non-empty, and **not** the literal string `'unknown'` — the packaged-asar proof that
       `better-sqlite3`/`sharp` were rebuilt against the correct Electron ABI (the class of bug
       P0-03 Step 6's unit-level native smoke could not catch on its own).
+- [ ] **[local]** Given `app-launch.spec.ts`, when read, then it uses Playwright auto-waiting
+      assertions and contains no fixed sleeps (`waitForTimeout`, timers, or equivalent) before the
+      title/visible-ready/IPC assertions, so cold CI starts are handled by web-first waiting
+      rather than guessed delays.
 - [ ] **[local]** Given `app-launch.spec.ts`, when read, then it imports `test`/`expect` only
-      from `../fixtures` (never `@playwright/test` directly), consistent with AC4's enforced
+      from `./fixtures.js` (never `@playwright/test` directly), consistent with AC4's enforced
       pattern.
 
 **AC6 — CI: `.github/workflows/e2e.yml` on Windows + macOS (Step 6)**
@@ -226,12 +250,18 @@ pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-lates
       own `vitest run --dir src` (plan Edge Cases: "Two test runners, two conventions"), so
       Reviewer must not ask for a parallel Vitest suite covering these files — `pnpm e2e` running
       green is their only and sufficient test coverage.
+- [ ] **[local]** `packages/desktop/e2e/temp-dirs.spec.ts` (or equivalently named helper-focused
+      shipped Playwright spec) exists inside the `pnpm e2e` suite and covers app-data uniqueness,
+      empty-library creation, byte-identical seed copying, unsafe-seed rejection, basename
+      collisions, and cleanup without requesting `electronApp`, so the helper behavior has
+      committed automated coverage without a second test runner.
 - [ ] **[local]** `pnpm -r test` passes unmodified — no existing `core`/`db`/`desktop`/`renderer`
       test regresses from this issue's changes.
 - [ ] **[local]** `pnpm -r lint` and `pnpm -r build` both exit 0 with `e2e/**` included (AC1).
-- [ ] **[local]** E2E: `app-launch.spec.ts` (AC5) is the one required scenario; AC4's throwaway
-      reusability-proof spec is a Reviewer-only verification step, not a shipped test (deleted
-      before the diff is considered complete — see Out of Scope).
+- [ ] **[local]** E2E: `app-launch.spec.ts` (AC5) is the one required packaged-app smoke
+      scenario, `temp-dirs.spec.ts` is the one required shipped helper-focused support spec, and
+      AC4's throwaway reusability-proof spec remains Reviewer-only verification deleted before the
+      diff is considered complete (see Out of Scope).
 - [ ] **[github]** `pnpm e2e` passes on the `windows-latest` CI matrix leg (AC6) — the other half
       of the issue's named acceptance criterion ("passes locally and in CI on both OSes"); the
       `macos-latest` CI leg is equivalent to the `[local]` run above and is not separately gating.
@@ -241,9 +271,9 @@ pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-lates
 - Any UI beyond the single existing version screen — this issue tests what P0-03 shipped; no new
   pages, navigation, or fixtures for unbuilt Phase 1 features (library-folder configuration,
   scanning, target resolution).
-- `createTempLibraryDir` being consumed by any spec other than the smoke spec and this spec's
-  own throwaway reusability-proof spec — it is deliberately unused by `app-launch.spec.ts` itself
-  and exists as scaffolding for later scanning/cataloging E2E specs.
+- `createTempLibraryDir` being consumed by any app-driving spec other than the shipped helper-only
+  support spec and this spec's own throwaway reusability-proof spec — it is deliberately unused by
+  `app-launch.spec.ts` itself and exists as scaffolding for later scanning/cataloging E2E specs.
 - Wiring `packages/db`'s `openDatabase` into `packages/desktop/src/main/index.ts` — the app does
   not yet persist anything under the app-data directory; `createTempAppDataDir` is ready for
   whenever that lands, but this issue does not make the main process read/write it.
@@ -281,15 +311,30 @@ pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-lates
 - **temp-library-dir-seed-files-copied**: call `createTempLibraryDir(['some-fixture.fits'])`,
   assert the file exists at `path/some-fixture.fits` with identical bytes to the `fixtures/`
   source.
+- **temp-library-dir-rejects-unsafe-seed**: call `createTempLibraryDir(['/tmp/outside.fit'])`
+  and `createTempLibraryDir(['../outside.fit'])`, assert both reject before copying anything and
+  leave no temp directory behind.
+- **temp-library-dir-basename-collision-rejected**: call `createTempLibraryDir()` with two
+  fixture-relative paths that end in the same basename, assert it rejects naming the collision
+  and does not leave the temp dir behind.
 - **temp-library-dir-empty-when-no-seed**: call `createTempLibraryDir()`, assert `path` exists
   and `fs.readdir(path)` is `[]`.
 - **cleanup-removes-directory**: call either helper, then `cleanup()`, assert `fs.stat(path)`
   rejects with `ENOENT`.
+- **temp-dirs-helper-spec-stays-electron-free**: read `packages/desktop/e2e/temp-dirs.spec.ts`,
+  assert it imports from `./fixtures.js` but never requests `electronApp`, so the helper checks
+  run without launching Electron.
 - **fixtures-teardown-runs-on-failure**: temporarily add a throwing assertion to a copy of
   `app-launch.spec.ts`, run `pnpm e2e`, assert the Electron process is gone and both temp dirs
   are removed despite the test failing; revert.
+- **fixtures-clean-up-partial-setup-failure**: temporarily force `createTempLibraryDir()` or
+  `_electron.launch()` to throw after app-data creation, run the fixture, assert the created
+  app-data dir is still removed before the original error is surfaced; revert.
+- **fixtures-clean-up-continues-after-cleanup-error**: temporarily force `app.close()` or one
+  helper `cleanup()` to throw, run the fixture teardown path, assert the remaining cleanup still
+  runs before the failure is surfaced; revert.
 - **fixtures-top-comment-documents-pattern**: read the first block comment in `fixtures.ts`,
-  assert it names the import path and the `electronApp` fixture explicitly.
+  assert it names `./fixtures.js` and the `electronApp` fixture explicitly.
 - **eslint-blocks-direct-electron-import**: add `import { _electron } from '@playwright/test';`
   to a scratch file under `e2e/*.spec.ts`, run `pnpm -r lint`, assert non-zero exit citing the
   scoped rule; assert the same import inside `fixtures.ts` itself does _not_ trigger the rule;
@@ -298,10 +343,14 @@ pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-lates
   `fixtures.ts` with an assertion independent of `app-launch.spec.ts`, run `pnpm e2e` with both
   present, assert both pass in the same single-worker run with no shared/colliding temp dirs;
   delete the temporary spec afterward.
-- **smoke-window-count-and-title**: run `app-launch.spec.ts` via `pnpm e2e`, assert
-  `electronApp.app.windows().length === 1` and `page.title() === 'AstroTracker'`.
+- **smoke-window-count-title-and-visible-ready-state**: run `app-launch.spec.ts` via `pnpm e2e`,
+  assert `electronApp.app.windows().length === 1`, `expect(page).toHaveTitle('AstroTracker')`
+  passes, and a visible version-screen element appears before the IPC evaluation.
 - **smoke-ipc-native-versions**: within the same spec, assert
   `sqliteVersion`/`sharpVersion` are non-empty and not `'unknown'`.
+- **smoke-uses-web-first-waits**: read `app-launch.spec.ts`, assert it uses Playwright
+  auto-waiting assertions and contains no `waitForTimeout` or fixed sleep before the visible
+  readiness and IPC checks.
 - **ci-workflow-shape**: read `.github/workflows/e2e.yml`, assert matrix is
   `[windows-latest, macos-latest]`, `timeout-minutes: 20`, `pnpm e2e` is the final step, and
   `actions/upload-artifact@v4` is gated `if: failure()` on `packages/desktop/playwright-report/`.
@@ -310,4 +359,4 @@ pree2e` then `pnpm e2e` are run at repo root, then both exit 0 (the `macos-lates
 - **docs-present**: grep `README.md` for `pnpm e2e` and `fixtures.ts`; grep `CONTRIBUTING.md` for
   `e2e.yml`.
 
-Spec written: docs/specs/p0-08-playwright-e2e.md — 50 criteria
+Spec written: docs/specs/p0-08-playwright-e2e.md — 57 criteria
