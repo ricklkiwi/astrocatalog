@@ -77,6 +77,9 @@ job is added).
   output's packaged `app.asar` payload per OS
 - `packages/desktop/e2e/support/temp-dirs.ts` — new; `createTempAppDataDir()` and
   `createTempLibraryDir()` helpers, `fs.mkdtemp`-based, with Windows-tolerant cleanup
+- `packages/desktop/e2e/temp-dirs.spec.ts` — new; focused harness tests proving app-data
+  uniqueness, library seeding, rejected unsafe/missing seeds, and cleanup without launching
+  Electron (the shared `electronApp` fixture remains lazy when a test does not request it)
 - `packages/desktop/e2e/fixtures.ts` — new; the extended Playwright `test`/`expect` every spec
   imports — wires `resolve-build.ts` + `temp-dirs.ts` into a single `electronApp` fixture with
   automatic launch/cleanup, and is the file this plan's "documented pattern for adding a new
@@ -109,8 +112,9 @@ Config defaults, each chosen deliberately: `reporter: process.env.CI ? 'github' 
 screenshot: 'only-on-failure' }` (this is the project's first E2E harness — prioritize
 debuggability of the inevitable first flaky CI failure over trace-file size); `workers: 1` /
 `fullyParallel: false` (launching a full packaged Electron app is comparatively heavy and this
-issue ships exactly one spec; revisit parallelism once enough specs exist for it to matter —
-noted so a later issue doesn't need an "Open Question," just flip the config).
+issue ships one packaged-app smoke scenario plus small non-launching helper checks; revisit
+parallelism once enough app-driving specs exist for it to matter — noted so a later issue
+doesn't need an "Open Question," just flip the config).
 **Files:** `packages/desktop/package.json`, `packages/desktop/playwright.config.ts`,
 `packages/desktop/tsconfig.json`, root `package.json`, `.gitignore`
 **Depends on:** none
@@ -126,11 +130,12 @@ guessing), then returns that bundle's `Contents/Resources/app.asar`; on `win32`,
 `packages/desktop/release/win-unpacked/resources/app.asar` directly (this repo's
 `electron-builder.yml` pins Windows to a single `nsis`/x64 target, so the output directory name
 is deterministic). If zero or more than one candidate is found, it throws an error naming every
-candidate and instructing the developer to run `pnpm --filter @astrotracker/desktop pree2e`
-(or `rm -rf packages/desktop/release` first if stale artifacts from a prior `pnpm package` run
-are the cause). Playwright's `_electron.launch()` still uses the repo's Electron test runner so
-it can inject its loader/debug hooks; the app argument is the packaged `app.asar`, which keeps
-the asar/asarUnpack/native payload signal without launching the raw source directory.
+candidate and instructing the developer to run `pnpm --filter @astrotracker/desktop pree2e`,
+while listing stale candidates for manual inspection. The resolver itself never removes or
+rewrites `release/`; artifact cleanup is not a test-launch side effect. Playwright's
+`_electron.launch()` still uses the repo's Electron test runner so it can inject its
+loader/debug hooks; the app argument is the packaged `app.asar`, which keeps the
+asar/asarUnpack/native payload signal without launching the raw source directory.
 **Files:** `packages/desktop/e2e/support/resolve-build.ts`
 **Depends on:** Step 1
 
@@ -144,11 +149,17 @@ parallel CI jobs; `createTempLibraryDir(seedFiles?: readonly string[])` creates 
 directory representing the folder a user will eventually point AstroTracker's (future,
 Phase 1) library-folder setting at, optionally pre-populating it by copying named files from
 `fixtures/` — unused by this issue's own smoke spec, but this is the explicit hook a later
-scanning/cataloging E2E spec seeds with real FITS/XISF/RAW fixture files. Both `cleanup()`
-functions recursively remove their directory and tolerate `EBUSY`/`EPERM` (Windows can hold a
-brief file lock after Electron's process exits — see Edge Cases) with a short bounded retry
-before giving up loudly.
-**Files:** `packages/desktop/e2e/support/temp-dirs.ts`
+scanning/cataloging E2E spec seeds with real FITS/XISF/RAW fixture files. Seed paths are
+fixture-root-relative only: absolute paths and traversal outside `fixtures/` are rejected, and
+duplicate destination basenames fail rather than silently overwriting one seed with another.
+Both `cleanup()` functions recursively remove their directory and tolerate `EBUSY`/`EPERM`
+(Windows can hold a brief file lock after Electron's process exits — see Edge Cases) with a
+short bounded retry before giving up loudly. A small Playwright support spec imports the shared
+`test`/`expect` entry point but does not request `electronApp` (so the lazy fixture does not
+launch Electron); it proves app-data paths are unique, empty-library creation, byte-identical
+fixture seeding, unsafe/missing-seed rejection, and cleanup. This keeps the named helper under
+committed automated coverage instead of relying on a later Phase 1 spec for its first exercise.
+**Files:** `packages/desktop/e2e/support/temp-dirs.ts`, `packages/desktop/e2e/temp-dirs.spec.ts`
 **Depends on:** Step 1
 
 ### Step 4 — The shared fixture and spec-authoring pattern (`fixtures.ts`)
@@ -158,7 +169,11 @@ before giving up loudly.
 dirs, launches via `_electron.launch({ args: [appAsar, '--user-data-dir=' + appDataDir] })`,
 yields `{ app, appDataDir, libraryDir }` to the test, and in teardown always closes the Electron
 app and cleans up both temp dirs — even on test failure, because Playwright fixture teardown
-runs regardless of test outcome. This file's top-of-file comment is the "how to add a new E2E
+runs regardless of test outcome. Resource acquisition and teardown also cover failures outside
+the test body: if creating the library directory or launching Electron fails after app-data
+creation, every resource already acquired is released; if app close or either directory cleanup
+fails, teardown still attempts the remaining cleanup operations and then surfaces the
+failure(s). This file's top-of-file comment is the "how to add a new E2E
 spec" documentation the issue asks for: `import { test, expect } from '../fixtures'` (or
 relative path), destructure `electronApp` from the test args, call
 `electronApp.app.firstWindow()` to get the renderer `Page`. The companion ESLint rule (Affected
@@ -172,13 +187,18 @@ launch against a real user-data directory.
 
 **Outcome:** `app-launch.spec.ts` uses the Step 4 fixture to assert the three acceptance-level
 behaviors: exactly one window opens (`electronApp.app.windows()` has length 1); the window's
-title (`page.title()`) is exactly `"AstroTracker"` (matches `renderer/index.html`'s `<title>`);
-and the demo IPC round trip works end-to-end by evaluating
+title is exactly `"AstroTracker"` (matches `renderer/index.html`'s `<title>`); and the demo IPC
+round trip works end-to-end by evaluating
 `window.astrotracker.invoke('app.version')` inside the renderer page context and asserting the
 result shape — `appVersion`, `electronVersion`, `chromeVersion`, `nodeVersion`, `platform` are
 non-empty strings, and critically `sqliteVersion`/`sharpVersion` are present and not the
 `'unknown'` fallback, which is the same signal P0-03 Step 6's native smoke was built to
 surface, now proven through the _packaged_ asar-unpacked binary rather than only in unit tests.
+The test uses `firstWindow()` plus Playwright web-first assertions (for example
+`expect(page).toHaveTitle('AstroTracker')` and a visible loaded version-screen assertion) before
+the IPC evaluation, with the configured bounded Playwright timeout and no fixed sleeps. This
+waits through the packaged app's `ready-to-show`/renderer hydration path and makes a slow CI cold
+start a retryable condition rather than a one-shot title read.
 **Files:** `packages/desktop/e2e/app-launch.spec.ts`
 **Depends on:** Step 4
 
@@ -231,6 +251,14 @@ the `ci-ok` required check (Step 6).
   Playwright `close()` call terminates returns. `temp-dirs.ts`'s `cleanup()` retries
   `fs.rm(..., { recursive: true })` a bounded number of times on `EBUSY`/`EPERM` before
   surfacing the error, rather than letting one flaky teardown fail the whole spec.
+- **Setup or teardown fails halfway through**: a library-directory creation or Electron launch
+  failure must not leak the app-data directory, and an `app.close()`/first-cleanup failure must
+  not prevent the other temp directory from being removed. Fixture teardown attempts all
+  applicable releases and reports the original/aggregate failure only after cleanup attempts.
+- **Unsafe or colliding library seeds**: a seed such as `../outside.fit`, an absolute path, or
+  two fixture-relative paths with the same basename must fail before copying outside the
+  fixture contract or silently replacing a previously seeded file. All writes remain confined
+  to the fresh library temp directory.
 - **`--user-data-dir` isolates Electron's profile but not `packages/desktop/release/`
   itself** — the packaged binary is shared read-only across all specs/workers in a run; only
   per-run _state_ (temp app-data, temp library dir) is isolated. This is intentional (rebuilding
@@ -258,6 +286,9 @@ the `ci-ok` required check (Step 6).
   client" / P0-03's security posture). Any later E2E spec attempting to open a second window or
   navigate off-origin will correctly fail — that is the app's hardening working as intended, not
   a harness bug, and should not be "fixed" by loosening `main/index.ts`'s navigation lockdown.
+- **Packaged renderer startup is slower on a cold CI host** — assertions use Playwright's
+  bounded auto-retry behavior after `firstWindow()`; no `waitForTimeout` or arbitrary sleep is
+  used to guess when the title, React tree, or preload bridge is ready.
 
 ## Invariant Checklist
 
@@ -266,7 +297,9 @@ the `ci-ok` required check (Step 6).
       freshly created under the OS temp directory per run and removed in fixture teardown. The
       Step 4 ESLint rule makes bypassing the temp-dir isolation (calling `_electron.launch()`
       directly from a spec, which could fall back to a developer's real Electron `userData`
-      directory) a lint failure, not just a code-review convention.
+      directory) a lint failure, not just a code-review convention. Fixture seeding rejects
+      paths outside the repository fixture root, and build resolution only reads generated
+      package output; neither helper automatically deletes package artifacts or ambient paths.
 - [x] Layering: no `packages/core` or `packages/db` changes; E2E lives entirely inside
       `packages/desktop` and drives the app only through its real IPC surface
       (`window.astrotracker.invoke`) exactly as a user's renderer would — never reaches into
@@ -284,7 +317,8 @@ the `ci-ok` required check (Step 6).
 - Any UI beyond the single existing version screen — this issue tests what P0-03 shipped; it
   does not add pages, navigation, or fixtures for Phase 1 features that don't exist yet
   (library-folder configuration, scanning, target resolution). `createTempLibraryDir` is
-  deliberately unused by this issue's own spec — it is scaffolding for later issues.
+  deliberately unused by the packaged-app smoke spec; its focused harness spec proves the
+  helper itself, while actual scanning use remains scaffolding for later issues.
 - Wiring `packages/db`'s `openDatabase` into `packages/desktop/src/main/index.ts` — the app does
   not yet persist anything under the app-data directory (P0-04 built the package; nothing in
   `main/index.ts` calls it yet). `createTempAppDataDir` is ready for whenever that lands.
