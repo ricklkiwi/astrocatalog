@@ -57,6 +57,12 @@ async function waitUntil(predicate: () => boolean, timeoutMs = 5000): Promise<vo
   }
 }
 
+function stepSequence(events: readonly JobProgressEvent[], jobId: string): number[] {
+  return events
+    .filter((event) => event.jobId === jobId && event.message?.startsWith('step '))
+    .map((event) => event.current);
+}
+
 describe('JobQueueOrchestrator', () => {
   it('runs a demo job through progress to completed using a real worker pool', async () => {
     const harness = createHarness();
@@ -79,11 +85,10 @@ describe('JobQueueOrchestrator', () => {
 
     const { jobId } = first.orchestrator.enqueueDemo({ totalSteps: 8, stepMs: 15 });
     await waitUntil(() => first.db.repos.scanJobs.getById(jobId)!.progressCurrent >= 3);
-    const beforeRestartProgress = first.db.repos.scanJobs.getById(jobId)!.progressCurrent;
     await first.pool.terminateAll();
-    const beforeRestartSequence = first.events
-      .filter((event) => event.jobId === jobId && event.message?.startsWith('step '))
-      .map((event) => event.current);
+    const beforeRestartProgress = first.db.repos.scanJobs.getById(jobId)!.progressCurrent;
+    await waitUntil(() => stepSequence(first.events, jobId).length === beforeRestartProgress);
+    const beforeRestartSequence = stepSequence(first.events, jobId);
     const firstIndex = harnesses.indexOf(first);
     if (firstIndex >= 0) {
       harnesses.splice(firstIndex, 1);
@@ -95,9 +100,7 @@ describe('JobQueueOrchestrator', () => {
     second.orchestrator.start();
     await waitUntil(() => second.db.repos.scanJobs.getById(jobId)?.status === 'completed');
 
-    const afterRestartSequence = second.events
-      .filter((event) => event.jobId === jobId && event.message?.startsWith('step '))
-      .map((event) => event.current);
+    const afterRestartSequence = stepSequence(second.events, jobId);
     expect(beforeRestartSequence).toEqual(
       Array.from({ length: beforeRestartProgress }, (_, index) => index + 1),
     );
