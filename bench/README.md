@@ -31,8 +31,16 @@ the missing pipeline stages land.
 
 ```sh
 pnpm bench
+pnpm bench -- --output-current bench-current/results.json
 pnpm bench:update-baseline
 ```
+
+`--output-current <path>` is an evidence-only option for normal gated runs. It writes the fresh
+current results in the same `BenchBaseline` JSON shape as `bench/baselines/results.json`, then
+still prints the comparison table and still exits nonzero if the 20% gate fails. It never updates
+the committed baseline. CI uses this option and uploads the file as the `benchmark-current-results`
+artifact with `if: always()`, so exact `ubuntu-latest` samples are available even when the
+benchmark job fails.
 
 Use `pnpm bench:update-baseline` only when an intentional implementation change moves the
 performance envelope:

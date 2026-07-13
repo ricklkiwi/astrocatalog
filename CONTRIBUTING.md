@@ -44,7 +44,9 @@ header scanning. Use `pnpm bench:update-baseline` only for intentional performan
 commit the refreshed baseline with the implementation. A local regression may be hardware
 variance: rerun it, inspect the reported delta magnitude, and compare the result with the
 `ubuntu-latest` CI job before treating it as a real regression. Do not raise the threshold to
-paper over one noisy run.
+paper over one noisy run. When CI's benchmark gate fails, download the
+`benchmark-current-results` artifact; it contains the exact current `BenchBaseline` JSON emitted
+by `pnpm bench -- --output-current bench-current/results.json` before the job returned nonzero.
 
 ## CI
 
