@@ -17,7 +17,9 @@
     "test": "vitest run",
     "package": "pnpm --filter @astrotracker/desktop package",
     "format": "prettier --write .",
-    "fixtures:generate": "pnpm --filter @astrotracker/fixtures run generate"
+    "fixtures:generate": "pnpm --filter @astrotracker/fixtures run generate",
+    "bench": "pnpm --filter @astrotracker/bench run bench",
+    "bench:update-baseline": "pnpm --filter @astrotracker/bench run bench:update-baseline"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

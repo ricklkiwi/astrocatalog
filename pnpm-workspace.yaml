@@ -4,3 +4,4 @@ packages:
   - packages/desktop
   - packages/desktop/renderer
   - fixtures
+  - bench

@@ -4,6 +4,14 @@
   "private": true,
   "description": "Test fixture corpus, authoring tooling, and bulk synthetic generator (P0-06). Dev-only workspace member — never shipped.",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src && prettier --check src manifest.schema.json README.md",

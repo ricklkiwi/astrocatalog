@@ -29,6 +29,7 @@ export default defineConfig({
       },
       './packages/desktop/renderer/vitest.config.ts',
       { test: { name: 'fixtures', root: './fixtures', include: ['src/**/*.test.ts'] } },
+      { test: { name: 'bench', root: './bench', include: ['src/**/*.test.ts'] } },
     ],
   },
 });
