@@ -53,7 +53,8 @@ performance envelope:
 4. Explain why it changed and include the benchmark table as evidence in the PR description,
    following `CLAUDE.md`'s benchmark-output evidence rule.
 
-The committed baseline is calibrated from `ubuntu-latest` GitHub Actions hardware. Local failures
-can be hardware variance: rerun once, check the delta magnitude, and compare against CI. Do not
-raise the threshold in response to one noisy local run. CI runs `pnpm bench` on `ubuntu-latest`
-only and folds that result into the aggregate `ci-ok` required check.
+The committed baseline is calibrated from `ubuntu-latest` GitHub Actions hardware; the current
+baseline came from PR #61's GitHub Actions run `29219448456`. Local failures can be hardware
+variance: rerun once, check the delta magnitude, and compare against CI. Do not raise the
+threshold in response to one noisy local run. CI runs `pnpm bench` on `ubuntu-latest` only and
+folds that result into the aggregate `ci-ok` required check.
