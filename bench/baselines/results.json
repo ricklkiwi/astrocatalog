@@ -7,42 +7,28 @@
       "unit": "rows/sec",
       "value": 3774.881527038196,
       "higherIsBetter": true,
-      "samples": [
-        3774.881527038196
-      ]
+      "samples": [3774.881527038196]
     },
     {
       "name": "aggregate-target-filter-type-rollup-queries-per-sec",
       "unit": "queries/sec",
       "value": 8.59931586693955,
       "higherIsBetter": true,
-      "samples": [
-        8.661852233071203,
-        8.610232802071053,
-        8.5258625656764
-      ]
+      "samples": [8.661852233071203, 8.610232802071053, 8.5258625656764]
     },
     {
       "name": "aggregate-single-target-filter-rollup-queries-per-sec",
       "unit": "queries/sec",
       "value": 38.83155540977216,
       "higherIsBetter": true,
-      "samples": [
-        39.05667442239262,
-        39.005923705594334,
-        38.43206810132952
-      ]
+      "samples": [39.05667442239262, 39.005923705594334, 38.43206810132952]
     },
     {
       "name": "fits-header-end-block-scan-headers-per-sec",
       "unit": "headers/sec",
       "value": 341863.05014568067,
       "higherIsBetter": true,
-      "samples": [
-        339879.4410507742,
-        342806.12492169515,
-        342903.5844645727
-      ]
+      "samples": [339879.4410507742, 342806.12492169515, 342903.5844645727]
     }
   ]
 }
