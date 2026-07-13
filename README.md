@@ -65,6 +65,7 @@ pnpm test           # root vitest run across all four projects (core, db, deskto
 pnpm -r test        # same tests, run per package instead
 pnpm dev            # launch the Electron app with hot reload (P0-03)
 pnpm package        # build an installable artifact for this OS (P0-03)
+pnpm e2e            # playwright on the packaged app (P0-08)
 pnpm bench          # run P0-07 benchmark regression gate against committed baselines
 pnpm bench:update-baseline # intentionally refresh bench/baselines/results.json
 ```
@@ -126,6 +127,21 @@ run:
 ```
 xattr -dr com.apple.quarantine /Applications/AstroTracker.app
 ```
+
+### E2E on the packaged app (P0-08)
+
+`pnpm e2e` builds the `electron-builder --dir` unpacked artifact (same asar/asarUnpack/npmRebuild
+pipeline as the release builds) and runs the Playwright suite in `packages/desktop/e2e/` against
+it.
+
+**Adding an E2E spec:** every spec imports `test`/`expect` from
+[`packages/desktop/e2e/fixtures.ts`](packages/desktop/e2e/fixtures.ts) and uses its `electronApp`
+fixture — never `_electron.launch()` directly. Launched bare, Electron falls back to your REAL
+user-data directory, which the non-destructive guarantee forbids a test from touching; the
+fixture isolates every run in fresh temp `--user-data-dir` and library-folder directories and
+removes them in teardown. A scoped ESLint rule fails `pnpm -r lint` on any `*.spec.ts` importing
+`_electron`, so this is mechanically enforced, not a convention. See `fixtures.ts`'s top comment
+for the full pattern.
 
 ### CI packaging integration contract (P0-02)
 

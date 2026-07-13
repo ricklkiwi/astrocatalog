@@ -89,5 +89,29 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // P0-08: E2E specs may never import `_electron` directly — launching
+    // Electron outside `e2e/fixtures.ts` skips the per-run temp
+    // `--user-data-dir` and could touch a developer's REAL userData
+    // directory (non-destructive guarantee, DD-002 rule 5). The scope is
+    // `*.spec.ts` only, so `fixtures.ts` itself remains the one permitted
+    // import site.
+    files: ['packages/desktop/e2e/**/*.spec.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              importNames: ['_electron'],
+              message:
+                'Specs must not launch Electron directly — use the `electronApp` fixture from e2e/fixtures.ts, which isolates every run in a temp --user-data-dir (P0-08).',
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettierConfig,
 );
