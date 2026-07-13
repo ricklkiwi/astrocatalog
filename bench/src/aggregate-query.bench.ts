@@ -8,15 +8,25 @@
  * drill-down grouped by filter. This measures backing query latency only,
  * not future React render time.
  */
-import { bench, describe } from 'vitest';
+import { afterAll, beforeAll, bench, describe } from 'vitest';
 
-import { runAggregateQueryBenchmark, runAggregateTargetDrilldownBenchmark } from './benchmarks.js';
+import { createAggregateQueryWorkload, type AggregateQueryWorkload } from './benchmarks.js';
 
 describe('aggregate-query', () => {
+  let workload: AggregateQueryWorkload;
+
+  beforeAll(() => {
+    workload = createAggregateQueryWorkload();
+  });
+
+  afterAll(() => {
+    workload.cleanup();
+  });
+
   bench(
     'aggregate-target-filter-type-rollup-queries-per-sec',
     () => {
-      runAggregateQueryBenchmark();
+      workload.executeGlobalRollup();
     },
     { iterations: 1, warmupIterations: 0, warmupTime: 0 },
   );
@@ -24,7 +34,7 @@ describe('aggregate-query', () => {
   bench(
     'aggregate-single-target-filter-rollup-queries-per-sec',
     () => {
-      runAggregateTargetDrilldownBenchmark();
+      workload.executeTargetDrilldown();
     },
     { iterations: 1, warmupIterations: 0, warmupTime: 0 },
   );

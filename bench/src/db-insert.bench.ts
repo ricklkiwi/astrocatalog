@@ -21,6 +21,7 @@
  */
 import { bench, describe } from 'vitest';
 
+import { BENCH_FRAME_COUNT, BENCH_SEED } from './benchmarks.js';
 import {
   cleanupSeed,
   createSeedContext,
@@ -29,11 +30,8 @@ import {
   type SeedContext,
 } from './lib/seed-db.js';
 
-const FRAME_COUNT = 100_000;
-const BENCH_SEED = 1;
-
 // Pure, in-memory, generated exactly once — excluded from every timed sample.
-const frames = generateBenchFrames({ count: FRAME_COUNT, seed: BENCH_SEED });
+const frames = generateBenchFrames({ count: BENCH_FRAME_COUNT, seed: BENCH_SEED });
 
 describe('db-insert', () => {
   let ctx: SeedContext | undefined;

@@ -41,7 +41,10 @@ Root script reference:
 
 Run `pnpm bench` before PRs that touch DB inserts, aggregate queries, fixture generation, or
 header scanning. Use `pnpm bench:update-baseline` only for intentional performance changes and
-commit the refreshed baseline with the implementation.
+commit the refreshed baseline with the implementation. A local regression may be hardware
+variance: rerun it, inspect the reported delta magnitude, and compare the result with the
+`ubuntu-latest` CI job before treating it as a real regression. Do not raise the threshold to
+paper over one noisy run.
 
 ## CI
 

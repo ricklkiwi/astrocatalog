@@ -13,6 +13,19 @@ describe('findFitsHeaderEndBlock', () => {
     expect(findFitsHeaderEndBlock(buffer)).toBe(BLOCK_BYTES);
   });
 
+  it.each([
+    { precedingCards: 35, expectedBytes: BLOCK_BYTES },
+    { precedingCards: 36, expectedBytes: BLOCK_BYTES * 2 },
+  ])(
+    'rounds END after $precedingCards preceding cards to $expectedBytes bytes',
+    ({ precedingCards, expectedBytes }) => {
+      const buffer = Buffer.alloc(BLOCK_BYTES * 2, ' ');
+      buffer.write('END'.padEnd(CARD_BYTES, ' '), precedingCards * CARD_BYTES, 'ascii');
+
+      expect(findFitsHeaderEndBlock(buffer)).toBe(expectedBytes);
+    },
+  );
+
   it('bounds the scan and throws when END is absent', () => {
     const buffer = Buffer.alloc(BLOCK_BYTES, ' ');
     buffer.write('SIMPLE  = T'.padEnd(CARD_BYTES, ' '), 0, 'ascii');

@@ -4,15 +4,25 @@
  * keyword/value decoding, CONTINUE handling, or `headers_json` construction
  * happens here. Revisit this benchmark after P1-01 lands the real FITS parser.
  */
-import { bench, describe } from 'vitest';
+import { beforeAll, bench, describe } from 'vitest';
 
-import { runHeaderScanBenchmark } from './benchmarks.js';
+import {
+  createHeaderScanWorkload,
+  executeHeaderScanWorkload,
+  type HeaderScanWorkload,
+} from './benchmarks.js';
 
 describe('header-scan', () => {
+  let workload: HeaderScanWorkload;
+
+  beforeAll(() => {
+    workload = createHeaderScanWorkload();
+  });
+
   bench(
     'fits-header-end-block-scan-headers-per-sec',
     () => {
-      runHeaderScanBenchmark();
+      executeHeaderScanWorkload(workload);
     },
     { iterations: 1, warmupIterations: 0, warmupTime: 0 },
   );
