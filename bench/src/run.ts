@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { runAllBenchmarks, type BenchMetric } from './benchmarks.js';
@@ -80,6 +80,23 @@ function writeBaseline(path: string, baseline: BenchBaseline): void {
   writeFileSync(path, `${JSON.stringify(baseline, null, 2)}\n`);
 }
 
+function resolveCurrentOutputPath(outputPath: string, baselinePath: string): string {
+  const resolvedOutputPath = resolve(outputPath);
+  const resolvedBaselineDir = dirname(resolve(baselinePath));
+  const relativeToBaselineDir = relative(resolvedBaselineDir, resolvedOutputPath);
+
+  if (
+    relativeToBaselineDir === '' ||
+    (!relativeToBaselineDir.startsWith('..') && !isAbsolute(relativeToBaselineDir))
+  ) {
+    throw new Error(
+      `--output-current must not write inside the benchmark baseline directory: ${resolvedBaselineDir}`,
+    );
+  }
+
+  return resolvedOutputPath;
+}
+
 export function runCli({
   argv = process.argv.slice(2),
   baselinePath = BASELINE_PATH,
@@ -88,6 +105,9 @@ export function runCli({
   stderr = console.error,
 }: RunCliDeps = {}): number {
   const options = parseRunOptions(argv);
+  const currentOutputPath = options.outputCurrentPath
+    ? resolveCurrentOutputPath(options.outputCurrentPath, baselinePath)
+    : undefined;
 
   if (options.updateBaseline) {
     const results = runBenchmarks();
@@ -101,9 +121,9 @@ export function runCli({
   const results = runBenchmarks();
   const currentBaseline = createBenchBaseline(results);
 
-  if (options.outputCurrentPath) {
-    writeBaseline(options.outputCurrentPath, currentBaseline);
-    stdout(`Wrote current benchmark results to ${options.outputCurrentPath}`);
+  if (currentOutputPath) {
+    writeBaseline(currentOutputPath, currentBaseline);
+    stdout(`Wrote current benchmark results to ${currentOutputPath}`);
   }
 
   const comparisons = compareResults(results, baseline);

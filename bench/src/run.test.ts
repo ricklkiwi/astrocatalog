@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -59,12 +59,14 @@ describe('parseRunOptions', () => {
 describe('runCli evidence output', () => {
   it('writes exact current BenchBaseline JSON while preserving the failing gate result', () => {
     const dir = makeTempDir();
-    const baselinePath = join(dir, 'baseline.json');
-    const currentPath = join(dir, 'nested', 'current.json');
+    const baselineDir = join(dir, 'baselines');
+    const baselinePath = join(baselineDir, 'results.json');
+    const currentPath = join(dir, 'current', 'results.json');
     const current = metric('stable', 70);
     const stdout: string[] = [];
     const stderr: string[] = [];
 
+    mkdirSync(baselineDir, { recursive: true });
     writeFileSync(baselinePath, `${JSON.stringify(baseline([metric('stable', 100)]), null, 2)}\n`);
 
     const exitCode = runCli({
@@ -83,5 +85,31 @@ describe('runCli evidence output', () => {
     const written = parseBaseline(JSON.parse(readFileSync(currentPath, 'utf8')));
     expect(written.results).toEqual([current]);
     expect(new Date(written.generatedAt).toISOString()).toBe(written.generatedAt);
+  });
+
+  it('rejects output-current inside the resolved baseline directory without changing content', () => {
+    const dir = makeTempDir();
+    const baselineDir = join(dir, 'baselines');
+    const baselinePath = join(baselineDir, 'results.json');
+    const sameResolvedPath = join(baselineDir, '..', 'baselines', 'results.json');
+    const originalContent = `${JSON.stringify(baseline([metric('stable', 100)]), null, 2)}\n`;
+    let didRunBenchmarks = false;
+
+    mkdirSync(baselineDir, { recursive: true });
+    writeFileSync(baselinePath, originalContent);
+
+    expect(() =>
+      runCli({
+        argv: ['--output-current', sameResolvedPath],
+        baselinePath,
+        runBenchmarks: () => {
+          didRunBenchmarks = true;
+          return [metric('stable', 70)];
+        },
+      }),
+    ).toThrow(/must not write inside the benchmark baseline directory/);
+
+    expect(didRunBenchmarks).toBe(false);
+    expect(readFileSync(baselinePath, 'utf8')).toBe(originalContent);
   });
 });
