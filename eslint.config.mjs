@@ -57,6 +57,33 @@ export default tseslint.config(
     },
   },
   {
+    // DD-002 rule 1 bans fs side effects in *domain logic*; the table-driven
+    // unit tests that CLAUDE.md requires against `fixtures/` must read the
+    // committed corpus from disk. Test files therefore get fs back —
+    // production core code keeps the full restriction above, and Electron
+    // stays banned everywhere in core.
+    files: ['packages/core/src/**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'electron',
+              message: 'packages/core must stay Electron-free (DD-002 rule 1).',
+            },
+          ],
+          patterns: [
+            {
+              group: ['electron/*'],
+              message: 'packages/core must stay Electron-free (DD-002 rule 1).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // DD-002 rule 2 (P0-03): the renderer never imports runtime code from the
     // desktop package — the ONLY permitted reference is `import type` of the
     // IPC contract, which is erased at compile time. A value import here must

@@ -4,6 +4,7 @@ import Database from 'better-sqlite3';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 
+import { parseFitsHeaderFromBuffer } from '@astrotracker/core';
 import { BLOCK_BYTES, CARD_BYTES, type GeneratedFrame } from '@astrotracker/fixtures';
 
 import {
@@ -231,6 +232,48 @@ export function runHeaderScanBenchmark(): BenchMetric {
   return measureHeaderScanWorkload(createHeaderScanWorkload());
 }
 
+export const BENCH_HEADER_PARSE_REPEATS = 100;
+
+/**
+ * Full P1-01 FITS header parse (cards, values, CONTINUE, keyword map) over
+ * the same deterministic generated corpus as the END-scan benchmark. The
+ * P1-01 acceptance floor is 5,000 headers/sec; the committed baseline is set
+ * so the 20% regression gate trips exactly at that floor.
+ */
+export function executeHeaderParseWorkload(workload: HeaderScanWorkload): void {
+  for (let i = 0; i < BENCH_HEADER_PARSE_REPEATS; i += 1) {
+    for (const frame of workload.frames) {
+      const result = parseFitsHeaderFromBuffer(frame.bytes);
+      if (result.status !== 'ok') {
+        throw new Error(`generated frame failed to parse: ${result.error.code}`);
+      }
+    }
+  }
+}
+
+export function measureHeaderParseWorkload(workload: HeaderScanWorkload): BenchMetric {
+  const samples: number[] = [];
+
+  for (let sample = 0; sample < BENCH_HEADER_SAMPLES; sample += 1) {
+    samples.push(
+      measureRate(BENCH_HEADER_PARSE_REPEATS * workload.frames.length, () =>
+        executeHeaderParseWorkload(workload),
+      ),
+    );
+  }
+
+  return makeMetric('fits-header-parse-headers-per-sec', 'headers/sec', samples);
+}
+
+export function runHeaderParseBenchmark(): BenchMetric {
+  return measureHeaderParseWorkload(createHeaderScanWorkload());
+}
+
 export function runAllBenchmarks(): BenchMetric[] {
-  return [runDbInsertBenchmark(), ...runAggregateQueryBenchmarks(), runHeaderScanBenchmark()];
+  return [
+    runDbInsertBenchmark(),
+    ...runAggregateQueryBenchmarks(),
+    runHeaderScanBenchmark(),
+    runHeaderParseBenchmark(),
+  ];
 }
