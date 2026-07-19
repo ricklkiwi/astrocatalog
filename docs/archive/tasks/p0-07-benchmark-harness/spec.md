@@ -1,6 +1,6 @@
 # Spec: [P0-07] Benchmark harness with CI regression gates
 
-**Slug:** p0-07-benchmark-harness **Issue:** #7 **Plan:** docs/plans/p0-07-benchmark-harness.md **Date:** 2026-07-08
+**Slug:** p0-07-benchmark-harness **Issue:** #7 **Plan:** docs/archive/tasks/p0-07-benchmark-harness/plan.md **Date:** 2026-07-08
 
 Criteria are tagged `[local]` (Reviewer verifies directly in this worktree/PR diff) or
 `[github]` (only observable after push, on the GitHub-hosted Actions run — orchestrator
@@ -51,7 +51,7 @@ verifies these on the PR, not the Reviewer locally).
       `bench` job is additive and ubuntu-only, not a replacement for cross-OS CI coverage.
 - [ ] `[local]` Given `.github/workflows/ci.yml`, when read, then the `bench` job follows the
       same checkout → `pnpm/action-setup` (no `version:` key) → `actions/setup-node`
-      (`node-version: 24`, `cache: pnpm`) → `pnpm install --frozen-lockfile` → `pnpm -r build`
+      (`node-version: 26`, `cache: pnpm`) → `pnpm install --frozen-lockfile` → `pnpm -r build`
       sequence as the existing `test` job, then runs `pnpm bench`.
 - [ ] `[local]` Given `.github/workflows/ci.yml`'s `ci-ok` job, when read, then its `needs` array
       is exactly `[test, bench]`, it retains `if: always()`, and its shell check fails non-zero
@@ -360,4 +360,4 @@ Copied from the plan and expanded — the Reviewer must not flag any of the foll
 bench` step fails and `ci-ok` goes red — the actual end-to-end firing of the regression gate
   on GitHub Actions, which cannot be established by reading the diff alone.
 
-Spec written: docs/specs/p0-07-benchmark-harness.md — 53 criteria
+Spec written: docs/archive/tasks/p0-07-benchmark-harness/spec.md — 53 criteria

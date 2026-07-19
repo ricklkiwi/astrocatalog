@@ -17,6 +17,8 @@ Agent prompts and model-routing policy are repo artifacts:
 
 When changing agent behavior, update the relevant prompt in `docs/agents/`. If the change affects model routing, orchestration workflow, safety policy, or harness design, add or update an ADR in `docs/adr/` in the same PR.
 
+See `docs/agents/USAGE.md` for how to actually invoke these agents (and complementary Claude Code skills), in Claude Code or any other harness.
+
 ## Hard rules
 
 - **Non-destructive guarantee:** no code path may modify, move, rename, or delete user image files. Only explicit user-invoked exports write outside the app-data directory. PRs violating this are rejected.

@@ -1,6 +1,6 @@
 # Spec: [P0-01] Initialize monorepo with TypeScript, lint, and package structure
 
-**Slug:** p0-01-monorepo-init **Issue:** #1 **Plan:** docs/plans/p0-01-monorepo-init.md **Date:** 2026-07-05
+**Slug:** p0-01-monorepo-init **Issue:** #1 **Plan:** docs/archive/tasks/p0-01-monorepo-init/plan.md **Date:** 2026-07-05
 
 ## Definition of Done
 
@@ -10,7 +10,7 @@
 - [ ] Given the installed workspace, when `pnpm -r build` is run, then all four packages compile via `tsc` under `tsconfig.base.json` strict mode with zero type errors.
 - [ ] Given the installed workspace, when `pnpm -r lint` is run, then ESLint (flat config) and Prettier checks exit 0 with zero errors across all four packages.
 - [ ] Given the installed workspace, when `pnpm -r test` is run, then Vitest reports exactly one passing placeholder test per package (four total: `core`, `db`, `desktop`, `desktop/renderer`), zero skipped/failed.
-- [ ] Given root `package.json`, when inspected, then `packageManager` is exactly `"pnpm@10.34.4"` and `engines.node` specifies a Node 24 LTS range.
+- [ ] Given root `package.json`, when inspected, then `packageManager` is exactly `"pnpm@10.34.4"` and `engines.node` specifies a Node 26 LTS range.
 - [ ] Given `pnpm-workspace.yaml`, when inspected, then its `packages` globs make `packages/desktop/renderer` resolve as its own independent workspace member (a distinct entry in `pnpm -r list --depth -1`), not merely a subdirectory of `packages/desktop`.
 - [ ] Given `packages/core/package.json`, when inspected, then its `dependencies` field is empty — no runtime dependency on `electron` or any Node `fs`-providing package.
 - [ ] Given every file under `packages/core/src/**`, when scanned for import statements, then none import `electron`, `fs`, `node:fs`, or `node:fs/promises`.
@@ -61,9 +61,9 @@
 - **core-purity-static**: `grep -rn "from 'electron'\|from 'fs'\|from 'node:fs" packages/core/src` returns no matches; and `packages/core/package.json`'s `dependencies` key is `{}` or absent.
 - **core-purity-lint-enforced**: on a scratch copy, add `import fs from 'node:fs';` to `packages/core/src/index.ts`, run `pnpm --filter core lint` (or `pnpm -r lint`), assert non-zero exit referencing the restricted-import rule; then revert the change (do not leave it in the tree).
 - **dependency-graph**: read `packages/db/package.json`, `packages/desktop/package.json`, `packages/desktop/renderer/package.json`; assert `db.dependencies` includes `core` via `workspace:*`, `desktop.dependencies` includes both `core` and `db` via `workspace:*`, and `renderer.dependencies` contains none of `core`/`db`/`desktop`.
-- **packageManager-pin**: read root `package.json`, assert `packageManager === "pnpm@10.34.4"` exactly (not a range) and `engines.node` matches a Node 24 range.
+- **packageManager-pin**: read root `package.json`, assert `packageManager === "pnpm@10.34.4"` exactly (not a range) and `engines.node` matches a Node 26 range.
 - **placeholder-tests-distinct**: read the four `src/index.test.ts` files, assert their top-level `test`/`it` description strings are not all identical.
 - **readme-layering-section**: read root `README.md`, assert it contains a heading/section referencing package boundaries and DD-002, and mentions that `core` has no Electron/fs dependency.
 - **fixtures-readme**: read `fixtures/README.md`, assert it exists and references P0-06.
 
-Spec written: docs/specs/p0-01-monorepo-init.md — 24 criteria
+Spec written: docs/archive/tasks/p0-01-monorepo-init/spec.md — 24 criteria

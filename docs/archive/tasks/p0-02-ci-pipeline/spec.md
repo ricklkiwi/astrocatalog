@@ -1,6 +1,6 @@
 # Spec: [P0-02] GitHub Actions CI pipeline
 
-**Slug:** p0-02-ci-pipeline **Issue:** #2 **Plan:** docs/plans/p0-02-ci-pipeline.md **Date:** 2026-07-06
+**Slug:** p0-02-ci-pipeline **Issue:** #2 **Plan:** docs/archive/tasks/p0-02-ci-pipeline/plan.md **Date:** 2026-07-06
 
 Also specs backlog **#45** (vitest.workspace.ts → root vitest.config.ts migration) and **#46**
 (root-level lint/format coverage), which the plan folds into this issue.
@@ -37,7 +37,7 @@ orchestrator verifies these on the PR, not the Reviewer locally).
 
 - [ ] `[local]` Given `.github/workflows/ci.yml`, when read, then it triggers on `pull_request` (all branches) and on `push` scoped to `main` only (not an unscoped `push:` trigger).
 - [ ] `[local]` Given the workflow's `test` job, when read, then its `strategy.matrix.os` is exactly `[ubuntu-latest, windows-latest, macos-latest]` with `fail-fast: false`.
-- [ ] `[local]` Given the workflow's setup steps, when read, then they run in order: `actions/checkout`, `pnpm/action-setup` with no `version` input, `actions/setup-node` with `node-version: 24` and `cache: pnpm`, `pnpm install --frozen-lockfile`, `pnpm -r build`, `pnpm lint`, `pnpm test`.
+- [ ] `[local]` Given the workflow's setup steps, when read, then they run in order: `actions/checkout`, `pnpm/action-setup` with no `version` input, `actions/setup-node` with `node-version: 26` and `cache: pnpm`, `pnpm install --frozen-lockfile`, `pnpm -r build`, `pnpm lint`, `pnpm test`.
 - [ ] `[local]` Given `pnpm/action-setup`'s invocation, when read, then it has no `version:` key (so it derives the pnpm version solely from root `package.json`'s `packageManager` field) — this rule applies identically in `package.yml`.
 - [ ] `[local]` Given the workflow, when read, then it declares `permissions: contents: read` at the workflow or job level.
 - [ ] `[local]` Given the workflow, when read, then it declares a `concurrency` group keyed on workflow name + `github.ref` with `cancel-in-progress: true`.
@@ -104,7 +104,7 @@ Copied and expanded from the plan — the Reviewer must not flag any of the foll
 - Renaming the Vitest project display names (`core`/`db`/`desktop`/`renderer`) to scoped forms — declared cosmetic/out of scope by the #44 plan; the #45 migration must keep these exact names, not introduce new ones.
 - Any change to per-package `build`/`lint`/`test` script contents — only the root scripts change (`test`, `lint`, new `lint:root`/`typecheck`).
 - Any change to `tsconfig.base.json` or per-package `tsconfig.json` — CI reuses the existing `tsc -p` builds unmodified.
-- A Node version matrix — single Node 24 target per DD-001/Electron; no matrix dimension on Node version.
+- A Node version matrix — single Node 26 target per DD-001/Electron; no matrix dimension on Node version.
 - Wording/prose-style nitpicks on `CONTRIBUTING.md` or the `README.md` pointer beyond the specific content items enumerated above.
 
 ## Test Hints
@@ -113,7 +113,7 @@ Copied and expanded from the plan — the Reviewer must not flag any of the foll
 - **desktop-scope-static**: `grep -n "root:" vitest.config.ts` and compare each project's `root`/`include` pair against the deleted `vitest.workspace.ts` (`git show HEAD~N:vitest.workspace.ts` if still in history) — assert `desktop`'s `root` is `./packages/desktop` (not a glob covering `renderer`).
 - **root-scripts**: read root `package.json`, assert `scripts.test === "vitest run"`, `scripts.lint === "pnpm run lint:root && pnpm -r lint"`, `scripts["lint:root"]` references both `eslint.config.mjs` and `vitest.config.ts` plus `prettier --check .`, and a `typecheck` script exists.
 - **format-clean**: run `prettier --check .` at root on the committed tree, assert exit 0 (proves the one-time `pnpm format` pass landed).
-- **ci-workflow-shape**: read `.github/workflows/ci.yml`, assert (a) `on.push.branches == ['main']`, (b) `on.pull_request` present with no branch restriction, (c) `strategy.matrix.os` is the 3-OS list with `fail-fast: false`, (d) step order checkout → pnpm/action-setup (no `version:` key) → setup-node (`node-version: 24`, `cache: pnpm`) → `pnpm install --frozen-lockfile` → `pnpm -r build` → `pnpm lint` → `pnpm test`, (e) a `ci-ok` job with `needs: [test]`, `if: always()`, and a step failing on `needs.test.result != 'success'`.
+- **ci-workflow-shape**: read `.github/workflows/ci.yml`, assert (a) `on.push.branches == ['main']`, (b) `on.pull_request` present with no branch restriction, (c) `strategy.matrix.os` is the 3-OS list with `fail-fast: false`, (d) step order checkout → pnpm/action-setup (no `version:` key) → setup-node (`node-version: 26`, `cache: pnpm`) → `pnpm install --frozen-lockfile` → `pnpm -r build` → `pnpm lint` → `pnpm test`, (e) a `ci-ok` job with `needs: [test]`, `if: always()`, and a step failing on `needs.test.result != 'success'`.
 - **package-stub-shape**: read `.github/workflows/package.yml`, assert `on` is only `workflow_dispatch`, matrix os is `[windows-latest, macos-latest]`, no `pnpm/action-setup` `version:` key, and a final no-op step referencing P0-03 that exits 0.
 - **gitattributes-lf**: read `.gitattributes`, assert a rule forcing `eol=lf` for text files; spot-check `README.md`/`package.json` bytes for absence of `\r\n`.
 - **contributing-doc**: read `CONTRIBUTING.md`, assert presence of: branch-naming convention, conventional-commit/squash-merge mention, the local gate command chain (build-before-test order), and the branch-protection walkthrough naming `ci-ok` as the required check with the orphaned-per-leg-checks rationale.
@@ -123,4 +123,4 @@ Copied and expanded from the plan — the Reviewer must not flag any of the foll
 - **github-package-dispatch** `[github]`: trigger `workflow_dispatch` on `package.yml` for this branch, assert both `windows-latest` and `macos-latest` runs complete with `conclusion: success`.
 - **github-branch-protection** `[github]`: query the repo's branch protection rule for `main` (once configured by an admin), assert `required_status_checks.contexts` includes `ci-ok`.
 
-Spec written: docs/specs/p0-02-ci-pipeline.md — 48 criteria
+Spec written: docs/archive/tasks/p0-02-ci-pipeline/spec.md — 48 criteria

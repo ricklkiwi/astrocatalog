@@ -177,4 +177,4 @@ convenience scripts (`"build": "pnpm -r build"`, `"lint": "pnpm -r lint"`, `"tes
   build on — flag for confirmation before P0-03 is planned, since reversing it later means
   moving dependencies between two `package.json` files.
 
-Plan written: docs/plans/p0-01-monorepo-init.md — 7 steps
+Plan written: docs/archive/tasks/p0-01-monorepo-init/plan.md — 7 steps

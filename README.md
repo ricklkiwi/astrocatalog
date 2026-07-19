@@ -12,8 +12,9 @@ Pre-development. Architecture and full task plan are complete; implementation is
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | [`planning/PRD-AstroTracker-v1.md`](planning/PRD-AstroTracker-v1.md) | Product requirements                                                      |
 | [`planning/development-plan.md`](planning/development-plan.md)       | Phases, milestones, working agreements, testing strategy                  |
-| [`planning/task-breakdown.md`](planning/task-breakdown.md)           | All 79 tasks (source of the GitHub issues)                                |
+| [`planning/task-breakdown.md`](planning/task-breakdown.md)           | All 84 tasks (source of the GitHub issues)                                |
 | [`design/`](design/)                                                 | Design decisions DD-001…DD-008 — **authoritative** for all implementation |
+| [`docs/user-guide.md`](docs/user-guide.md)                           | What works today vs. the target v1 experience                             |
 | [`CLAUDE.md`](CLAUDE.md)                                             | Instructions for coding agents                                            |
 
 ## Stack (DD-001)
@@ -100,7 +101,7 @@ desktop package's scripts flip `better-sqlite3` to the ABI each command needs:
 
 - `predev` runs `electron-rebuild -f -w better-sqlite3` before `pnpm dev` — the workspace
   `node_modules` copy becomes Electron-ABI.
-- `pretest` runs `pnpm rebuild better-sqlite3` before `vitest` — reverts to the ambient
+- `pretest` runs `pnpm rebuild -r better-sqlite3` before `vitest` — reverts to the ambient
   (plain-Node) ABI, since Vitest itself runs under plain Node.
 - `pnpm package` runs the same `electron-rebuild` step explicitly before invoking
   `electron-builder`, in addition to `electron-builder.yml`'s own `npmRebuild: true` — belt and
@@ -119,7 +120,7 @@ with `asarUnpack` covering `better-sqlite3`/`sharp`'s native binaries (asar arch
 (gitignored), host-architecture only — no universal mac binary, no ia32/arm64 Windows targets.
 
 **Unsigned artifacts and Gatekeeper:** the mac DMG and Windows NSIS installer are unsigned
-(code signing and notarization land in P1-33). On first launch, macOS Gatekeeper reports the app
+(code signing and notarization land in P1-35). On first launch, macOS Gatekeeper reports the app
 as "damaged" or from an "unidentified developer" — this is expected, not a broken build. Testers
 should either right-click the app → **Open** (bypasses the warning after one confirmation), or
 run:
@@ -153,4 +154,4 @@ as build artifacts.
 
 ## Development order
 
-Phase 0 issues (P0-01 … P0-08) bootstrap the monorepo, CI, DB layer, and test harnesses and must land first — start with P0-01. Phase 1 (P1-01 … P1-34) delivers MVP v1.0. Dependencies are stated in each issue body.
+Phase 0 issues (P0-01 … P0-08) bootstrap the monorepo, CI, DB layer, and test harnesses and must land first — start with P0-01. Phase 1 (P1-01 … P1-36) delivers MVP v1.0. Dependencies are stated in each issue body.

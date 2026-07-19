@@ -278,4 +278,4 @@ triggers; (3) hand-rolled zero-dependency UUIDv7 in `@astrotracker/core` instead
 for DD-003's `schema_migrations`; (7) surrogate UUIDv7 PKs + natural-key UNIQUE on junction
 tables; (8) default `busy_timeout` 5000 ms.
 
-Plan written: docs/plans/p0-04-db-layer.md — 6 steps
+Plan written: docs/archive/tasks/p0-04-db-layer/plan.md — 6 steps

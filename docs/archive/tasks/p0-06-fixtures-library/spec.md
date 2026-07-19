@@ -1,6 +1,6 @@
 # Spec: [P0-06] Fixtures library of real-world file headers
 
-**Slug:** p0-06-fixtures-library **Issue:** #6 **Plan:** docs/plans/p0-06-fixtures-library.md **Date:** 2026-07-06
+**Slug:** p0-06-fixtures-library **Issue:** #6 **Plan:** docs/archive/tasks/p0-06-fixtures-library/plan.md **Date:** 2026-07-06
 
 ## Definition of Done
 
@@ -101,4 +101,4 @@ The issue's acceptance wording says "real-world fixtures... license-clean (self-
 - **provenance-completeness**: for every manifest entry across all three manifests, assert `provenance.method` is a valid enum value, `provenance.license === 'CC0-1.0'`, and `provenance.sources.length >= 1` with each entry a well-formed URL string.
 - **gitattributes-binary**: read `.gitattributes`, assert `*.fits binary`, `*.xisf binary`, `*.cr2 binary`, `*.cr3 binary`, `*.nef binary`, `*.arw binary` (or equivalent glob coverage) are present.
 
-Spec written: docs/specs/p0-06-fixtures-library.md — 43 criteria
+Spec written: docs/archive/tasks/p0-06-fixtures-library/spec.md — 43 criteria

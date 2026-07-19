@@ -6,15 +6,15 @@
 ## V1 Navigation (left sidebar)
 
 1. **Dashboard** — library totals, integration this month, recent sessions, targets by status, calibration health warnings.
-2. **Targets** — card grid + table toggle; search/filter bar (name, filter, equipment, date, status, integration range). Target detail: hero image, per-filter integration bars, session timeline, equipment list, calibration status, linked projects, notes.
+2. **Targets** — card grid + table toggle; search/filter bar (name, filter, equipment, date, status, integration range). Target detail: hero image, per-filter integration bars, session timeline, equipment list, calibration status, linked final images, notes.
 3. **Sessions** — calendar heat-map + chronological list. Session detail: frames by target/filter, equipment, conditions, quality stats, notes.
-4. **Calibration** — master library grouped by camera/type; gap report ("lights lacking matching darks"); provenance view.
-5. **Review queue** — unresolved targets, unknown frame types, unknown filters, duplicates. Badge count in sidebar.
+4. **Calibration** — master candidate library grouped by camera/type; gap report ("lights lacking matching darks"); ranked matching suggestions with visible reasons.
+5. **Review queue** — unresolved targets, unknown frame types, and unknown filters first; duplicate review appears later after background hashing has run. Badge count in sidebar.
 6. **Settings** — watch folders, timezone/site settings, matching tolerances, session gap, theme, (Phase 2: account/sync/location).
 
 V1 focuses on the archive truth loop: ingest a messy library, resolve metadata, show target/session/integration truth, and surface calibration gaps.
 
-V1.x adds **Projects** (processing projects kanban; project detail links inputs → outputs with version history) and a fuller **Equipment** workspace (auto-detected profiles, usage hours, user confirmation/merge). Minimal equipment profile confirmation appears inline wherever needed for calibration matching.
+V1.x adds advanced calibration management and **Projects** (processing projects kanban; project detail links inputs → outputs with version history) and a fuller **Equipment** workspace (auto-detected profiles, usage hours, user confirmation/merge). Minimal equipment profile confirmation appears inline wherever needed for calibration matching.
 
 Phase 2 adds **Tonight** (recommendations + altitude charts) between Dashboard and Targets.
 
