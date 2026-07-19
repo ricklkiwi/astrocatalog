@@ -1,0 +1,63 @@
+# E2E on the packaged app (P0-08): Playwright launches the electron-builder
+# --dir unpacked artifact on Windows + macOS only — DD-001 scopes packaging
+# (and by extension this suite) to those two OSes; no Linux GUI/xvfb leg for a
+# packaging target this repo doesn't produce. Deliberately NOT part of
+# ci.yml's `ci-ok` required aggregate yet — a new, unproven GUI leg must not
+# be able to block every PR merge on day one (see CONTRIBUTING.md); folding it
+# into the required check is a one-line follow-up once the suite proves stable.
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    # Generous: native rebuild + electron-builder --dir packaging + Electron
+    # cold boot is slower than the unit-test matrix.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # No `version` input: pnpm/action-setup reads the pinned pnpm version
+      # from the root package.json `packageManager` field (same as ci.yml).
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # core/db need dist/ built before electron-vite can bundle them — the
+      # same load-bearing ordering CONTRIBUTING.md's local gate documents.
+      - name: Build (typecheck)
+        run: pnpm -r build
+
+      # `pree2e` (electron-vite build → electron-rebuild → electron-builder
+      # --dir) runs automatically before the suite.
+      - name: E2E on packaged app
+        run: pnpm e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.os }}
+          path: packages/desktop/playwright-report/
+          retention-days: 14

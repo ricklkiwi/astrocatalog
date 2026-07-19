@@ -20,13 +20,16 @@
     "build": "tsc --noEmit -p tsconfig.json && electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "package": "electron-vite build && electron-rebuild -f -w better-sqlite3 && electron-builder",
-    "lint": "eslint src electron.vite.config.ts && prettier --check src electron.vite.config.ts",
+    "pree2e": "electron-vite build && electron-rebuild -f -w better-sqlite3 && electron-builder --dir",
+    "e2e": "playwright test",
+    "lint": "eslint src e2e electron.vite.config.ts playwright.config.ts && prettier --check src e2e electron.vite.config.ts playwright.config.ts",
     "pretest": "pnpm rebuild better-sqlite3",
     "test": "vitest run --dir src"
   },
   "devDependencies": {
     "@astrotracker/core": "workspace:*",
     "@electron/rebuild": "^4.2.0",
+    "@playwright/test": "^1.61.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.1.0",
     "@vitejs/plugin-react": "^5.2.0",
