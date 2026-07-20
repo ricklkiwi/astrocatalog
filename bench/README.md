@@ -15,12 +15,16 @@ fails when its current value is more than 20% below the committed baseline.
 | `aggregate-target-filter-type-rollup-queries-per-sec`   | DD-003 integration rollup query grouped by target, filter, and frame type       |
 | `aggregate-single-target-filter-rollup-queries-per-sec` | Single-target filter rollup backing PRD 8.4's target dashboard budget           |
 | `fits-header-end-block-scan-headers-per-sec`            | Bounded FITS header `END` card scan and 2880-byte block-boundary detection only |
+| `fits-header-parse-headers-per-sec`                     | Full P1-01 FITS header parse (cards, values, CONTINUE, keyword map)             |
 
-The header benchmark is intentionally not a full FITS parser. It measures only the in-memory,
-I/O-bound bounded-read boundary scan that locates the literal `END` card and rounds its position
-to a 2880-byte FITS block. It does not decode 80-character keyword/value cards, handle the
-`CONTINUE` convention, or construct `headers_json`. Revisit it when P1-01 lands the real FITS
-header parser.
+The END-scan benchmark is intentionally not a full FITS parser: it measures only the in-memory
+bounded-read boundary scan that locates the literal `END` card and rounds its position to a
+2880-byte FITS block. The parse benchmark runs the real `@astrotracker/core` P1-01 parser over
+the same generated corpus — 80-character card decoding, value typing, the `CONTINUE`
+convention, and keyword-map construction. Its committed baseline is deliberately set to
+6,250 headers/sec (not a measured CI sample) so the 20% regression gate trips exactly at
+P1-01's 5,000 headers/sec acceptance floor; recalibrate it from a CI run the same way as the
+other metrics once one is recorded.
 
 The DB insert and aggregate-query benchmarks currently use the same deterministic, seeded
 100k-frame synthetic workload. They do not implement or claim DD-004's full 10k-file stages 1-3

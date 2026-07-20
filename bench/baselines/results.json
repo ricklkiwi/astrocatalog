@@ -29,6 +29,13 @@
       "value": 341863.05014568067,
       "higherIsBetter": true,
       "samples": [339879.4410507742, 342806.12492169515, 342903.5844645727]
+    },
+    {
+      "name": "fits-header-parse-headers-per-sec",
+      "unit": "headers/sec",
+      "value": 6250,
+      "higherIsBetter": true,
+      "samples": [6250]
     }
   ]
 }
