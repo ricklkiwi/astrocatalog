@@ -21,6 +21,20 @@ export {
   type FitsValue,
   type FrameMetadata,
 } from './fits/index.js';
+export {
+  MAX_XML_BYTES,
+  PROLOGUE_BYTES as XISF_PROLOGUE_BYTES,
+  SIGNATURE as XISF_SIGNATURE,
+  parseXisfHeader,
+  parseXisfHeaderFromBuffer,
+  toFrameMetadata as xisfToFrameMetadata,
+  type XisfErrorCode,
+  type XisfHeader,
+  type XisfParseError,
+  type XisfParseResult,
+  type XisfProperty,
+  type XisfReader,
+} from './xisf/index.js';
 
 export const coreVersion = '0.1.0';
 
