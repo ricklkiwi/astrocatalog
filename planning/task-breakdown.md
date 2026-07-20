@@ -494,6 +494,19 @@ User documentation (getting started, folder scanning, calibration matching conce
 - Docs published (repo /docs or site); every MVP feature covered
 - v1.0.0 tagged; release checklist committed for repeatability
 
+### P1-35: PixInsight project (.xosm) parser — provenance & astrometric solution
+
+**Labels:** phase:1, pkg:core, type:feat
+**Refs:** DD-002, DD-004; PRD §6.5
+**Depends on:** P0-06
+A `.pxiproject` bundle's `project.xosm` file is well-formed XML (PixInsight's "XML Object Serialization Module", schema at pixinsight.com/xosm/xosm-1.1.xsd) recording every image window open in the project: its real file path, format, and a full `<fitsKeywords>` snapshot (same name/value/comment shape as XISF's `FITSKeyword`, different tag) — giving free source-frame/master-frame provenance even after files move, ahead of any manual entry (PRD §6.5 Processing Projects/Processed Image Linking). Where present, `<astrometricSolution>` carries a real plate-solve result (`Observation:Center:RA/Dec`, equinox, celestial reference system, observer lat/long/elevation, solve timestamp, creator app/module, catalog, and the plain 2×2 linear WCS transform) — a higher-confidence coordinate source than header RA/DEC for future target-resolution work (DD-005), without calling an external solver (cf. P4-07). Parse `project.xosm` only (never `project.data/*` — those are opaque zstd-compressed pixel/spline-distortion blobs, not needed for any of the above) into a structured type; this issue is the parser only, not the DB/UI linking (that's separate follow-on scope for P1-11/P1-21/P1-24/P1-25 to pick up later).
+**Acceptance criteria:**
+
+- Fixture `.xosm` documents (synthesized to the real XOSM 1.1 structure, since real project files are large/personal and can't be committed) parse to expected `ImageWindow` (path/format/view) + `fitsKeywords` + `astrometricSolution` (present and absent cases)
+- Malformed/truncated XML → structured error, never throws/hangs; a size bound prevents unbounded reads on corrupt input
+- Never reads any `project.data/*` file — verified by a mock-reader/fs-spy test
+- Projects without an astrometric solution (never plate-solved) parse cleanly with that field absent, not an error
+
 ---
 
 ## Phase 2 — v2.0: Online Integration & Recommendations
