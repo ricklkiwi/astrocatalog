@@ -49,6 +49,12 @@ export {
   type RawParseResult,
   type RawValue,
 } from './raw/index.js';
+export {
+  classifyFrame,
+  type ClassificationResult,
+  type FrameType,
+  type FrameTypeSource,
+} from './classification/index.js';
 
 export const coreVersion = '0.1.0';
 
