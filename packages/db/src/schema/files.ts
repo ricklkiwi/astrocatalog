@@ -56,6 +56,13 @@ export const files = sqliteTable(
     firstSeenAt: integer('first_seen_at', { mode: 'timestamp_ms' }).notNull(),
     lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }).notNull(),
     status: text('status').notNull(),
+    /**
+     * Last Stage-2 parse error for this file (`${errorCode}: ${message}`), or
+     * `null` when the file parsed cleanly / hasn't been parsed yet (DD-004:
+     * "Parse errors recorded on the file row"; P1-07). Cleared on a successful
+     * re-parse.
+     */
+    parseError: text('parse_error'),
     duplicateOfId: text('duplicate_of_id').references((): AnySQLiteColumn => files.id, {
       onDelete: 'set null',
     }),

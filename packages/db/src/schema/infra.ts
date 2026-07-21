@@ -32,6 +32,8 @@ export const scanJobs = sqliteTable(
     filesSeen: integer('files_seen').notNull().default(0),
     filesAdded: integer('files_added').notNull().default(0),
     filesUpdated: integer('files_updated').notNull().default(0),
+    /** Count of files whose Stage-2 parse failed this scan (DD-004 error isolation; P1-07). */
+    filesErrored: integer('files_errored').notNull().default(0),
     /** Arbitrary job-shaped payload (e.g. demo job's totalSteps/stepMs/resumeFrom), JSON text. */
     payloadJson: text('payload_json'),
     progressCurrent: integer('progress_current').notNull().default(0),

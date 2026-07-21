@@ -11,6 +11,7 @@ import {
   REGRESSION_THRESHOLD,
   type BenchBaseline,
 } from './compare.js';
+import { runScanPipelineBudget, type AbsoluteBudgetResult } from './scan-pipeline.js';
 
 const BASELINE_PATH = fileURLToPath(new URL('../baselines/results.json', import.meta.url));
 
@@ -22,9 +23,27 @@ export interface RunOptions {
 export interface RunCliDeps {
   argv?: readonly string[];
   baselinePath?: string;
+  /**
+   * The committed-baseline benchmark set (the fast, deterministic P0-07
+   * metrics). Compared against `baselines/results.json` and written by
+   * `--update-baseline`.
+   */
   runBenchmarks?: () => BenchMetric[];
+  /**
+   * Benchmarks gated against an absolute wall-clock budget rather than the
+   * baseline-relative regression threshold (DD-004's 10k-file scan budget).
+   * Their metrics are reported and included in `--output-current`, but are NOT
+   * written into the committed baseline (the absolute floor is the gate, and a
+   * single committed number can't express the env-dependent CI budget). Async
+   * because the scan pipeline is fs/DB-bound.
+   */
+  runBudgetBenchmarks?: () => Promise<AbsoluteBudgetResult[]>;
   stdout?: (message: string) => void;
   stderr?: (message: string) => void;
+}
+
+function formatSeconds(ms: number): string {
+  return `${(ms / 1000).toFixed(1)}s`;
 }
 
 export function parseRunOptions(argv: readonly string[]): RunOptions {
@@ -97,19 +116,22 @@ function resolveCurrentOutputPath(outputPath: string, baselinePath: string): str
   return resolvedOutputPath;
 }
 
-export function runCli({
+export async function runCli({
   argv = process.argv.slice(2),
   baselinePath = BASELINE_PATH,
   runBenchmarks = runAllBenchmarks,
+  runBudgetBenchmarks = async () => [await runScanPipelineBudget()],
   stdout = console.log,
   stderr = console.error,
-}: RunCliDeps = {}): number {
+}: RunCliDeps = {}): Promise<number> {
   const options = parseRunOptions(argv);
   const currentOutputPath = options.outputCurrentPath
     ? resolveCurrentOutputPath(options.outputCurrentPath, baselinePath)
     : undefined;
 
   if (options.updateBaseline) {
+    // Only the committed-baseline set is written; the absolute-budget
+    // benchmarks are deliberately excluded (see RunCliDeps.runBudgetBenchmarks).
     const results = runBenchmarks();
     const baseline = createBenchBaseline(results);
     writeBaseline(baselinePath, baseline);
@@ -119,30 +141,52 @@ export function runCli({
 
   const baseline = readBaseline(baselinePath);
   const results = runBenchmarks();
-  const currentBaseline = createBenchBaseline(results);
+  const budgetResults = await runBudgetBenchmarks();
+  const allResults = [...results, ...budgetResults.map((budget) => budget.metric)];
+  const currentBaseline = createBenchBaseline(allResults);
 
   if (currentOutputPath) {
     writeBaseline(currentOutputPath, currentBaseline);
     stdout(`Wrote current benchmark results to ${currentOutputPath}`);
   }
 
-  const comparisons = compareResults(results, baseline);
+  // Budget metrics have no committed baseline entry, so they surface as NEW in
+  // the comparison table; the absolute floor below is their real gate.
+  const comparisons = compareResults(allResults, baseline);
   stdout(formatComparisonTable(comparisons));
+
+  let failed = false;
 
   if (hasRegression(comparisons)) {
     stderr(`Benchmark regression exceeds ${(REGRESSION_THRESHOLD * 100).toFixed(0)}% threshold.`);
-    return 1;
+    failed = true;
   }
 
-  return 0;
+  for (const budget of budgetResults) {
+    const withinBudget = budget.metric.value >= budget.floor;
+    const detail =
+      `${budget.label}: ${formatSeconds(budget.elapsedMs)} elapsed ` +
+      `(budget ${formatSeconds(budget.budgetMs)}, ` +
+      `${budget.metric.value.toFixed(1)} files/sec vs floor ${budget.floor.toFixed(1)})`;
+    if (withinBudget) {
+      stdout(`Absolute budget OK — ${detail}`);
+    } else {
+      stderr(`Absolute budget EXCEEDED — ${detail}`);
+      failed = true;
+    }
+  }
+
+  return failed ? 1 : 0;
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  try {
-    process.exitCode = runCli();
-  } catch (cause) {
-    const detail = cause instanceof Error ? cause.message : String(cause);
-    console.error(`Benchmark harness failed: ${detail}`);
-    process.exitCode = 1;
-  }
+  runCli()
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((cause: unknown) => {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      console.error(`Benchmark harness failed: ${detail}`);
+      process.exitCode = 1;
+    });
 }

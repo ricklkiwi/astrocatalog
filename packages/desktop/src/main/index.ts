@@ -108,6 +108,7 @@ void app.whenReady().then(() => {
   orchestrator = createJobQueueOrchestrator({
     scanJobs: database.repos.scanJobs,
     files: database.repos.files,
+    frames: database.repos.frames,
     transaction: (fn) => database!.transaction(() => fn()),
     createPool: (callbacks) => {
       pool = createWorkerPool(Math.min(4, Math.max(1, os.cpus().length - 1)), callbacks);

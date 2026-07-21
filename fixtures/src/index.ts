@@ -18,3 +18,9 @@ export {
   type ProfileName,
 } from './generate.js';
 export { BLOCK_BYTES, CARD_BYTES } from './lib/fits.js';
+export {
+  CORRUPT_TRUNCATE_BYTES,
+  corruptCountForFraction,
+  corruptFitsBytes,
+  selectCorruptIndices,
+} from './corrupt.js';

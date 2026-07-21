@@ -70,6 +70,15 @@ export {
   SUPPORTED_EXTENSION_SET,
   isSupportedExtension,
 } from './scanning/supported-extensions.js';
+export {
+  RAW_HEADER_PREFIX_BYTES,
+  formatForExtension,
+  parseAndClassifyFile,
+  type BoundedReader,
+  type FileFormat,
+  type ParseFileResult,
+  type ParsedFrame,
+} from './scanning/parse-file.js';
 
 export const coreVersion = '0.1.0';
 

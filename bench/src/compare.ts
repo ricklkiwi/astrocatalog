@@ -22,7 +22,12 @@ export const REGRESSION_THRESHOLD = 0.2;
 
 const METRIC_KEYS = ['name', 'unit', 'value', 'higherIsBetter', 'samples'] as const;
 const BASELINE_KEYS = ['schemaVersion', 'generatedAt', 'results'] as const;
-const RATE_UNITS = new Set<BenchMetric['unit']>(['rows/sec', 'queries/sec', 'headers/sec']);
+const RATE_UNITS = new Set<BenchMetric['unit']>([
+  'rows/sec',
+  'queries/sec',
+  'headers/sec',
+  'files/sec',
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -55,7 +60,7 @@ function parseMetric(value: unknown, label: string): BenchMetric {
     throw new Error(`${label}: name must be a non-empty string`);
   }
   if (typeof value.unit !== 'string' || !RATE_UNITS.has(value.unit as BenchMetric['unit'])) {
-    throw new Error(`${label}: unit must be rows/sec, queries/sec, or headers/sec`);
+    throw new Error(`${label}: unit must be rows/sec, queries/sec, headers/sec, or files/sec`);
   }
   if (value.higherIsBetter !== true) {
     throw new Error(`${label}: higherIsBetter must be true for rate metrics`);

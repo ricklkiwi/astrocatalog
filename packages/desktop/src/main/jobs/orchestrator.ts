@@ -1,9 +1,16 @@
 import { randomUUID } from 'node:crypto';
 
-import type { FilesRepository, ScanJob, ScanJobsRepository } from '@astrotracker/db';
+import type { ParsedFrame } from '@astrotracker/core';
+import type {
+  FilesRepository,
+  FramesRepository,
+  NewFrame,
+  ScanJob,
+  ScanJobsRepository,
+} from '@astrotracker/db';
 
 import type { DispatchJob, WorkerPool, WorkerPoolCallbacks } from './pool.js';
-import type { DiscoveredFile, JobType, ScanJobPayload } from './protocol.js';
+import type { DiscoveredFile, JobType, KnownFileStat, ScanJobPayload } from './protocol.js';
 
 export interface JobProgressEvent {
   jobId: string;
@@ -51,6 +58,14 @@ export interface CreateJobQueueOrchestratorOptions {
    */
   files?: FilesRepository;
   /**
+   * Frames repository for `'scan'`-job Stage-2/3 upserts (P1-07). Optional for
+   * the same reason as `files`: demo-only wiring and pure Stage-1 callers omit
+   * it. When present (production, and P1-07 tests), a successfully parsed
+   * new/changed file gets its `frames` row written via `upsertByFileId`; when
+   * absent, parse results are ignored (files/parse-errors still persist).
+   */
+  frames?: FramesRepository;
+  /**
    * Runs `fn` inside a single DB transaction, used to batch each discovered
    * file group's upserts atomically (DD-002 single-writer). Optional — when
    * omitted, upserts still happen, just one statement at a time (no batch
@@ -97,14 +112,99 @@ function watchFolderIdOf(job: ScanJob): string | undefined {
   return typeof payload.watchFolderId === 'string' ? payload.watchFolderId : undefined;
 }
 
+/**
+ * Parse a `FrameMetadata.dateObs` string to a UTC `Date` for the
+ * `frames.date_obs_utc` timestamp column, or `null` when absent/unparseable.
+ * FITS `DATE-OBS` and the RAW normalizer both emit ISO-8601 (RAW without a
+ * `Z` when the camera wrote no UTC offset — treated as-written, which
+ * `Date.parse` reads in the host zone; acceptable for an approximate local
+ * capture time, and the raw string is preserved in `headers_json` regardless).
+ */
+function parseDateObs(dateObs: string | null): Date | null {
+  if (dateObs === null) {
+    return null;
+  }
+  const ms = Date.parse(dateObs);
+  return Number.isNaN(ms) ? null : new Date(ms);
+}
+
+/**
+ * Map a worker-parsed {@link ParsedFrame} onto a `frames` insert row (P1-07).
+ * The classification field names already match the columns; the normalized
+ * metadata scalars are renamed to their `frames` columns, and the full raw
+ * keyword dict is serialized into `headers_json` (DD-004: preserve everything
+ * for forward-compat). Columns owned by later stages / the user (target,
+ * filter, session, equipment, quality metrics) are intentionally omitted so
+ * `upsertByFileId` never clobbers them on re-parse.
+ */
+function toFrameRow(fileId: string, parsed: ParsedFrame): NewFrame {
+  const m = parsed.metadata;
+  return {
+    fileId,
+    frameType: parsed.frameType,
+    frameTypeSource: parsed.frameTypeSource,
+    objectRaw: m.object,
+    filterRaw: m.filter,
+    exposureSeconds: m.exposureSeconds,
+    dateObsUtc: parseDateObs(m.dateObs),
+    telescopeRaw: m.telescope,
+    cameraRaw: m.instrument,
+    ccdTemp: m.ccdTempCelsius,
+    setTemp: m.setTempCelsius,
+    gain: m.gain,
+    offset: m.offset,
+    binningX: m.binningX,
+    binningY: m.binningY,
+    widthPx: m.widthPixels,
+    heightPx: m.heightPixels,
+    raDeg: m.raDegrees,
+    decDeg: m.decDegrees,
+    focalLength: m.focalLengthMm,
+    aperture: m.apertureDiameterMm,
+    pierSide: m.pierSide,
+    airmass: m.airmass,
+    observer: m.observer,
+    siteName: m.siteName,
+    bayerPattern: m.bayerPattern,
+    headersJson: JSON.stringify(m.headers),
+  };
+}
+
 export function createJobQueueOrchestrator({
   scanJobs,
   files,
+  frames,
   transaction = (fn) => fn(),
   createPool,
 }: CreateJobQueueOrchestratorOptions): JobQueueOrchestrator {
   const listeners = new Set<(event: JobProgressEvent) => void>();
   let started = false;
+
+  /**
+   * Build the `knownFiles` snapshot (relativePath → size/mtime) the worker
+   * uses for the DD-004 incremental skip (P1-07). Read from `filesRepo` at
+   * dispatch time so it reflects the freshest indexed state, and attached to
+   * the scan payload. Non-scan jobs (and the no-files-repo wiring) dispatch
+   * unchanged.
+   */
+  function dispatchJobFor(job: ScanJob): DispatchJob {
+    const base = toDispatchJob(job);
+    if (job.jobType !== 'scan' || files === undefined) {
+      return base;
+    }
+    const watchFolderId = watchFolderIdOf(job);
+    if (watchFolderId === undefined) {
+      return base;
+    }
+    const knownFiles: Record<string, KnownFileStat> = {};
+    for (const file of files.listByWatchFolder(watchFolderId)) {
+      knownFiles[file.relativePath] = {
+        sizeBytes: file.sizeBytes,
+        fileMtimeMs: file.fileMtime === null ? null : file.fileMtime.getTime(),
+      };
+    }
+    return { ...base, payload: { ...(base.payload as ScanJobPayload), knownFiles } };
+  }
 
   function emit(job: ScanJob, message: string | null = job.progressMessage): void {
     const event: JobProgressEvent = {
@@ -133,7 +233,7 @@ export function createJobQueueOrchestrator({
         }
         continue;
       }
-      const dispatched = pool.dispatch(toDispatchJob(claimed));
+      const dispatched = pool.dispatch(dispatchJobFor(claimed));
       if (!dispatched) {
         return;
       }
@@ -146,13 +246,21 @@ export function createJobQueueOrchestrator({
   }
 
   /**
-   * Persist one discovered-file batch (P1-06 Stage 1). `seenAt` is the scan
-   * job's persisted `startedAt`, captured once at claim time and read back
-   * here (not `new Date()` per batch) so the whole run shares one cutoff for
-   * missing-detection. Wrapped in a single transaction per batch for atomicity
-   * / write throughput.
+   * Persist one discovered-file batch (DD-004 Stages 1–3). For every file:
+   * upsert its `files` row (Stage 1, P1-06); then, when the worker attached a
+   * Stage-2/3 outcome (i.e. the file was new/changed), either write its
+   * `frames` row and clear any stale parse error (parse ok), or record the
+   * parse error and leave no `frames` row (parse failed) — a bad file never
+   * aborts the batch (DD-004 error isolation). Unchanged files carry neither
+   * outcome, so their existing `frames`/`parse_error` are left as-is (P1-07
+   * incremental idempotency).
+   *
+   * `seenAt` is the scan job's persisted `startedAt` (one cutoff for the whole
+   * run's missing-detection, not `new Date()` per batch). The whole batch runs
+   * in one transaction for atomicity / write throughput; the scan-summary
+   * counters are bumped once after it commits.
    */
-  function upsertDiscoveredBatch(jobId: string, discovered: DiscoveredFile[]): void {
+  function processDiscoveredBatch(jobId: string, discovered: DiscoveredFile[]): void {
     if (files === undefined || discovered.length === 0) {
       return;
     }
@@ -166,9 +274,15 @@ export function createJobQueueOrchestrator({
     }
     const seenAt = job.startedAt;
     const filesRepo = files;
+    const framesRepo = frames;
+    let seen = 0;
+    let added = 0;
+    let updated = 0;
+    let errored = 0;
+
     transaction(() => {
       for (const file of discovered) {
-        filesRepo.upsertDiscovered(
+        const upsert = filesRepo.upsertDiscovered(
           {
             watchFolderId,
             relativePath: file.relativePath,
@@ -179,7 +293,34 @@ export function createJobQueueOrchestrator({
           },
           seenAt,
         );
+        seen += 1;
+        if (upsert.isNew) {
+          added += 1;
+        } else if (upsert.changed) {
+          updated += 1;
+        }
+
+        const fileId = upsert.file.id;
+        if (file.parseError !== undefined) {
+          // New/changed file that failed to parse: record on the row, no frame.
+          filesRepo.recordParseError(fileId, file.parseError);
+          errored += 1;
+        } else if (file.parsed !== undefined) {
+          // New/changed file that parsed: write its frame + clear any prior error.
+          if (framesRepo !== undefined) {
+            framesRepo.upsertByFileId(toFrameRow(fileId, file.parsed));
+          }
+          filesRepo.recordParseError(fileId, null);
+        }
+        // else: unchanged/skipped — leave frames + parse_error untouched.
       }
+    });
+
+    scanJobs.bumpCounters(jobId, {
+      filesSeen: seen,
+      filesAdded: added,
+      filesUpdated: updated,
+      filesErrored: errored,
     });
   }
 
@@ -191,7 +332,7 @@ export function createJobQueueOrchestrator({
       }
     },
     onDiscovered(jobId, discovered) {
-      upsertDiscoveredBatch(jobId, discovered);
+      processDiscoveredBatch(jobId, discovered);
     },
     onDone(jobId) {
       const completed = scanJobs.complete(jobId);

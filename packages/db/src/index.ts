@@ -47,6 +47,7 @@ export type {
   EquipmentProfilesRepository,
   MasterFramesRepository,
   ProjectsRepository,
+  CounterDelta,
   EnqueueJobInput,
   JobStatus,
   ProgressUpdate,

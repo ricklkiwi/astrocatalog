@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 
 import { scanJobs } from '../schema/index.js';
@@ -35,6 +35,14 @@ export interface ProgressUpdate {
   message?: string | null;
 }
 
+/** Increments for {@link ScanJobsRepository.bumpCounters}; omitted fields add 0. */
+export interface CounterDelta {
+  filesSeen?: number;
+  filesAdded?: number;
+  filesUpdated?: number;
+  filesErrored?: number;
+}
+
 /**
  * Queue primitives on top of the base CRUD skeleton (P0-05). Every
  * terminal/claim transition below guards its UPDATE with a `WHERE status IN
@@ -54,6 +62,13 @@ export interface ScanJobsRepository extends CrudRepository<typeof scanJobs> {
    */
   claimNext(workerId: string): ScanJob | undefined;
   updateProgress(id: string, progress: ProgressUpdate): ScanJob | undefined;
+  /**
+   * Atomically add to the scan summary counters (`files_seen`/`files_added`/
+   * `files_updated`/`files_errored`) via SQL increments, so concurrent batch
+   * flushes never lose a count (P1-06 discovery + P1-07 parse-error surfacing).
+   * Omitted deltas default to 0. Returns the updated row.
+   */
+  bumpCounters(id: string, delta: CounterDelta): ScanJob | undefined;
   /** Running row: sets `cancelRequested`. Queued row: transitions straight to `'cancelled'`. */
   requestCancel(id: string): ScanJob | undefined;
   /** The running→cancelled terminal transition, called once a worker acknowledges. */
@@ -101,6 +116,7 @@ export function createScanJobsRepository(db: DrizzleDb): ScanJobsRepository {
         filesSeen: 0,
         filesAdded: 0,
         filesUpdated: 0,
+        filesErrored: 0,
         payloadJson: input.payloadJson ?? null,
         progressCurrent: 0,
         progressTotal: null,
@@ -159,6 +175,22 @@ export function createScanJobsRepository(db: DrizzleDb): ScanJobsRepository {
         patch.progressMessage = progress.message ?? null;
       }
       const updated = db.update(scanJobs).set(patch).where(eq(scanJobs.id, id)).returning().get();
+      return updated ?? getByIdOrUndefined(id);
+    },
+
+    bumpCounters(id: string, delta: CounterDelta): ScanJob | undefined {
+      const updated = db
+        .update(scanJobs)
+        .set({
+          filesSeen: sql`${scanJobs.filesSeen} + ${delta.filesSeen ?? 0}`,
+          filesAdded: sql`${scanJobs.filesAdded} + ${delta.filesAdded ?? 0}`,
+          filesUpdated: sql`${scanJobs.filesUpdated} + ${delta.filesUpdated ?? 0}`,
+          filesErrored: sql`${scanJobs.filesErrored} + ${delta.filesErrored ?? 0}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(scanJobs.id, id))
+        .returning()
+        .get();
       return updated ?? getByIdOrUndefined(id);
     },
 

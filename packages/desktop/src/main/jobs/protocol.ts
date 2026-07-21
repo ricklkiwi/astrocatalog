@@ -12,6 +12,8 @@
  * registry entry in `worker-entry.ts` — not a schema or pool change.
  */
 
+import type { ParsedFrame } from '@astrotracker/core';
+
 /** Every job type the worker registry knows how to run. `'scan'` added in P1-06. */
 export type JobType = 'demo' | 'scan';
 
@@ -25,6 +27,17 @@ export interface DemoJobPayload {
   resumeFrom?: number;
 }
 
+/**
+ * Size/mtime of an already-indexed file, keyed by relativePath in
+ * {@link ScanJobPayload.knownFiles}. The worker compares each walked file
+ * against this to decide whether Stages 2–3 can be skipped (DD-004
+ * incremental rule; P1-07).
+ */
+export interface KnownFileStat {
+  sizeBytes: number;
+  fileMtimeMs: number | null;
+}
+
 /** Payload shape for the `'scan'` job type (P1-06 Stage 1) — a discovery walk of one watch folder. */
 export interface ScanJobPayload {
   watchFolderId: string;
@@ -33,15 +46,35 @@ export interface ScanJobPayload {
   extensions: string[];
   /** Additional basename patterns to skip, beyond the always-skipped hidden (dot-prefixed) entries. Case-insensitive exact basename match (e.g. 'node_modules', '@eaDir', '$RECYCLE.BIN', 'System Volume Information'). */
   skipPatterns?: string[];
+  /**
+   * Snapshot of the watch folder's already-indexed files (relativePath →
+   * size/mtime), captured by the orchestrator from `filesRepo` at dispatch
+   * time (P1-07). The worker skips the Stage-2 parse for any walked file whose
+   * `sizeBytes`/`fileMtimeMs` match its snapshot entry (DD-004: "a file is
+   * re-parsed only if size or mtime changed") — this is what makes a rescan of
+   * an unchanged tree perform zero re-parses, independent of `present`/
+   * `missing` status. Absent on a first-ever scan (nothing indexed yet).
+   */
+  knownFiles?: Record<string, KnownFileStat>;
 }
 
-/** One qualifying file found during a Stage 1 discovery walk. */
+/**
+ * One qualifying file found during a scan walk. Stage-1 stat facts are always
+ * present; the Stage-2/3 outcome (`parsed` XOR `parseError`) is attached only
+ * for files the worker actually parsed — i.e. NEW or CHANGED files. An
+ * unchanged file (matched the `knownFiles` snapshot) carries neither, so the
+ * orchestrator leaves its existing `frames` row and `parse_error` untouched.
+ */
 export interface DiscoveredFile {
   relativePath: string; // POSIX-style '/' separators, relative to rootPath, no leading slash
   filename: string;
   extension: string; // lowercase, no leading dot
   sizeBytes: number;
   fileMtimeMs: number | null; // epoch ms, or null if stat didn't report mtime
+  /** Stage 2–3 success for a new/changed file (P1-07). Mutually exclusive with `parseError`. */
+  parsed?: ParsedFrame;
+  /** Stage 2–3 failure for a new/changed file, `${errorCode}: ${message}` (P1-07). Mutually exclusive with `parsed`. */
+  parseError?: string;
 }
 
 /** Main -> worker: start a job. */
