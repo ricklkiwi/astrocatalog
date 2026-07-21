@@ -31,7 +31,7 @@ export async function detectDriveLabel(folderPath: string): Promise<string | nul
       case 'linux':
         return await detectLinux(folderPath);
       case 'win32':
-        return detectWindows(folderPath);
+        return await detectWindows(folderPath);
       default:
         return null;
     }
