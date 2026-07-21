@@ -29,8 +29,11 @@ const PROGRAM_NAME_SUBSTRINGS = [
 ];
 
 describe('ALL_PROFILES registry shape', () => {
-  it('is a well-formed array of CaptureProfile entries', () => {
-    expect(Array.isArray(ALL_PROFILES)).toBe(true);
+  it('contains exactly the six documented capture-program profiles', () => {
+    expect(ALL_PROFILES.length).toBe(6);
+  });
+
+  it('every entry is a well-formed CaptureProfile', () => {
     for (const profile of ALL_PROFILES) {
       expect(typeof profile.id).toBe('string');
       expect(profile.id.length).toBeGreaterThan(0);
