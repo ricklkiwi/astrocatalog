@@ -246,11 +246,21 @@ export interface BuildCr3Options {
 }
 
 /**
- * Best-effort minimal CR3: ftyp + moov (uuid metadata box referencing CMT1/
- * CMT2 by absolute file offset via a CTBO-style table) + the CMT1/CMT2 blocks
- * appended after moov. Structure follows the community write-up at
- * https://github.com/lclevy/canon_cr3 but is not asserted to be byte-exact to
- * a camera-produced file — see the fixture manifest for exifr parseability.
+ * Best-effort minimal CR3: ftyp + moov (Canon uuid metadata box containing
+ * CNCV, CCTP, CMT1, and CMT2 as direct sibling boxes — each CMT box's
+ * payload is a standalone TIFF/EXIF blob, no offset table involved).
+ *
+ * Earlier versions of this builder modeled Canon's `CTBO` box as an offset
+ * table pointing at the CMT blocks (per one reading of the community
+ * write-up at https://github.com/lclevy/canon_cr3) and appended the CMT
+ * bytes after `moov`, referenced by absolute file offset. Byte-level
+ * inspection of a real Canon-firmware CR3 file (2026-07-21) showed CTBO
+ * doesn't index the CMT blocks at all — its entries point to a
+ * preview-image box and the main pixel `mdat`, and the CMT blocks are
+ * simply direct sibling boxes inside the Canon uuid box, immediately
+ * TIFF-parseable as-is. This builder was simplified to match that real
+ * layout; `extractCr3TiffBlocks` in packages/core/src/raw/parse.ts was
+ * fixed to match in the same pass, and no longer needs a CTBO at all.
  */
 export function buildCr3({ cmt1, cmt2 }: BuildCr3Options): Uint8Array {
   const ftyp = box(
@@ -265,55 +275,15 @@ export function buildCr3({ cmt1, cmt2 }: BuildCr3Options): Uint8Array {
     Uint8Array.from('CanonCRM-1000000/00.09.00/00.00.00', (c) => c.charCodeAt(0)),
   );
 
-  // CTBO: version/flags(4) + entryCount(4) + entries of {index(4) offset(8) length(8)}.
-  // Offsets are patched below once we know the final layout.
-  const ctboEntryCount = 2;
-  const ctboBody = (offsets: [number, number][]): Uint8Array =>
-    concat(
-      u32beManual(0), // version/flags
-      u32beManual(ctboEntryCount),
-      ...offsets.flatMap(([offset, length], i) => [
-        u32beManual(i + 1),
-        u64beManual(offset),
-        u64beManual(length),
-      ]),
-    );
+  // CCTP: real Canon files carry ~84 bytes of payload here whose meaning
+  // isn't needed for EXIF extraction; an 8-byte version/flags+reserved
+  // placeholder is enough to be a well-formed, non-empty sibling box.
+  const cctp = box('CCTP', u32beManual(0), u32beManual(0));
 
-  // First pass with placeholder offsets to compute sizes.
-  const placeholderCtbo = box(
-    'CTBO',
-    ctboBody([
-      [0, cmt1.length],
-      [0, cmt2.length],
-    ]),
-  );
-  const cctp = box('CCTP', u32beManual(0), u32beManual(0), placeholderCtbo);
-  const uuidMeta = box('uuid', uuidBytes(CANON_CR3_UUID), cncv, cctp);
+  const cmt1Box = box('CMT1', cmt1);
+  const cmt2Box = box('CMT2', cmt2);
+  const uuidMeta = box('uuid', uuidBytes(CANON_CR3_UUID), cncv, cctp, cmt1Box, cmt2Box);
   const moov = box('moov', uuidMeta);
 
-  const cmt1Offset = ftyp.length + moov.length;
-  const cmt2Offset = cmt1Offset + cmt1.length;
-
-  // Second pass with the real absolute offsets.
-  const finalCtbo = box(
-    'CTBO',
-    ctboBody([
-      [cmt1Offset, cmt1.length],
-      [cmt2Offset, cmt2.length],
-    ]),
-  );
-  const finalCctp = box('CCTP', u32beManual(0), u32beManual(0), finalCtbo);
-  const finalUuidMeta = box('uuid', uuidBytes(CANON_CR3_UUID), cncv, finalCctp);
-  const finalMoov = box('moov', finalUuidMeta);
-
-  return concat(ftyp, finalMoov, cmt1, cmt2);
-}
-
-function u64beManual(n: number): Uint8Array {
-  const b = new Uint8Array(8);
-  const view = new DataView(b.buffer);
-  // n is always small (well within Number.MAX_SAFE_INTEGER) for fixture sizes.
-  view.setUint32(4, n >>> 0, false);
-  view.setUint32(0, Math.floor(n / 2 ** 32), false);
-  return b;
+  return concat(ftyp, moov);
 }

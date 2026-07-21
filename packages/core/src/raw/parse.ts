@@ -9,17 +9,29 @@
  * Canon's CR3 is the one exception: it's an ISO-BMFF (MP4-family) container,
  * not a bare TIFF, and `exifr`'s CR3 reader expects the exact box/offset
  * layout Canon firmware produces — it throws `"Unknown file format"` on
- * anything else, including a byte-exact fixture built by hand to the
- * publicly documented CR3 box layout (see
- * https://github.com/lclevy/canon_cr3). Real Canon EXIF is still in there,
- * though: CR3 stores it as one or more small, independently-valid TIFF/EXIF
- * blocks (`CMT1`/`CMT2`/...) at offsets recorded in a `CTBO` box under
- * `moov/uuid(CNCV)/CCTP`. `extractCr3TiffBlocks` walks just that path,
- * slices out each block, and hands each one to `exifr` on its own — the
- * same TIFF/EXIF parser used for CR2/NEF/ARW, just pointed at the right
- * bytes. Any CR3 whose box layout doesn't match this walk falls through to
- * asking `exifr` to parse the whole file, which reports the same
- * `UNRECOGNIZED_RAW` a non-Canon or corrupt file would.
+ * anything else. Real Canon EXIF is still in there, though: CR3 stores it as
+ * one or more small, independently-valid TIFF/EXIF blocks (`CMT1`/`CMT2`/
+ * `CMT3`/`CMT4`) that are **direct sibling boxes** inside the Canon metadata
+ * `uuid` box under `moov` — each one's payload opens with a plain TIFF
+ * header (`II*\0`) and can be handed to `exifr` on its own, unmodified.
+ * `extractCr3TiffBlocks` walks `moov/uuid(CNCV)/CMT*` and slices out each
+ * one's payload.
+ *
+ * An earlier version of this walker instead parsed the `CTBO` box — which
+ * looks, from its name and the public community write-up
+ * (https://github.com/lclevy/canon_cr3), like it should be an offset table
+ * for exactly these blocks. Byte-level inspection of a real Canon-firmware
+ * CR3 file (2026-07-21) showed that's not what it indexes: its entries
+ * point to a preview-image `uuid` box and the main `mdat` pixel payload —
+ * not the `CMT*` blocks, which don't need an offset table at all since
+ * they're plain sibling boxes findable by direct structural walk. Both the
+ * old `CTBO`-table approach and the fixture it was tested against shared
+ * the same (wrong) assumption, which is why the fixture-only test suite
+ * didn't catch this — real camera output did.
+ *
+ * Any CR3 whose box layout doesn't match this walk falls through to asking
+ * `exifr` to parse the whole file, which reports the same `UNRECOGNIZED_RAW`
+ * a non-Canon or corrupt file would.
  *
  * Malformed input never throws across this module's boundary (DD-004 error
  * isolation): `exifr`'s exceptions are caught and classified into a
@@ -90,43 +102,12 @@ function findChildBox(bytes: Uint8Array, start: number, end: number, type: strin
   return null;
 }
 
-interface Cr3TableEntry {
-  index: number;
-  offset: number;
-  size: number;
-}
+/** Matches `CMT1`..`CMT4` (Canon's four metadata block box types) — checked structurally, not by an exhaustive literal list, in case a future firmware adds `CMT5`+. */
+const CMT_BOX_TYPE_RE = /^CMT[1-9]\d*$/;
 
 /**
- * Parse a `CTBO` box's payload: `reserved(4) + count(4)`, then `count`
- * entries of `index(4) + offset(8) + size(8)`, all big-endian (canon_cr3
- * write-up). Offsets/sizes wider than `Number.MAX_SAFE_INTEGER` are rejected
- * (defensive — CR3 metadata blocks are always tiny) rather than silently
- * truncated.
- */
-function parseCtbo(bytes: Uint8Array, box: Box): Cr3TableEntry[] | null {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let i = box.payloadStart;
-  if (i + 8 > box.end) return null;
-  const count = view.getUint32(i + 4);
-  i += 8;
-  const entries: Cr3TableEntry[] = [];
-  for (let n = 0; n < count; n += 1) {
-    if (i + 20 > box.end) return null;
-    const index = view.getUint32(i);
-    const offsetBig = view.getBigUint64(i + 4);
-    const sizeBig = view.getBigUint64(i + 12);
-    if (offsetBig > BigInt(Number.MAX_SAFE_INTEGER) || sizeBig > BigInt(Number.MAX_SAFE_INTEGER)) {
-      return null;
-    }
-    entries.push({ index, offset: Number(offsetBig), size: Number(sizeBig) });
-    i += 20;
-  }
-  return entries;
-}
-
-/**
- * Walk `moov/uuid(CNCV)/CCTP/CTBO` and slice out each metadata block CTBO
- * points to, ordered by CTBO `index`. Returns `[]` (never throws) when the
+ * Walk `moov/uuid(CNCV)/CMT*` and return each `CMT1`..`CMT4` sibling box's
+ * payload, in the order they appear. Returns `[]` (never throws) when the
  * expected box structure isn't present — callers fall through to the
  * generic `exifr.parse(wholeBuffer)` path in that case.
  */
@@ -135,34 +116,30 @@ export function extractCr3TiffBlocks(bytes: Uint8Array): Uint8Array[] {
   if (moov === null) return [];
 
   let offset = moov.payloadStart;
-  let cctp: Box | null = null;
+  let canonUuid: Box | null = null;
   while (offset < moov.end) {
     const box = readBox(bytes, offset);
     if (box === null || box.end > moov.end) break;
     if (box.type === 'uuid') {
       const uuidBytes = bytes.subarray(box.start + 8, box.start + 24);
       if (bytesEqual(uuidBytes, CANON_CR3_UUID)) {
-        cctp = findChildBox(bytes, box.payloadStart, box.end, 'CCTP');
+        canonUuid = box;
         break;
       }
     }
     offset = box.end;
   }
-  if (cctp === null) return [];
-
-  // CCTP's payload opens with an 8-byte fixed prefix (version/flags +
-  // a count field) before the nested CTBO box (canon_cr3 write-up;
-  // verified against the fixture's actual byte layout).
-  const ctbo = findChildBox(bytes, cctp.payloadStart + 8, cctp.end, 'CTBO');
-  if (ctbo === null) return [];
-
-  const entries = parseCtbo(bytes, ctbo);
-  if (entries === null || entries.length === 0) return [];
+  if (canonUuid === null) return [];
 
   const blocks: Uint8Array[] = [];
-  for (const entry of [...entries].sort((a, b) => a.index - b.index)) {
-    if (entry.offset < 0 || entry.offset + entry.size > bytes.length) return [];
-    blocks.push(bytes.subarray(entry.offset, entry.offset + entry.size));
+  offset = canonUuid.payloadStart;
+  while (offset < canonUuid.end) {
+    const box = readBox(bytes, offset);
+    if (box === null || box.end > canonUuid.end) break;
+    if (CMT_BOX_TYPE_RE.test(box.type)) {
+      blocks.push(bytes.subarray(box.payloadStart, box.end));
+    }
+    offset = box.end;
   }
   return blocks;
 }
@@ -252,14 +229,42 @@ function normalizeTags(raw: unknown): Record<string, RawValue | RawValue[]> {
   return tags;
 }
 
-function str(tags: Record<string, unknown>, key: string): string | null {
+/**
+ * Standard EXIF/TIFF tag numbers (EXIF 2.3 registry), used as a fallback
+ * when `exifr` returns a tag under its raw numeric key instead of its
+ * translated name. Confirmed necessary against a real Canon CR3
+ * (2026-07-21): each `CMT*` block is parsed independently as its own
+ * top-level TIFF (see `extractCr3TiffBlocks`), so `exifr` reads the block
+ * that carries the Exif sub-IFD tags as if that sub-IFD's tag numbers were
+ * IFD0 tag numbers — they aren't valid IFD0 tags, so `translateKeys`
+ * doesn't recognize them and leaves them as bare numeric keys. The
+ * *values* are still correctly typed (RATIONAL→number, ASCII→trimmed
+ * string, ...) via `translateValues`; only the name lookup is affected.
+ * CR2/NEF/ARW (plain TIFF, parsed as one coherent file) don't hit this —
+ * `exifr` resolves their Exif sub-IFD normally and these fallbacks are
+ * simply unused.
+ */
+const EXIF_TAG = {
+  ExposureTime: 33434,
+  ISOSpeedRatings: 34855,
+  DateTimeOriginal: 36867,
+  OffsetTimeOriginal: 36881,
+} as const;
+
+function str(tags: Record<string, unknown>, key: string, fallbackTag?: number): string | null {
   const value = tags[key];
-  return typeof value === 'string' ? value : null;
+  if (typeof value === 'string') return value;
+  if (fallbackTag === undefined) return null;
+  const fallback = tags[String(fallbackTag)];
+  return typeof fallback === 'string' ? fallback : null;
 }
 
-function num(tags: Record<string, unknown>, key: string): number | null {
+function num(tags: Record<string, unknown>, key: string, fallbackTag?: number): number | null {
   const value = tags[key];
-  return typeof value === 'number' ? value : null;
+  if (typeof value === 'number') return value;
+  if (fallbackTag === undefined) return null;
+  const fallback = tags[String(fallbackTag)];
+  return typeof fallback === 'number' ? fallback : null;
 }
 
 function toKeywords(tags: Record<string, unknown>): RawKeywords {
@@ -268,10 +273,10 @@ function toKeywords(tags: Record<string, unknown>): RawKeywords {
     FILTER: null,
     Make: str(tags, 'Make'),
     Model: str(tags, 'Model'),
-    ExposureTime: num(tags, 'ExposureTime'),
-    ISO: num(tags, 'ISO'),
-    DateTimeOriginal: str(tags, 'DateTimeOriginal'),
-    OffsetTimeOriginal: str(tags, 'OffsetTimeOriginal'),
+    ExposureTime: num(tags, 'ExposureTime', EXIF_TAG.ExposureTime),
+    ISO: num(tags, 'ISO', EXIF_TAG.ISOSpeedRatings),
+    DateTimeOriginal: str(tags, 'DateTimeOriginal', EXIF_TAG.DateTimeOriginal),
+    OffsetTimeOriginal: str(tags, 'OffsetTimeOriginal', EXIF_TAG.OffsetTimeOriginal),
   };
 }
 

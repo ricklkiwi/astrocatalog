@@ -83,7 +83,7 @@ describe('buildCr3 — minimal ISO-BMFF box structure', () => {
     expect(ftypSize).toBeGreaterThan(8);
   });
 
-  it('follows ftyp with a moov box, then appends the CMT1/CMT2 payload blocks', () => {
+  it('follows ftyp with a moov box whose Canon uuid box carries CMT1/CMT2 as direct sibling boxes', () => {
     const cmt1 = withoutOffset();
     const cmt2 = withOffset();
     const bytes = buildCr3({ cmt1, cmt2 });
@@ -92,10 +92,29 @@ describe('buildCr3 — minimal ISO-BMFF box structure', () => {
     const moovFourcc = String.fromCharCode(...bytes.subarray(ftypSize + 4, ftypSize + 8));
     expect(moovFourcc).toBe('moov');
     const moovSize = view.getUint32(ftypSize, false);
-    const cmt1Offset = ftypSize + moovSize;
-    expect(bytes.length).toBe(cmt1Offset + cmt1.length + cmt2.length);
-    // Appended CMT1 block is itself a valid little-endian TIFF header.
-    expect(bytes[cmt1Offset]).toBe(0x49);
-    expect(bytes[cmt1Offset + 1]).toBe(0x49);
+    // Nothing appended after moov — CMT1/CMT2 live inside it now, as direct
+    // sibling boxes in the Canon uuid box (real Canon layout, not an
+    // offset-referenced appendix).
+    expect(bytes.length).toBe(ftypSize + moovSize);
+
+    // Walk moov -> uuid -> find CMT1/CMT2 by box type, confirm each payload
+    // is itself a valid little-endian TIFF header.
+    const uuidStart = ftypSize + 8;
+    const uuidPayloadStart = uuidStart + 8 + 16; // box header(8) + uuid(16)
+    const uuidSize = view.getUint32(uuidStart, false);
+    let offset = uuidPayloadStart;
+    const found: Record<string, number> = {};
+    while (offset < uuidStart + uuidSize) {
+      const size = view.getUint32(offset, false);
+      const type = String.fromCharCode(...bytes.subarray(offset + 4, offset + 8));
+      found[type] = offset + 8;
+      offset += size;
+    }
+    expect(found.CMT1).toBeDefined();
+    expect(found.CMT2).toBeDefined();
+    expect(bytes[found.CMT1!]).toBe(0x49);
+    expect(bytes[found.CMT1! + 1]).toBe(0x49);
+    expect(bytes[found.CMT2!]).toBe(0x49);
+    expect(bytes[found.CMT2! + 1]).toBe(0x49);
   });
 });
