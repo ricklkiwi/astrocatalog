@@ -19,6 +19,8 @@ import workerEntryPath from './worker-entry?modulePath';
 import type {
   CancelMessage,
   DiscoveredFile,
+  HashError,
+  HashedFile,
   JobType,
   RunMessage,
   WorkerToMainMessage,
@@ -35,6 +37,8 @@ export interface WorkerPoolCallbacks {
   onProgress(jobId: string, current: number, total: number | null, message: string | null): void;
   /** A batch of newly-walked files from a `'scan'` job, forwarded for upsert (P1-06 Stage 1). */
   onDiscovered(jobId: string, files: DiscoveredFile[]): void;
+  /** A batch of hash outcomes from a `'hash'` job, forwarded for `recordHash` (P1-08 Stage 5a). */
+  onHashed(jobId: string, results: Array<HashedFile | HashError>): void;
   onDone(jobId: string): void;
   /** Also fired for a worker crash (uncaught exception) on its in-flight job. */
   onError(jobId: string, error: string): void;
@@ -76,6 +80,9 @@ export function createWorkerPool(
           break;
         case 'discovered':
           callbacks.onDiscovered(message.jobId, message.files);
+          break;
+        case 'hashed':
+          callbacks.onHashed(message.jobId, message.results);
           break;
         case 'done':
           slot.busy = false;

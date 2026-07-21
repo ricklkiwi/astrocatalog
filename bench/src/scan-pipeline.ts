@@ -228,6 +228,10 @@ export async function runScanPipelineBenchmark(
             persistBatch(repos, watchFolderId, seenAt, batch);
           });
         },
+        // This benchmark only drives runScanJob (stages 1-3), never the 'hash'
+        // job, so reportHashed is never actually called — no-op like the
+        // other unused-here JobContext members would be.
+        reportHashed: () => undefined,
         isCancelled: () => false,
       };
 

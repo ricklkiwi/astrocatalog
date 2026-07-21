@@ -35,6 +35,7 @@ import { parseAndClassifyFile, type BoundedReader } from '@astrotracker/core';
 
 import type { JobContext } from './job-context.js';
 import type { DiscoveredFile, KnownFileStat, ScanJobPayload } from './protocol.js';
+import { sha256File } from './sha256.js';
 
 /** Target discovered-file batch size before flushing to `ctx.reportDiscovered`. */
 const BATCH_SIZE = 200;
@@ -66,6 +67,7 @@ export async function runScanJob(payload: ScanJobPayload, ctx: JobContext): Prom
     [...ALWAYS_SKIP, ...(payload.skipPatterns ?? [])].map((name) => name.toLowerCase()),
   );
   const knownFiles = payload.knownFiles ?? {};
+  const moveCandidates = payload.moveCandidates ?? [];
 
   const batch: DiscoveredFile[] = [];
   let cumulativeCount = 0;
@@ -163,13 +165,34 @@ export async function runScanJob(payload: ScanJobPayload, ctx: JobContext): Prom
         fileMtimeMs,
       };
 
-      // Incremental skip (DD-004): only new/changed files reach Stages 2–3.
-      if (!isUnchanged(knownFiles[relativePath], stats.size, fileMtimeMs)) {
-        const outcome = await parseDiscoveredFile(fullPath, extension, relativePath);
-        if (outcome.parseError !== undefined) {
-          discovered.parseError = outcome.parseError;
+      // DD-004 stage gating for this file:
+      //   - unchanged (known, same size/mtime): report stat facts only.
+      //   - brand-new (relativePath never indexed): try move detection first,
+      //     and only parse (Stages 2–3) if it's genuinely a new file.
+      //   - changed (known but size/mtime differ): re-parse in place (P1-07).
+      const known = knownFiles[relativePath];
+      if (known !== undefined) {
+        if (!isUnchanged(known, stats.size, fileMtimeMs)) {
+          applyParseOutcome(
+            discovered,
+            await parseDiscoveredFile(fullPath, extension, relativePath),
+          );
+        }
+        // else unchanged — leave frames/parse_error untouched (no outcome).
+      } else {
+        // Brand-new relativePath: a moved file (DD-004) presents here as "new".
+        const moved = await detectMove(fullPath, stats.size, moveCandidates);
+        if (moved !== undefined) {
+          // Confirmed move: re-path the existing missing row, preserving links.
+          // Content is unchanged by definition (same size+hash), so Stages 2–3
+          // are skipped — no `parsed`/`parseError` set (protocol invariant).
+          discovered.movedFromFileId = moved.fileId;
+          discovered.sha256 = moved.sha256;
         } else {
-          discovered.parsed = outcome.parsed;
+          applyParseOutcome(
+            discovered,
+            await parseDiscoveredFile(fullPath, extension, relativePath),
+          );
         }
       }
 
@@ -245,6 +268,54 @@ async function parseDiscoveredFile(
       await handle.close().catch(() => undefined);
     }
   }
+}
+
+/** Attach a Stage-2/3 outcome (exactly one of `parsed`/`parseError`) onto a discovered file. */
+function applyParseOutcome(discovered: DiscoveredFile, outcome: ParseOutcome): void {
+  if (outcome.parseError !== undefined) {
+    discovered.parseError = outcome.parseError;
+  } else {
+    discovered.parsed = outcome.parsed;
+  }
+}
+
+/**
+ * DD-004 move detection (P1-08): decide whether a brand-new file (its
+ * `relativePath` was never indexed) is actually a `'missing'` file that moved.
+ * A cheap `sizeBytes` pre-filter runs first; only on a size match do we pay for
+ * a full SHA-256 (hash-on-demand — DD-004's lazy hashing: we hash just this one
+ * candidate file, not the whole tree). Returns the matched candidate's `fileId`
+ * plus the computed `sha256` on an exact content match, else `undefined` (no
+ * size match, no hash match, or the file was unreadable — in which case the
+ * caller falls through to the normal new-file parse path). Among multiple
+ * candidates sharing BOTH size and hash (rare content-duplicate-among-missing
+ * rows), the lowest `fileId` wins deterministically.
+ */
+async function detectMove(
+  fullPath: string,
+  sizeBytes: number,
+  moveCandidates: NonNullable<ScanJobPayload['moveCandidates']>,
+): Promise<{ fileId: string; sha256: string } | undefined> {
+  const sizeMatches = moveCandidates.filter((candidate) => candidate.sizeBytes === sizeBytes);
+  if (sizeMatches.length === 0) {
+    return undefined;
+  }
+  let hash: string;
+  try {
+    hash = await sha256File(fullPath);
+  } catch {
+    // Unreadable/vanished — can't confirm a move; let the normal new-file path
+    // handle it (it will surface its own READ_ERROR when it tries to parse).
+    return undefined;
+  }
+  const hashMatches = sizeMatches.filter((candidate) => candidate.sha256 === hash);
+  if (hashMatches.length === 0) {
+    return undefined;
+  }
+  const winner = hashMatches.reduce((lowest, candidate) =>
+    candidate.fileId < lowest.fileId ? candidate : lowest,
+  );
+  return { fileId: winner.fileId, sha256: hash };
 }
 
 /** Lowercased extension without leading dot, or `null` if the name has no extension. */
