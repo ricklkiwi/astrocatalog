@@ -1,0 +1,1 @@
+ALTER TABLE `watch_folders` ADD `skip_patterns` text;

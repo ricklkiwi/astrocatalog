@@ -9,9 +9,14 @@
  */
 import path from 'node:path';
 import os from 'node:os';
+import { stat } from 'node:fs/promises';
 
-import { openDatabase, type AstroDatabase } from '@astrotracker/db';
+import { SUPPORTED_EXTENSIONS } from '@astrotracker/core';
+import { openDatabase, type AstroDatabase, type WatchFolder } from '@astrotracker/db';
 import { app, BrowserWindow, ipcMain } from 'electron';
+
+import type { WatchFolderRecord } from '../ipc/contract.js';
+import { detectDriveLabel } from './drive-label.js';
 
 import { createJobQueueOrchestrator, type JobQueueOrchestrator } from './jobs/orchestrator.js';
 import { createWorkerPool, type WorkerPool } from './jobs/pool.js';
@@ -24,6 +29,33 @@ const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
 let database: AstroDatabase | undefined;
 let orchestrator: JobQueueOrchestrator | undefined;
 let pool: WorkerPool | undefined;
+
+/** Parses the JSON `skip_patterns` column defensively — `null` when unset or unparseable. */
+function readSkipPatterns(row: WatchFolder): string[] | null {
+  if (typeof row.skipPatterns !== 'string') {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(row.skipPatterns);
+    return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === 'string') : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Maps a DB `watch_folders` row to the IPC-facing record (parsing `skip_patterns`). */
+function toWatchFolderRecord(row: WatchFolder): WatchFolderRecord {
+  return {
+    id: row.id,
+    path: row.path,
+    driveLabel: row.driveLabel,
+    isActive: row.isActive,
+    lastScanAt: row.lastScanAt,
+    skipPatterns: readSkipPatterns(row),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
 
 function isAllowedNavigation(url: string): boolean {
   if (devServerUrl !== undefined) {
@@ -75,6 +107,8 @@ void app.whenReady().then(() => {
   database = openDatabase({ filePath: path.join(app.getPath('userData'), 'astrotracker.db') });
   orchestrator = createJobQueueOrchestrator({
     scanJobs: database.repos.scanJobs,
+    files: database.repos.files,
+    transaction: (fn) => database!.transaction(() => fn()),
     createPool: (callbacks) => {
       pool = createWorkerPool(Math.min(4, Math.max(1, os.cpus().length - 1)), callbacks);
       return pool;
@@ -99,6 +133,47 @@ void app.whenReady().then(() => {
         enqueueDemo: (input) => orchestrator!.enqueueDemo(input),
         cancel: (jobId) => orchestrator!.cancel(jobId),
         list: () => orchestrator!.list(),
+        enqueueScan: ({ watchFolderId }) => {
+          const folder = database!.repos.watchFolders.getById(watchFolderId);
+          if (folder === undefined) {
+            throw new Error(`Unknown watch folder: ${watchFolderId}`);
+          }
+          const skipPatterns = readSkipPatterns(folder);
+          return orchestrator!.enqueueScan({
+            watchFolderId: folder.id,
+            rootPath: folder.path,
+            extensions: [...SUPPORTED_EXTENSIONS],
+            skipPatterns: skipPatterns ?? undefined,
+          });
+        },
+      },
+      watchFolders: {
+        list: () => database!.repos.watchFolders.list().map(toWatchFolderRecord),
+        add: async ({ path: folderPath, skipPatterns }) => {
+          let stats;
+          try {
+            stats = await stat(folderPath);
+          } catch {
+            throw new Error(`Watch-folder path does not exist or is not accessible: ${folderPath}`);
+          }
+          if (!stats.isDirectory()) {
+            throw new Error(`Watch-folder path is not a directory: ${folderPath}`);
+          }
+          const driveLabel = await detectDriveLabel(folderPath);
+          const row = database!.repos.watchFolders.insert({
+            path: folderPath,
+            driveLabel,
+            isActive: true,
+            lastScanAt: null,
+            skipPatterns: skipPatterns === undefined ? null : JSON.stringify(skipPatterns),
+          });
+          return toWatchFolderRecord(row);
+        },
+        remove: (id) => database!.repos.watchFolders.remove(id),
+      },
+      files: {
+        listByWatchFolder: (watchFolderId) =>
+          database!.repos.files.list().filter((file) => file.watchFolderId === watchFolderId),
       },
     }),
   );

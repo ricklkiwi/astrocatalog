@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createWorkerPool, type WorkerPool, type WorkerPoolCallbacks } from './pool.js';
-import type { JobType } from './protocol.js';
+import type { DiscoveredFile, JobType } from './protocol.js';
 
 /**
  * Real `worker_threads` exercised against the real `worker-entry.ts` (P0-05
@@ -12,17 +15,22 @@ import type { JobType } from './protocol.js';
  */
 
 let pool: WorkerPool | undefined;
+const tmpDirs: string[] = [];
 
 afterEach(async () => {
   if (pool !== undefined) {
     await pool.terminateAll();
     pool = undefined;
   }
+  while (tmpDirs.length > 0) {
+    rmSync(tmpDirs.pop()!, { recursive: true, force: true });
+  }
 });
 
 interface Recorder {
   callbacks: WorkerPoolCallbacks;
   progress: Array<{ jobId: string; current: number; total: number | null; message: string | null }>;
+  discovered: Array<{ jobId: string; files: DiscoveredFile[] }>;
   done: string[];
   errors: Array<{ jobId: string; error: string }>;
   cancelled: string[];
@@ -34,6 +42,7 @@ interface Recorder {
 
 function createRecorder(): Recorder {
   const progress: Recorder['progress'] = [];
+  const discovered: Recorder['discovered'] = [];
   const done: string[] = [];
   const errors: Recorder['errors'] = [];
   const cancelled: string[] = [];
@@ -71,6 +80,10 @@ function createRecorder(): Recorder {
         progress.push({ jobId, current, total, message });
         notify();
       },
+      onDiscovered: (jobId, files) => {
+        discovered.push({ jobId, files });
+        notify();
+      },
       onDone: (jobId) => {
         done.push(jobId);
         notify();
@@ -85,6 +98,7 @@ function createRecorder(): Recorder {
       },
     },
     progress,
+    discovered,
     done,
     errors,
     cancelled,
@@ -169,6 +183,38 @@ describe('createWorkerPool', () => {
 
     expect(pool.cancel('not-a-dispatched-job')).toBe(false);
   });
+
+  it('runs a scan job and forwards discovered file batches via onDiscovered', async () => {
+    const recorder = createRecorder();
+    pool = createWorkerPool(1, recorder.callbacks);
+
+    const dir = mkdtempSync(path.join(tmpdir(), 'astro-p1-06-pool-'));
+    tmpDirs.push(dir);
+    writeFileSync(path.join(dir, 'light_001.fits'), 'x');
+    writeFileSync(path.join(dir, 'light_002.fit'), 'xx');
+    writeFileSync(path.join(dir, 'notes.txt'), 'ignored');
+
+    const jobId = randomUUID();
+    const dispatched = pool.dispatch({
+      id: jobId,
+      jobType: 'scan' as JobType,
+      payload: {
+        watchFolderId: 'wf-1',
+        rootPath: dir,
+        extensions: ['fits', 'fit'],
+      },
+    });
+    expect(dispatched).toBe(true);
+
+    await recorder.waitForDone(jobId);
+
+    const files = recorder.discovered
+      .filter((d) => d.jobId === jobId)
+      .flatMap((d) => d.files)
+      .map((f) => f.filename)
+      .sort();
+    expect(files).toEqual(['light_001.fits', 'light_002.fit']);
+  }, 10000);
 
   it('a worker crash (uncaught exception) fails the in-flight job and the pool keeps full capacity', async () => {
     const recorder = createRecorder();

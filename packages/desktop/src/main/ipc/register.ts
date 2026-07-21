@@ -7,7 +7,14 @@
  * `ipcMain` is injected (IpcMainLike) so this module never imports Electron
  * and stays unit-testable under plain Node (contract.test.ts).
  */
-import { IPC_CHANNELS, type EnqueueDemoInput, type IpcContract } from '../../ipc/contract.js';
+import {
+  IPC_CHANNELS,
+  type AddWatchFolderInput,
+  type EnqueueDemoInput,
+  type EnqueueScanInput,
+  type IpcContract,
+  type WatchFolderRecord,
+} from '../../ipc/contract.js';
 
 export type IpcHandlers = {
   [C in keyof IpcContract]: (
@@ -32,6 +39,23 @@ export interface IpcHandlerDeps {
     enqueueDemo(input?: EnqueueDemoInput): { jobId: string };
     cancel(jobId: string): void;
     list(): IpcContract['jobs.list']['output'];
+    /** Enqueues a filesystem scan of the given watch folder; returns its job id. */
+    enqueueScan(input: EnqueueScanInput): { jobId: string };
+  };
+  watchFolders: {
+    list(): WatchFolderRecord[];
+    /**
+     * Validates the path (must exist and be a directory), best-effort detects
+     * the drive label, persists the row, and returns the created record.
+     * Async because it does filesystem + drive-label I/O.
+     */
+    add(input: AddWatchFolderInput): Promise<WatchFolderRecord>;
+    remove(id: string): boolean;
+  };
+  files: {
+    listByWatchFolder(
+      watchFolderId: string,
+    ): IpcContract['files.listByWatchFolder']['output']['files'];
   };
 }
 
@@ -49,6 +73,39 @@ function validateDemoInteger(
     throw new Error(`${field} must be a finite integer in the inclusive range 1..${max}`);
   }
   return value;
+}
+
+function requireObject(input: unknown, label: string): Record<string, unknown> {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error(`${label} input must be an object`);
+  }
+  return input as Record<string, unknown>;
+}
+
+function requireNonEmptyString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${field} must be a non-empty string`);
+  }
+  return value;
+}
+
+function validateAddWatchFolderInput(input: unknown): AddWatchFolderInput {
+  const obj = requireObject(input, 'watchFolders.add');
+  const path = requireNonEmptyString(obj['path'], 'path');
+  const rawSkip = obj['skipPatterns'];
+  if (rawSkip === undefined) {
+    return { path };
+  }
+  if (!Array.isArray(rawSkip) || rawSkip.some((p) => typeof p !== 'string')) {
+    throw new Error('skipPatterns must be an array of strings when provided');
+  }
+  return { path, skipPatterns: rawSkip as string[] };
+}
+
+function validateWatchFolderId(input: unknown, label: string): string {
+  const obj = requireObject(input, label);
+  const key = label === 'watchFolders.remove' ? 'id' : 'watchFolderId';
+  return requireNonEmptyString(obj[key], key);
 }
 
 function validateEnqueueDemoInput(input: EnqueueDemoInput | void): Required<EnqueueDemoInput> {
@@ -83,6 +140,16 @@ export function createIpcHandlers(deps: IpcHandlerDeps): IpcHandlers {
       deps.jobs.cancel(input.jobId);
     },
     'jobs.list': () => deps.jobs.list(),
+    'jobs.enqueueScan': (input) =>
+      deps.jobs.enqueueScan({ watchFolderId: validateWatchFolderId(input, 'jobs.enqueueScan') }),
+    'watchFolders.list': () => ({ watchFolders: deps.watchFolders.list() }),
+    'watchFolders.add': (input) => deps.watchFolders.add(validateAddWatchFolderInput(input)),
+    'watchFolders.remove': (input) => ({
+      removed: deps.watchFolders.remove(validateWatchFolderId(input, 'watchFolders.remove')),
+    }),
+    'files.listByWatchFolder': (input) => ({
+      files: deps.files.listByWatchFolder(validateWatchFolderId(input, 'files.listByWatchFolder')),
+    }),
   };
 }
 

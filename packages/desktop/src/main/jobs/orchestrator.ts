@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import type { ScanJob, ScanJobsRepository } from '@astrotracker/db';
+import type { FilesRepository, ScanJob, ScanJobsRepository } from '@astrotracker/db';
 
 import type { DispatchJob, WorkerPool, WorkerPoolCallbacks } from './pool.js';
-import type { JobType } from './protocol.js';
+import type { DiscoveredFile, JobType, ScanJobPayload } from './protocol.js';
 
 export interface JobProgressEvent {
   jobId: string;
@@ -18,6 +18,17 @@ export interface JobQueueOrchestrator {
   readonly callbacks: WorkerPoolCallbacks;
   start(): void;
   enqueueDemo(input?: { totalSteps?: number; stepMs?: number }): { jobId: string };
+  /**
+   * Enqueue a `'scan'` job (P1-06 Stage 1). The caller (an IPC handler) has
+   * already resolved the watch folder's `rootPath`/`extensions`/`skipPatterns`
+   * and passes the full payload — the orchestrator does no watch-folder lookup.
+   */
+  enqueueScan(input: {
+    watchFolderId: string;
+    rootPath: string;
+    extensions: string[];
+    skipPatterns?: string[];
+  }): { jobId: string };
   cancel(jobId: string): void;
   list(): Array<{
     id: string;
@@ -32,6 +43,21 @@ export interface JobQueueOrchestrator {
 
 export interface CreateJobQueueOrchestratorOptions {
   scanJobs: ScanJobsRepository;
+  /**
+   * Files repository for `'scan'`-job Stage-1 upserts (P1-06). Optional so the
+   * P0-05 demo-only wiring (and any caller that never enqueues scans) still
+   * constructs an orchestrator; when absent, `'scan'` discovery batches are
+   * ignored. Production (`main/index.ts`) must supply it for scans to persist.
+   */
+  files?: FilesRepository;
+  /**
+   * Runs `fn` inside a single DB transaction, used to batch each discovered
+   * file group's upserts atomically (DD-002 single-writer). Optional — when
+   * omitted, upserts still happen, just one statement at a time (no batch
+   * atomicity). Wire it as `(fn) => database.transaction(() => fn())`
+   * (`AstroDatabase.transaction` is also directly assignable here).
+   */
+  transaction?: <T>(fn: () => T) => T;
   createPool(callbacks: WorkerPoolCallbacks): WorkerPool;
 }
 
@@ -57,8 +83,24 @@ function toDispatchJob(job: ScanJob): DispatchJob {
   };
 }
 
+/**
+ * Resolve the watch-folder id for a scan job: prefer the dedicated
+ * `watch_folder_id` column, falling back to the JSON payload. Both are
+ * persisted by `enqueueScan`, so this survives the orphan-requeue-after-restart
+ * path (no in-memory map needed). Returns `undefined` for a non-scan job.
+ */
+function watchFolderIdOf(job: ScanJob): string | undefined {
+  if (job.watchFolderId !== null) {
+    return job.watchFolderId;
+  }
+  const payload = parsePayload(job);
+  return typeof payload.watchFolderId === 'string' ? payload.watchFolderId : undefined;
+}
+
 export function createJobQueueOrchestrator({
   scanJobs,
+  files,
+  transaction = (fn) => fn(),
   createPool,
 }: CreateJobQueueOrchestratorOptions): JobQueueOrchestrator {
   const listeners = new Set<(event: JobProgressEvent) => void>();
@@ -103,6 +145,44 @@ export function createJobQueueOrchestrator({
     }
   }
 
+  /**
+   * Persist one discovered-file batch (P1-06 Stage 1). `seenAt` is the scan
+   * job's persisted `startedAt`, captured once at claim time and read back
+   * here (not `new Date()` per batch) so the whole run shares one cutoff for
+   * missing-detection. Wrapped in a single transaction per batch for atomicity
+   * / write throughput.
+   */
+  function upsertDiscoveredBatch(jobId: string, discovered: DiscoveredFile[]): void {
+    if (files === undefined || discovered.length === 0) {
+      return;
+    }
+    const job = scanJobs.getById(jobId);
+    if (job === undefined || job.startedAt === null) {
+      return;
+    }
+    const watchFolderId = watchFolderIdOf(job);
+    if (watchFolderId === undefined) {
+      return;
+    }
+    const seenAt = job.startedAt;
+    const filesRepo = files;
+    transaction(() => {
+      for (const file of discovered) {
+        filesRepo.upsertDiscovered(
+          {
+            watchFolderId,
+            relativePath: file.relativePath,
+            filename: file.filename,
+            extension: file.extension,
+            sizeBytes: file.sizeBytes,
+            fileMtime: file.fileMtimeMs === null ? null : new Date(file.fileMtimeMs),
+          },
+          seenAt,
+        );
+      }
+    });
+  }
+
   const callbacks: WorkerPoolCallbacks = {
     onProgress(jobId, current, total, message) {
       const updated = scanJobs.updateProgress(jobId, { current, total, message });
@@ -110,10 +190,28 @@ export function createJobQueueOrchestrator({
         emit(updated, message);
       }
     },
+    onDiscovered(jobId, discovered) {
+      upsertDiscoveredBatch(jobId, discovered);
+    },
     onDone(jobId) {
       const completed = scanJobs.complete(jobId);
       if (completed !== undefined) {
         emit(completed, 'completed');
+        // Stage-1 missing-detection (P1-06 / DD-004): every `'present'` row
+        // under this watch folder not re-seen by *this* scan (deleted, or the
+        // whole drive disconnected) flips to `'missing'`. The cutoff is the
+        // scan's own persisted `startedAt` — the same timestamp used as
+        // `seenAt` for every upsert in this run — so files re-discovered this
+        // run (lastSeenAt === startedAt) survive the strict `<` comparison,
+        // while stale rows (older startedAt) don't. Restoring them later is
+        // free: a subsequent successful rescan re-upserts and `wasRestored`
+        // flips them back to `'present'`.
+        if (completed.jobType === 'scan' && files !== undefined && completed.startedAt !== null) {
+          const watchFolderId = watchFolderIdOf(completed);
+          if (watchFolderId !== undefined) {
+            files.markMissingNotSeenSince(watchFolderId, completed.startedAt);
+          }
+        }
       }
       pump();
     },
@@ -156,6 +254,26 @@ export function createJobQueueOrchestrator({
       };
       const job = scanJobs.enqueue({
         jobType: 'demo',
+        payloadJson: JSON.stringify(payload),
+      });
+      emit(job, 'queued');
+      pump();
+      return { jobId: job.id };
+    },
+
+    enqueueScan(input): { jobId: string } {
+      const payload: ScanJobPayload = {
+        watchFolderId: input.watchFolderId,
+        rootPath: input.rootPath,
+        extensions: input.extensions,
+        ...(input.skipPatterns !== undefined ? { skipPatterns: input.skipPatterns } : {}),
+      };
+      const job = scanJobs.enqueue({
+        jobType: 'scan',
+        // Persist the id on the dedicated column too (not just inside the
+        // payload) so onDiscovered/onDone can resolve it without re-parsing,
+        // and it survives the orphan-requeue-after-restart path.
+        watchFolderId: input.watchFolderId,
         payloadJson: JSON.stringify(payload),
       });
       emit(job, 'queued');

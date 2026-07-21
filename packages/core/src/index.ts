@@ -62,6 +62,14 @@ export {
   type FrameType,
   type FrameTypeSource,
 } from './classification/index.js';
+export {
+  FITS_EXTENSIONS,
+  XISF_EXTENSIONS,
+  RAW_EXTENSIONS,
+  SUPPORTED_EXTENSIONS,
+  SUPPORTED_EXTENSION_SET,
+  isSupportedExtension,
+} from './scanning/supported-extensions.js';
 
 export const coreVersion = '0.1.0';
 

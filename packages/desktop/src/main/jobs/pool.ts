@@ -16,7 +16,13 @@
 import { Worker } from 'node:worker_threads';
 
 import workerEntryPath from './worker-entry?modulePath';
-import type { CancelMessage, JobType, RunMessage, WorkerToMainMessage } from './protocol.js';
+import type {
+  CancelMessage,
+  DiscoveredFile,
+  JobType,
+  RunMessage,
+  WorkerToMainMessage,
+} from './protocol.js';
 
 export interface DispatchJob {
   id: string;
@@ -27,6 +33,8 @@ export interface DispatchJob {
 /** Injected by the orchestrator; every callback persists via `repos.scanJobs`. */
 export interface WorkerPoolCallbacks {
   onProgress(jobId: string, current: number, total: number | null, message: string | null): void;
+  /** A batch of newly-walked files from a `'scan'` job, forwarded for upsert (P1-06 Stage 1). */
+  onDiscovered(jobId: string, files: DiscoveredFile[]): void;
   onDone(jobId: string): void;
   /** Also fired for a worker crash (uncaught exception) on its in-flight job. */
   onError(jobId: string, error: string): void;
@@ -65,6 +73,9 @@ export function createWorkerPool(
       switch (message.type) {
         case 'progress':
           callbacks.onProgress(message.jobId, message.current, message.total, message.message);
+          break;
+        case 'discovered':
+          callbacks.onDiscovered(message.jobId, message.files);
           break;
         case 'done':
           slot.busy = false;

@@ -12,23 +12,28 @@
  */
 import { parentPort } from 'node:worker_threads';
 
-import { runDemoJob, type JobContext } from './demo-job.js';
+import { runDemoJob } from './demo-job.js';
+import type { JobContext } from './job-context.js';
+import { runScanJob } from './scan-job.js';
 import type {
   CancelledMessage,
   DemoJobPayload,
+  DiscoveredMessage,
   DoneMessage,
   ErrorMessage,
   JobType,
   MainToWorkerMessage,
   ProgressMessage,
   RunMessage,
+  ScanJobPayload,
 } from './protocol.js';
 
 type JobRunner = (payload: unknown, ctx: JobContext) => Promise<void>;
 
-/** `{ demo: runDemoJob }` today; a future `'scan'` entry is additive, not a pool/orchestrator change. */
+/** Maps every `JobType` to its runner; adding a job type is an additive entry here, not a pool/orchestrator change. */
 const registry: Record<JobType, JobRunner> = {
   demo: (payload, ctx) => runDemoJob(payload as DemoJobPayload, ctx),
+  scan: (payload, ctx) => runScanJob(payload as ScanJobPayload, ctx),
 };
 
 if (parentPort === null) {
@@ -72,6 +77,14 @@ async function runJob(message: RunMessage, runner: JobRunner): Promise<void> {
         message: progressMessage,
       };
       port.postMessage(progress);
+    },
+    reportDiscovered: (files) => {
+      // Don't spam empty batches — only construct/send when there's something to report.
+      if (files.length === 0) {
+        return;
+      }
+      const discovered: DiscoveredMessage = { type: 'discovered', jobId, files };
+      port.postMessage(discovered);
     },
   };
 

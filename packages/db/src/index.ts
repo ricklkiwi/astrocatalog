@@ -37,6 +37,8 @@ export type {
   RowPatch,
   WatchFoldersRepository,
   FilesRepository,
+  UpsertDiscoveredInput,
+  UpsertDiscoveredResult,
   FramesListFilter,
   FramesRepository,
   TargetsRepository,
