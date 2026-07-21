@@ -14,8 +14,8 @@
 
 import type { ParsedFrame } from '@astrotracker/core';
 
-/** Every job type the worker registry knows how to run. `'scan'` added in P1-06. */
-export type JobType = 'demo' | 'scan';
+/** Every job type the worker registry knows how to run. `'scan'` added in P1-06, `'hash'` in P1-08. */
+export type JobType = 'demo' | 'scan' | 'hash';
 
 /** Payload shape for the `'demo'` job type — sleeps through N steps, reporting progress. */
 export interface DemoJobPayload {
@@ -56,6 +56,20 @@ export interface ScanJobPayload {
    * `missing` status. Absent on a first-ever scan (nothing indexed yet).
    */
   knownFiles?: Record<string, KnownFileStat>;
+  /**
+   * Content-match candidates for DD-004 move detection (P1-08): every
+   * `'missing'` `files` row (across ALL watch folders, not just the one being
+   * scanned — a file can move between folders) that already carries a
+   * `sha256`. When the walker meets a file that looks brand-new (its
+   * `relativePath` isn't in `knownFiles`) whose `sizeBytes` matches a
+   * candidate, it hashes that one file and, on an exact `sha256` match, reports
+   * it as a move (`movedFromFileId` set) rather than a new file — letting the
+   * main process re-path the existing row and preserve its frame/session/
+   * project links. Built from `filesRepo.listMissingWithHash()` at dispatch
+   * time (same freshness pattern as `knownFiles`). Absent when nothing is
+   * missing, or when the orchestrator has no `files` repo wired.
+   */
+  moveCandidates?: Array<{ fileId: string; sha256: string; sizeBytes: number }>;
 }
 
 /**
@@ -75,6 +89,52 @@ export interface DiscoveredFile {
   parsed?: ParsedFrame;
   /** Stage 2–3 failure for a new/changed file, `${errorCode}: ${message}` (P1-07). Mutually exclusive with `parsed`. */
   parseError?: string;
+  /**
+   * Set (together with {@link DiscoveredFile.sha256}) when the walker confirmed
+   * this newly-walked file's content hash matches a `moveCandidates` entry
+   * (DD-004 move detection, P1-08): the `files.id` of the `'missing'` row this
+   * file was moved from. The main process re-paths that existing row (via
+   * `reparentMoved`) instead of inserting a new one, preserving frame/session/
+   * project links. A moved file carries NEITHER `parsed` NOR `parseError` — its
+   * content is unchanged by definition (same size+hash as before the move), so
+   * Stages 2–3 are redundant, exactly like the "unchanged file" skip path.
+   */
+  movedFromFileId?: string;
+  /**
+   * The confirmed content hash, set together with `movedFromFileId` (P1-08).
+   * The main process records it on the re-pathed row so duplicate-group state
+   * stays consistent after a relocation, without re-hashing.
+   */
+  sha256?: string;
+}
+
+/**
+ * One file the background `'hash'` job (DD-004 Stage 5a, P1-08) must stream a
+ * full SHA-256 over. `absolutePath` is resolved by the orchestrator at dispatch
+ * time (`path.join(watchFolder.path, file.relativePath)`) — the worker never
+ * touches the DB, so it can't resolve paths itself (DD-002 Default 3).
+ */
+export interface HashCandidate {
+  fileId: string;
+  absolutePath: string;
+  sizeBytes: number;
+}
+
+/** Payload for the `'hash'` job type — a bounded batch of files to hash (P1-08). */
+export interface HashJobPayload {
+  files: HashCandidate[];
+}
+
+/** A successfully hashed file (P1-08). Discriminated from {@link HashError} by the presence of `sha256`. */
+export interface HashedFile {
+  fileId: string;
+  sha256: string; // lowercase hex
+}
+
+/** A file that could not be hashed — vanished, unreadable, permissions (P1-08). Discriminated by `error`. */
+export interface HashError {
+  fileId: string;
+  error: string;
 }
 
 /** Main -> worker: start a job. */
@@ -128,5 +188,22 @@ export interface DiscoveredMessage {
   files: DiscoveredFile[];
 }
 
+/**
+ * Worker -> main: a batch of hash outcomes from a `'hash'` job (P1-08), sent
+ * incrementally like `discovered`. Each result is either a {@link HashedFile}
+ * (has `sha256`) or a {@link HashError} (has `error`) — discriminate with
+ * `'sha256' in result`.
+ */
+export interface HashedMessage {
+  type: 'hashed';
+  jobId: string;
+  results: Array<HashedFile | HashError>;
+}
+
 export type WorkerToMainMessage =
-  ProgressMessage | DoneMessage | ErrorMessage | CancelledMessage | DiscoveredMessage;
+  | ProgressMessage
+  | DoneMessage
+  | ErrorMessage
+  | CancelledMessage
+  | DiscoveredMessage
+  | HashedMessage;

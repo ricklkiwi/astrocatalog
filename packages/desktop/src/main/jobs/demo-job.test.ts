@@ -8,8 +8,9 @@ function recordingContext(isCancelled: () => boolean = () => false) {
     reportProgress: (current, total, message) => {
       calls.push({ current, total, message });
     },
-    // Demo jobs never discover files; a no-op keeps the fake ctx conformant.
+    // Demo jobs never discover files or hash; no-ops keep the fake ctx conformant.
     reportDiscovered: () => {},
+    reportHashed: () => {},
     isCancelled,
   };
   return { ctx, calls };

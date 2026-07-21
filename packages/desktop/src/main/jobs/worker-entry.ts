@@ -13,6 +13,7 @@
 import { parentPort } from 'node:worker_threads';
 
 import { runDemoJob } from './demo-job.js';
+import { runHashJob } from './hash-job.js';
 import type { JobContext } from './job-context.js';
 import { runScanJob } from './scan-job.js';
 import type {
@@ -21,6 +22,8 @@ import type {
   DiscoveredMessage,
   DoneMessage,
   ErrorMessage,
+  HashJobPayload,
+  HashedMessage,
   JobType,
   MainToWorkerMessage,
   ProgressMessage,
@@ -34,6 +37,7 @@ type JobRunner = (payload: unknown, ctx: JobContext) => Promise<void>;
 const registry: Record<JobType, JobRunner> = {
   demo: (payload, ctx) => runDemoJob(payload as DemoJobPayload, ctx),
   scan: (payload, ctx) => runScanJob(payload as ScanJobPayload, ctx),
+  hash: (payload, ctx) => runHashJob(payload as HashJobPayload, ctx),
 };
 
 if (parentPort === null) {
@@ -85,6 +89,14 @@ async function runJob(message: RunMessage, runner: JobRunner): Promise<void> {
       }
       const discovered: DiscoveredMessage = { type: 'discovered', jobId, files };
       port.postMessage(discovered);
+    },
+    reportHashed: (results) => {
+      // Same empty-batch guard as reportDiscovered.
+      if (results.length === 0) {
+        return;
+      }
+      const hashed: HashedMessage = { type: 'hashed', jobId, results };
+      port.postMessage(hashed);
     },
   };
 

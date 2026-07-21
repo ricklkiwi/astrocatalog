@@ -11,13 +11,20 @@
  * the context is pure callbacks; the main process remains the sole SQLite
  * writer and workers report results up over `postMessage`.
  */
-import type { DiscoveredFile } from './protocol.js';
+import type { DiscoveredFile, HashError, HashedFile } from './protocol.js';
 
 export interface JobContext {
   /** Report progress after a completed unit of work. `total` is `null` for indeterminate progress. */
   reportProgress(current: number, total: number | null, message: string | null): void;
   /** Emit a batch of discovered files. No-op for job types that never call it (e.g. demo). */
   reportDiscovered(files: DiscoveredFile[]): void;
+  /**
+   * Emit a batch of hash outcomes from a `'hash'` job (P1-08), mirroring
+   * `reportDiscovered`. Each result is a {@link HashedFile} (success) or a
+   * {@link HashError} (isolated per-file failure). No-op for job types that
+   * never call it.
+   */
+  reportHashed(results: Array<HashedFile | HashError>): void;
   /**
    * Checked cooperatively (plan Default 6 — not preemptive): a runner polls
    * this between units of work and returns early once it trips, which

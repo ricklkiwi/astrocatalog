@@ -448,6 +448,11 @@ describe('migration 0002 (scan_jobs queue columns) against a pre-existing P0-04 
     return legacyFolder;
   }
 
+  // Two real mkdtemp+migrate() passes plus a legacy-journal file copy —
+  // legitimately slow synchronous fs+SQLite work that occasionally exceeds
+  // vitest's default 5000ms on Windows CI runners (observed ~9.8s wall time
+  // under CI load). Explicit timeout below is generous headroom, not a
+  // correctness change.
   it("backfills job_type='scan' and preserves original columns on pre-existing rows", () => {
     const dir = mkdtempSync(join(tmpdir(), 'astrotracker-legacy-migration-'));
     const legacyFilePath = join(dir, 'legacy.db');
@@ -513,7 +518,7 @@ describe('migration 0002 (scan_jobs queue columns) against a pre-existing P0-04 
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  }, 20000);
 
   it('applies cleanly on a fresh empty DB (0000→0002 in sequence)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'astrotracker-fresh-migration-'));

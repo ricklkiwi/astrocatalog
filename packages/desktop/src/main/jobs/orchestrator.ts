@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
 import type { ParsedFrame } from '@astrotracker/core';
 import type {
@@ -7,10 +8,38 @@ import type {
   NewFrame,
   ScanJob,
   ScanJobsRepository,
+  WatchFoldersRepository,
 } from '@astrotracker/db';
 
 import type { DispatchJob, WorkerPool, WorkerPoolCallbacks } from './pool.js';
-import type { DiscoveredFile, JobType, KnownFileStat, ScanJobPayload } from './protocol.js';
+import type {
+  DiscoveredFile,
+  HashCandidate,
+  HashJobPayload,
+  JobType,
+  KnownFileStat,
+  ScanJobPayload,
+} from './protocol.js';
+
+/**
+ * Max unhashed files one `'hash'` job pulls per dispatch (P1-08). Bounded so a
+ * single hash job never tries to read an entire multi-hundred-GB drive's
+ * unhashed backlog in one shot — that would monopolize the worker slot and
+ * starve higher-priority scan work between `pump()` cycles. A backlog larger
+ * than this drains across successive hash jobs (each `onDone` re-enqueues one
+ * while any remains), and every new hash job re-enters the priority queue, so a
+ * scan enqueued meanwhile always wins the next claim (see HASH_JOB_PRIORITY).
+ */
+const HASH_BATCH_LIMIT = 500;
+
+/**
+ * Priority for background `'hash'` jobs — below the default 0 used by
+ * `'scan'`/`'demo'`. `scanJobs.claimNext` already orders `desc(priority)`, so a
+ * queued scan is always claimed before a queued hash job: hashing throttles
+ * under active scanning (DD-004 "lowest priority"; P1-08 acceptance criterion)
+ * using machinery that already exists — no scheduler changes.
+ */
+const HASH_JOB_PRIORITY = -1;
 
 export interface JobProgressEvent {
   jobId: string;
@@ -36,6 +65,15 @@ export interface JobQueueOrchestrator {
     extensions: string[];
     skipPatterns?: string[];
   }): { jobId: string };
+  /**
+   * Enqueue a background `'hash'` job (DD-004 Stage 5a, P1-08) at
+   * {@link HASH_JOB_PRIORITY}. Unconditional (unlike the internal auto-trigger,
+   * which only enqueues when there's an unhashed backlog) — for manual/test
+   * triggering. The payload is rebuilt fresh at dispatch time from
+   * `filesRepo.listUnhashed(...)`, so an empty enqueue is harmless (it dispatches
+   * a no-op job when nothing is unhashed).
+   */
+  enqueueHash(): { jobId: string };
   cancel(jobId: string): void;
   list(): Array<{
     id: string;
@@ -65,6 +103,16 @@ export interface CreateJobQueueOrchestratorOptions {
    * absent, parse results are ignored (files/parse-errors still persist).
    */
   frames?: FramesRepository;
+  /**
+   * Watch-folders repository, needed only to resolve a `'hash'` job's
+   * candidate files to absolute paths (`path.join(watchFolder.path,
+   * file.relativePath)`) — `files` rows store only `relativePath` +
+   * `watchFolderId` (P1-08). Optional, same reasoning as `files`/`frames`: when
+   * absent, `'hash'` jobs simply resolve zero candidates (`dispatchJobFor` can't
+   * build absolute paths), so they complete as no-ops — mirroring how `'scan'`
+   * payloads are unaffected when `files` is absent.
+   */
+  watchFolders?: WatchFoldersRepository;
   /**
    * Runs `fn` inside a single DB transaction, used to batch each discovered
    * file group's upserts atomically (DD-002 single-writer). Optional — when
@@ -174,6 +222,7 @@ export function createJobQueueOrchestrator({
   scanJobs,
   files,
   frames,
+  watchFolders,
   transaction = (fn) => fn(),
   createPool,
 }: CreateJobQueueOrchestratorOptions): JobQueueOrchestrator {
@@ -181,29 +230,80 @@ export function createJobQueueOrchestrator({
   let started = false;
 
   /**
-   * Build the `knownFiles` snapshot (relativePath → size/mtime) the worker
-   * uses for the DD-004 incremental skip (P1-07). Read from `filesRepo` at
-   * dispatch time so it reflects the freshest indexed state, and attached to
-   * the scan payload. Non-scan jobs (and the no-files-repo wiring) dispatch
-   * unchanged.
+   * Attach dispatch-time-fresh payload fields per job type: `'scan'` gets its
+   * `knownFiles` snapshot + move `moveCandidates` (P1-07/P1-08); `'hash'` gets a
+   * freshly-rebuilt candidate list (P1-08). Everything else (and the
+   * no-files-repo wiring) dispatches unchanged.
    */
   function dispatchJobFor(job: ScanJob): DispatchJob {
     const base = toDispatchJob(job);
-    if (job.jobType !== 'scan' || files === undefined) {
-      return base;
+    if (job.jobType === 'hash') {
+      return dispatchHashJob(base);
     }
+    if (job.jobType === 'scan' && files !== undefined) {
+      return dispatchScanJob(job, base, files);
+    }
+    return base;
+  }
+
+  /**
+   * Build the `knownFiles` snapshot (relativePath → size/mtime) the worker uses
+   * for the DD-004 incremental skip (P1-07), plus the `moveCandidates` list —
+   * every `'missing'` row (across ALL watch folders) that already has a
+   * `sha256` — for DD-004 move detection (P1-08). Both are read at dispatch time
+   * so they reflect the freshest indexed state.
+   */
+  function dispatchScanJob(
+    job: ScanJob,
+    base: DispatchJob,
+    filesRepo: FilesRepository,
+  ): DispatchJob {
     const watchFolderId = watchFolderIdOf(job);
     if (watchFolderId === undefined) {
       return base;
     }
     const knownFiles: Record<string, KnownFileStat> = {};
-    for (const file of files.listByWatchFolder(watchFolderId)) {
+    for (const file of filesRepo.listByWatchFolder(watchFolderId)) {
       knownFiles[file.relativePath] = {
         sizeBytes: file.sizeBytes,
         fileMtimeMs: file.fileMtime === null ? null : file.fileMtime.getTime(),
       };
     }
-    return { ...base, payload: { ...(base.payload as ScanJobPayload), knownFiles } };
+    const moveCandidates = filesRepo.listMissingWithHash().map((candidate) => ({
+      fileId: candidate.fileId,
+      sha256: candidate.sha256,
+      sizeBytes: candidate.sizeBytes,
+    }));
+    return {
+      ...base,
+      payload: { ...(base.payload as ScanJobPayload), knownFiles, moveCandidates },
+    };
+  }
+
+  /**
+   * Rebuild a `'hash'` job's payload fresh at dispatch time (P1-08): pull up to
+   * {@link HASH_BATCH_LIMIT} unhashed files and resolve each to its absolute
+   * path via its watch folder. Always yields a valid `HashJobPayload` (an empty
+   * `files` list when `files`/`watchFolders` aren't wired or nothing is
+   * unhashed), so the worker never sees a malformed payload.
+   */
+  function dispatchHashJob(base: DispatchJob): DispatchJob {
+    const candidates: HashCandidate[] = [];
+    if (files !== undefined && watchFolders !== undefined) {
+      for (const file of files.listUnhashed(HASH_BATCH_LIMIT)) {
+        const watchFolder = watchFolders.getById(file.watchFolderId);
+        if (watchFolder === undefined) {
+          continue;
+        }
+        candidates.push({
+          fileId: file.id,
+          absolutePath: path.join(watchFolder.path, file.relativePath),
+          sizeBytes: file.sizeBytes,
+        });
+      }
+    }
+    const payload: HashJobPayload = { files: candidates };
+    return { ...base, payload };
   }
 
   function emit(job: ScanJob, message: string | null = job.progressMessage): void {
@@ -282,6 +382,37 @@ export function createJobQueueOrchestrator({
 
     transaction(() => {
       for (const file of discovered) {
+        // DD-004 move detection (P1-08): the worker confirmed this file's
+        // content matches a `'missing'` row — re-path that existing row instead
+        // of inserting a new one, preserving frame/session/project links. Both
+        // fields are set together (protocol invariant); guarding on both
+        // narrows `sha256` to a string.
+        if (file.movedFromFileId !== undefined && file.sha256 !== undefined) {
+          const reparented = filesRepo.reparentMoved(
+            file.movedFromFileId,
+            {
+              watchFolderId,
+              relativePath: file.relativePath,
+              filename: file.filename,
+              extension: file.extension,
+              sizeBytes: file.sizeBytes,
+              fileMtime: file.fileMtimeMs === null ? null : new Date(file.fileMtimeMs),
+              sha256: file.sha256,
+            },
+            seenAt,
+          );
+          if (reparented !== undefined) {
+            // Cheap idempotent re-resolution of duplicate-group state after the
+            // relocation (recordHash is a no-op-ish re-hash record).
+            filesRepo.recordHash(reparented.id, file.sha256);
+            seen += 1;
+            updated += 1;
+            continue;
+          }
+          // Race: the row was no longer `'missing'` (e.g. restored by a
+          // concurrent scan). Fall through and treat this as a brand-new file.
+        }
+
         const upsert = filesRepo.upsertDiscovered(
           {
             watchFolderId,
@@ -324,6 +455,30 @@ export function createJobQueueOrchestrator({
     });
   }
 
+  /**
+   * Enqueue one background `'hash'` job at {@link HASH_JOB_PRIORITY}, but only
+   * when there's an unhashed backlog AND we can actually resolve paths
+   * (`files` + `watchFolders` both wired) — avoids queuing no-op jobs that
+   * would complete and re-trigger themselves forever. The payload is minimal
+   * here; `dispatchHashJob` rebuilds it fresh at claim time. Does NOT `pump()` —
+   * callers (onDone) pump right after.
+   */
+  function enqueueHashIfBacklog(): void {
+    if (files === undefined || watchFolders === undefined) {
+      return;
+    }
+    if (files.listUnhashed(1).length === 0) {
+      return;
+    }
+    const payload: HashJobPayload = { files: [] };
+    const job = scanJobs.enqueue({
+      jobType: 'hash',
+      payloadJson: JSON.stringify(payload),
+      priority: HASH_JOB_PRIORITY,
+    });
+    emit(job, 'queued');
+  }
+
   const callbacks: WorkerPoolCallbacks = {
     onProgress(jobId, current, total, message) {
       const updated = scanJobs.updateProgress(jobId, { current, total, message });
@@ -333,6 +488,26 @@ export function createJobQueueOrchestrator({
     },
     onDiscovered(jobId, discovered) {
       processDiscoveredBatch(jobId, discovered);
+    },
+    onHashed(_jobId, results) {
+      // Persist each hash outcome (P1-08 Stage 5a). A success records the
+      // sha256 (recordHash also resolves duplicate-group membership: oldest
+      // first-seen wins as canonical). A per-file error is skipped — no `files`
+      // row mutation, so the file simply stays a `listUnhashed` candidate and
+      // is retried on the next hash pass (we don't overload `parse_error`,
+      // which is documented as Stage-2-specific). Batched in one transaction
+      // for write throughput (DD-002 single-writer).
+      if (files === undefined || results.length === 0) {
+        return;
+      }
+      const filesRepo = files;
+      transaction(() => {
+        for (const result of results) {
+          if ('sha256' in result) {
+            filesRepo.recordHash(result.fileId, result.sha256);
+          }
+        }
+      });
     },
     onDone(jobId) {
       const completed = scanJobs.complete(jobId);
@@ -352,6 +527,15 @@ export function createJobQueueOrchestrator({
           if (watchFolderId !== undefined) {
             files.markMissingNotSeenSince(watchFolderId, completed.startedAt);
           }
+        }
+        // Auto-trigger a background hash pass (P1-08): after every scan (pick up
+        // newly-discovered files) and after every hash job (chain forward when
+        // the backlog exceeds one HASH_BATCH_LIMIT batch). Each new hash job
+        // re-enters the priority queue below any queued scan, so hashing always
+        // yields to active scanning. The helper is gated on a real backlog, so
+        // this never spins on empty no-op jobs.
+        if (completed.jobType === 'scan' || completed.jobType === 'hash') {
+          enqueueHashIfBacklog();
         }
       }
       pump();
@@ -416,6 +600,20 @@ export function createJobQueueOrchestrator({
         // and it survives the orphan-requeue-after-restart path.
         watchFolderId: input.watchFolderId,
         payloadJson: JSON.stringify(payload),
+      });
+      emit(job, 'queued');
+      pump();
+      return { jobId: job.id };
+    },
+
+    enqueueHash(): { jobId: string } {
+      // Minimal payload — dispatchHashJob rebuilds the real candidate list fresh
+      // at claim time. Priority is below scan/demo so a queued scan always wins.
+      const payload: HashJobPayload = { files: [] };
+      const job = scanJobs.enqueue({
+        jobType: 'hash',
+        payloadJson: JSON.stringify(payload),
+        priority: HASH_JOB_PRIORITY,
       });
       emit(job, 'queued');
       pump();

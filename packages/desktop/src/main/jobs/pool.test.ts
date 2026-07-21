@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createWorkerPool, type WorkerPool, type WorkerPoolCallbacks } from './pool.js';
-import type { DiscoveredFile, JobType } from './protocol.js';
+import type { DiscoveredFile, HashError, HashedFile, JobType } from './protocol.js';
 
 /**
  * Real `worker_threads` exercised against the real `worker-entry.ts` (P0-05
@@ -31,6 +31,7 @@ interface Recorder {
   callbacks: WorkerPoolCallbacks;
   progress: Array<{ jobId: string; current: number; total: number | null; message: string | null }>;
   discovered: Array<{ jobId: string; files: DiscoveredFile[] }>;
+  hashed: Array<{ jobId: string; results: Array<HashedFile | HashError> }>;
   done: string[];
   errors: Array<{ jobId: string; error: string }>;
   cancelled: string[];
@@ -43,6 +44,7 @@ interface Recorder {
 function createRecorder(): Recorder {
   const progress: Recorder['progress'] = [];
   const discovered: Recorder['discovered'] = [];
+  const hashed: Recorder['hashed'] = [];
   const done: string[] = [];
   const errors: Recorder['errors'] = [];
   const cancelled: string[] = [];
@@ -84,6 +86,10 @@ function createRecorder(): Recorder {
         discovered.push({ jobId, files });
         notify();
       },
+      onHashed: (jobId, results) => {
+        hashed.push({ jobId, results });
+        notify();
+      },
       onDone: (jobId) => {
         done.push(jobId);
         notify();
@@ -99,6 +105,7 @@ function createRecorder(): Recorder {
     },
     progress,
     discovered,
+    hashed,
     done,
     errors,
     cancelled,
@@ -214,6 +221,38 @@ describe('createWorkerPool', () => {
       .map((f) => f.filename)
       .sort();
     expect(files).toEqual(['light_001.fits', 'light_002.fit']);
+  }, 10000);
+
+  it('runs a hash job and forwards hash results via onHashed', async () => {
+    const recorder = createRecorder();
+    pool = createWorkerPool(1, recorder.callbacks);
+
+    const dir = mkdtempSync(path.join(tmpdir(), 'astro-p1-08-pool-'));
+    tmpDirs.push(dir);
+    const aPath = path.join(dir, 'a.fits');
+    const gonePath = path.join(dir, 'missing.fits');
+    writeFileSync(aPath, 'hash me');
+
+    const jobId = randomUUID();
+    const dispatched = pool.dispatch({
+      id: jobId,
+      jobType: 'hash' as JobType,
+      payload: {
+        files: [
+          { fileId: 'file-a', absolutePath: aPath, sizeBytes: 7 },
+          { fileId: 'file-gone', absolutePath: gonePath, sizeBytes: 0 },
+        ],
+      },
+    });
+    expect(dispatched).toBe(true);
+
+    await recorder.waitForDone(jobId);
+
+    const results = recorder.hashed.filter((h) => h.jobId === jobId).flatMap((h) => h.results);
+    const byId = new Map(results.map((r) => [r.fileId, r]));
+    expect(byId.size).toBe(2);
+    expect('sha256' in byId.get('file-a')!).toBe(true);
+    expect('error' in byId.get('file-gone')!).toBe(true);
   }, 10000);
 
   it('a worker crash (uncaught exception) fails the in-flight job and the pool keeps full capacity', async () => {

@@ -1,6 +1,7 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   openDatabase,
@@ -325,5 +326,258 @@ describe('JobQueueOrchestrator', () => {
     expect(filesFor(harness, watchFolderId).map((f) => f.status)).toEqual(['present']);
 
     rmSync(scanDir, { recursive: true, force: true });
+  }, 25000);
+});
+
+// --- P1-08: SHA-256 hashing + duplicate/move detection (DD-004 Stage 5a) -----
+
+const FIXTURES_ROOT = new URL('../../../../../fixtures/', import.meta.url);
+function fixturePath(relative: string): string {
+  return fileURLToPath(new URL(relative, FIXTURES_ROOT));
+}
+
+interface HashHarness {
+  db: AstroDatabase;
+  orchestrator: ReturnType<typeof createJobQueueOrchestrator>;
+  events: JobProgressEvent[];
+  pool: WorkerPool;
+  dbDir: string;
+}
+
+const hashHarnesses: HashHarness[] = [];
+const hashScanDirs: string[] = [];
+
+afterEach(async () => {
+  while (hashHarnesses.length > 0) {
+    const harness = hashHarnesses.pop()!;
+    await harness.pool.terminateAll();
+    harness.db.close();
+    rmSync(harness.dbDir, { recursive: true, force: true });
+  }
+  while (hashScanDirs.length > 0) {
+    rmSync(hashScanDirs.pop()!, { recursive: true, force: true });
+  }
+});
+
+/** Full orchestrator wiring (files+frames+watchFolders+real pool) against real db repos. */
+function createHashHarness(poolSize = 1): HashHarness {
+  const dbDir = mkdtempSync(path.join(tmpdir(), 'astro-p1-08-db-'));
+  const db = openDatabase({ filePath: path.join(dbDir, 'astrotracker.db') });
+  let pool: WorkerPool | undefined;
+  const orchestrator = createJobQueueOrchestrator({
+    scanJobs: db.repos.scanJobs,
+    files: db.repos.files,
+    frames: db.repos.frames,
+    watchFolders: db.repos.watchFolders,
+    transaction: (fn) => db.transaction(() => fn()),
+    createPool(callbacks: WorkerPoolCallbacks) {
+      pool = createWorkerPool(poolSize, callbacks);
+      return pool;
+    },
+  });
+  const events: JobProgressEvent[] = [];
+  orchestrator.onEvent((event) => {
+    events.push(event);
+  });
+  const harness: HashHarness = { db, orchestrator, events, pool: pool!, dbDir };
+  hashHarnesses.push(harness);
+  return harness;
+}
+
+function seedFolder(db: AstroDatabase, folderPath: string): string {
+  return db.repos.watchFolders.insert({
+    path: folderPath,
+    driveLabel: null,
+    isActive: true,
+    lastScanAt: null,
+    skipPatterns: null,
+  }).id;
+}
+
+function newScanDir(prefix: string): string {
+  const dir = mkdtempSync(path.join(tmpdir(), prefix));
+  hashScanDirs.push(dir);
+  return dir;
+}
+
+describe('P1-08 hashing, duplicate + move detection', () => {
+  it('detects duplicates across two watch folders; the later-firstSeen file becomes a duplicate of the earlier (deterministic canonical)', async () => {
+    const harness = createHashHarness();
+    harness.orchestrator.start();
+
+    const folderA = newScanDir('astro-p1-08-dupA-');
+    const folderB = newScanDir('astro-p1-08-dupB-');
+    const content = 'identical astrophotography bytes across two folders';
+    writeFileSync(path.join(folderA, 'light.fits'), content);
+    writeFileSync(path.join(folderB, 'copy.fits'), content);
+    const wfA = seedFolder(harness.db, folderA);
+    const wfB = seedFolder(harness.db, folderB);
+
+    const status = (id: string): string | undefined =>
+      harness.db.repos.scanJobs.getById(id)?.status;
+
+    // Scan A first (→ earlier firstSeenAt → canonical), then B.
+    const a = harness.orchestrator.enqueueScan({
+      watchFolderId: wfA,
+      rootPath: folderA,
+      extensions: ['fits'],
+    });
+    await waitUntil(() => status(a.jobId) === 'completed');
+    await sleep(5);
+    const b = harness.orchestrator.enqueueScan({
+      watchFolderId: wfB,
+      rootPath: folderB,
+      extensions: ['fits'],
+    });
+    await waitUntil(() => status(b.jobId) === 'completed');
+
+    // Hashing auto-triggers after each scan; wait until both files are hashed
+    // and the duplicate has been marked.
+    await waitUntil(() => {
+      const rows = harness.db.repos.files.list();
+      return (
+        rows.length === 2 &&
+        rows.every((f) => f.sha256 !== null) &&
+        rows.some((f) => f.status === 'duplicate')
+      );
+    });
+
+    const rows = harness.db.repos.files.list();
+    const fileA = rows.find((f) => f.watchFolderId === wfA)!;
+    const fileB = rows.find((f) => f.watchFolderId === wfB)!;
+    expect(fileA.sha256).toBe(fileB.sha256);
+    expect(fileA.status).toBe('present');
+    expect(fileB.status).toBe('duplicate');
+    expect(fileB.duplicateOfId).toBe(fileA.id);
+  }, 25000);
+
+  it('a file moved between folders retains its files.id and its frame link (no duplicate/orphan frame)', async () => {
+    const harness = createHashHarness();
+    harness.orchestrator.start();
+
+    const folderA = newScanDir('astro-p1-08-moveA-');
+    const folderB = newScanDir('astro-p1-08-moveB-');
+    const wfA = seedFolder(harness.db, folderA);
+    const wfB = seedFolder(harness.db, folderB);
+
+    const status = (id: string): string | undefined =>
+      harness.db.repos.scanJobs.getById(id)?.status;
+
+    // A real, parseable fixture → a frames row is produced for it.
+    copyFileSync(
+      fixturePath('fits/nina/nina-light-mono-ha.fits'),
+      path.join(folderA, 'sub_001.fits'),
+    );
+
+    // Scan A → present + parsed frame; wait for the auto hash pass to record sha256.
+    const a1 = harness.orchestrator.enqueueScan({
+      watchFolderId: wfA,
+      rootPath: folderA,
+      extensions: ['fits'],
+    });
+    await waitUntil(() => status(a1.jobId) === 'completed');
+    await waitUntil(() => {
+      const f = harness.db.repos.files.list().find((x) => x.watchFolderId === wfA);
+      return f !== undefined && f.sha256 !== null;
+    });
+
+    const original = harness.db.repos.files.list().find((x) => x.watchFolderId === wfA)!;
+    const originalFrame = harness.db.repos.frames.list().find((fr) => fr.fileId === original.id)!;
+    expect(originalFrame).toBeDefined();
+    expect(originalFrame.frameType).toBe('light');
+
+    // Physically move the file A → B (byte-identical: same size + sha256).
+    renameSync(path.join(folderA, 'sub_001.fits'), path.join(folderB, 'moved_001.fits'));
+
+    // Rescan A (now empty) → the original row flips to 'missing' (keeps sha256 + frame).
+    await sleep(5);
+    const a2 = harness.orchestrator.enqueueScan({
+      watchFolderId: wfA,
+      rootPath: folderA,
+      extensions: ['fits'],
+    });
+    await waitUntil(() => status(a2.jobId) === 'completed');
+    await waitUntil(() => harness.db.repos.files.getById(original.id)?.status === 'missing');
+
+    // Scan B → discovers the file at its new path → move detection re-paths the
+    // ORIGINAL row rather than inserting a new one.
+    await sleep(5);
+    const bScan = harness.orchestrator.enqueueScan({
+      watchFolderId: wfB,
+      rootPath: folderB,
+      extensions: ['fits'],
+    });
+    await waitUntil(() => status(bScan.jobId) === 'completed');
+    await waitUntil(() => harness.db.repos.files.getById(original.id)?.status === 'present');
+
+    const moved = harness.db.repos.files.getById(original.id)!;
+    expect(moved.watchFolderId).toBe(wfB);
+    expect(moved.relativePath).toBe('moved_001.fits');
+    expect(moved.status).toBe('present');
+
+    // Exactly one file row overall — the move re-pathed, it did not duplicate.
+    expect(harness.db.repos.files.list()).toHaveLength(1);
+
+    // The frame still resolves to the same file id — same frame row, no orphan, no dup.
+    const framesForFile = harness.db.repos.frames.list().filter((fr) => fr.fileId === original.id);
+    expect(framesForFile).toHaveLength(1);
+    expect(framesForFile[0]!.id).toBe(originalFrame.id);
+    expect(harness.db.repos.frames.list()).toHaveLength(1);
+  }, 30000);
+
+  it('claims a queued scan before a queued hash job (priority throttle), even though the hash was enqueued first', async () => {
+    const harness = createHashHarness(1);
+
+    const scanDir = newScanDir('astro-p1-08-prio-');
+    writeFileSync(path.join(scanDir, 'light.fits'), 'abc');
+    writeFileSync(path.join(scanDir, 'preexisting.fits'), 'xyz');
+    const wf = seedFolder(harness.db, scanDir);
+
+    // Seed a present, unhashed file row so the hash job has real work to do.
+    harness.db.repos.files.upsertDiscovered(
+      {
+        watchFolderId: wf,
+        relativePath: 'preexisting.fits',
+        filename: 'preexisting.fits',
+        extension: 'fits',
+        sizeBytes: 3,
+        fileMtime: null,
+      },
+      new Date(),
+    );
+
+    // Enqueue the HASH job FIRST (priority -1), then the SCAN job (priority 0),
+    // both directly via the repo so no pump() runs until start() below — this
+    // is what forces both to be queued simultaneously when claimNext runs.
+    const hashJob = harness.db.repos.scanJobs.enqueue({
+      jobType: 'hash',
+      payloadJson: JSON.stringify({ files: [] }),
+      priority: -1,
+    });
+    const scanJob = harness.db.repos.scanJobs.enqueue({
+      jobType: 'scan',
+      watchFolderId: wf,
+      payloadJson: JSON.stringify({ watchFolderId: wf, rootPath: scanDir, extensions: ['fits'] }),
+      priority: 0,
+    });
+
+    // One pump() claim now picks the highest-priority queued job: the scan.
+    harness.orchestrator.start();
+
+    const status = (id: string): string | undefined =>
+      harness.db.repos.scanJobs.getById(id)?.status;
+    await waitUntil(() => status(scanJob.id) === 'completed' && status(hashJob.id) === 'completed');
+
+    const scanCompletedIdx = harness.events.findIndex(
+      (e) => e.jobId === scanJob.id && e.message === 'completed',
+    );
+    const hashCompletedIdx = harness.events.findIndex(
+      (e) => e.jobId === hashJob.id && e.message === 'completed',
+    );
+    expect(scanCompletedIdx).toBeGreaterThanOrEqual(0);
+    expect(hashCompletedIdx).toBeGreaterThanOrEqual(0);
+    // Pool size 1 + higher scan priority ⇒ the scan ran (and finished) first,
+    // despite the hash being enqueued earlier.
+    expect(scanCompletedIdx).toBeLessThan(hashCompletedIdx);
   }, 25000);
 });
