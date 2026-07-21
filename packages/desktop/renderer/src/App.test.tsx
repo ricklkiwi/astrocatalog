@@ -21,22 +21,27 @@ function renderApp(bridge: AstroTrackerBridge) {
 
 describe('App', () => {
   it('renders every field of the app.version payload from the mocked bridge', async () => {
-    const invoke = vi.fn().mockResolvedValue({
-      appVersion: '9.9.9-mocked',
-      electronVersion: '43.0.0',
-      chromeVersion: '142.0.0.1',
-      nodeVersion: '22.20.0',
-      platform: 'darwin',
-      sqliteVersion: '3.46.0',
-      sharpVersion: '0.33.0',
+    const invoke = vi.fn((channel: string) => {
+      if (channel === 'watchFolders.list') {
+        return Promise.resolve({ watchFolders: [] });
+      }
+      return Promise.resolve({
+        appVersion: '9.9.9-mocked',
+        electronVersion: '43.0.0',
+        chromeVersion: '142.0.0.1',
+        nodeVersion: '22.20.0',
+        platform: 'darwin',
+        sqliteVersion: '3.46.0',
+        sharpVersion: '0.33.0',
+      });
     });
-    renderApp({ invoke, on: vi.fn(() => vi.fn()) } as AstroTrackerBridge);
+    renderApp({ invoke, on: vi.fn(() => vi.fn()) } as unknown as AstroTrackerBridge);
 
     expect(await screen.findByText('9.9.9-mocked')).toBeTruthy();
     for (const value of ['43.0.0', '142.0.0.1', '22.20.0', 'darwin', '3.46.0', '0.33.0']) {
       expect(screen.getByText(value)).toBeTruthy();
     }
-    expect(invoke).toHaveBeenCalledExactlyOnceWith('app.version');
+    expect(invoke).toHaveBeenCalledWith('app.version');
   });
 
   it('surfaces bridge failures instead of rendering a blank screen', async () => {

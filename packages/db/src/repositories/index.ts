@@ -16,7 +16,7 @@ import { createSettingsRepository } from './settings.js';
 import { createTargetsRepository } from './targets.js';
 import { createWatchFoldersRepository } from './watch-folders.js';
 import type { EquipmentProfilesRepository } from './equipment-profiles.js';
-import type { FilesRepository } from './files.js';
+import type { FilesRepository, UpsertDiscoveredInput, UpsertDiscoveredResult } from './files.js';
 import type { FiltersRepository } from './filters.js';
 import type { FramesListFilter, FramesRepository } from './frames.js';
 import type { MasterFramesRepository } from './master-frames.js';
@@ -73,6 +73,8 @@ export type {
   RowPatch,
   WatchFoldersRepository,
   FilesRepository,
+  UpsertDiscoveredInput,
+  UpsertDiscoveredResult,
   FramesListFilter,
   FramesRepository,
   TargetsRepository,

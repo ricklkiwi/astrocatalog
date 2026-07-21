@@ -8,20 +8,13 @@
  * No fs, no `@astrotracker/db`, no Electron import here (DD-002 Default 3):
  * this file is pure compute plus the injected callback context.
  */
+import type { JobContext } from './job-context.js';
 import type { DemoJobPayload } from './protocol.js';
 
+// Re-exported for compatibility: existing importers (worker-entry, tests)
+// pull `JobContext` from here; its canonical home is now `job-context.ts`.
 export type { DemoJobPayload };
-
-export interface JobContext {
-  /** Report progress after a completed step. `total` is `null` for indeterminate progress. */
-  reportProgress(current: number, total: number | null, message: string | null): void;
-  /**
-   * Checked once per step (plan Default 6 — cooperative, not preemptive
-   * mid-sleep): after a step finishes and its progress is reported, before
-   * starting the next one.
-   */
-  isCancelled(): boolean;
-}
+export type { JobContext };
 
 const DEFAULT_TOTAL_STEPS = 10;
 const DEFAULT_STEP_MS = 500;

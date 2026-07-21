@@ -6,7 +6,41 @@ import {
   IPC_EVENT_CHANNELS,
   type AppVersionInfo,
   type JobSummary,
+  type WatchFolderRecord,
 } from './contract.js';
+
+const SAMPLE_WATCH_FOLDER: WatchFolderRecord = {
+  id: 'wf-1',
+  path: '/mnt/astro',
+  driveLabel: null,
+  isActive: true,
+  lastScanAt: null,
+  skipPatterns: null,
+  createdAt: new Date(0),
+  updatedAt: new Date(0),
+};
+
+/** Handlers with the demo-enqueue dep mocked and the rest of the contract stubbed. */
+function makeValidationHandlers(enqueueDemo: () => { jobId: string }) {
+  return createIpcHandlers({
+    appVersion: 'test',
+    platform: 'test',
+    versions: {},
+    nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
+    jobs: {
+      enqueueDemo,
+      cancel: vi.fn(),
+      list: vi.fn(() => []),
+      enqueueScan: vi.fn(() => ({ jobId: 'scan-1' })),
+    },
+    watchFolders: {
+      list: () => [],
+      add: () => Promise.resolve(SAMPLE_WATCH_FOLDER),
+      remove: () => true,
+    },
+    files: { listByWatchFolder: () => [] },
+  });
+}
 
 function makeHandlers() {
   return createIpcHandlers({
@@ -27,6 +61,25 @@ function makeHandlers() {
           progressMessage: null,
         },
       ],
+      enqueueScan: () => ({ jobId: 'scan-1' }),
+    },
+    watchFolders: {
+      list: () => [],
+      add: () =>
+        Promise.resolve({
+          id: 'wf-1',
+          path: '/mnt/astro',
+          driveLabel: null,
+          isActive: true,
+          lastScanAt: null,
+          skipPatterns: null,
+          createdAt: new Date(0),
+          updatedAt: new Date(0),
+        }),
+      remove: () => true,
+    },
+    files: {
+      listByWatchFolder: () => [],
     },
   });
 }
@@ -49,7 +102,17 @@ describe('IPC contract registration', () => {
 
 describe('jobs handlers', () => {
   it('registers job request channels and the jobs.progress event channel', () => {
-    expect(IPC_CHANNELS).toEqual(['app.version', 'jobs.enqueueDemo', 'jobs.cancel', 'jobs.list']);
+    expect(IPC_CHANNELS).toEqual([
+      'app.version',
+      'jobs.enqueueDemo',
+      'jobs.cancel',
+      'jobs.list',
+      'jobs.enqueueScan',
+      'watchFolders.list',
+      'watchFolders.add',
+      'watchFolders.remove',
+      'files.listByWatchFolder',
+    ]);
     expect(IPC_EVENT_CHANNELS).toEqual(['jobs.progress']);
   });
 
@@ -78,13 +141,7 @@ describe('jobs handlers', () => {
     ],
   ])('validates and defaults enqueue input %j before delegation', async (input, expected) => {
     const enqueueDemo = vi.fn(() => ({ jobId: 'validated-job' }));
-    const handlers = createIpcHandlers({
-      appVersion: 'test',
-      platform: 'test',
-      versions: {},
-      nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
-      jobs: { enqueueDemo, cancel: vi.fn(), list: vi.fn(() => []) },
-    });
+    const handlers = makeValidationHandlers(enqueueDemo);
 
     expect(handlers['jobs.enqueueDemo'](input)).toEqual({ jobId: 'validated-job' });
     expect(enqueueDemo).toHaveBeenCalledExactlyOnceWith(expected);
@@ -94,13 +151,7 @@ describe('jobs handlers', () => {
     'rejects invalid totalSteps %s before enqueue',
     async (totalSteps) => {
       const enqueueDemo = vi.fn(() => ({ jobId: 'must-not-exist' }));
-      const handlers = createIpcHandlers({
-        appVersion: 'test',
-        platform: 'test',
-        versions: {},
-        nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
-        jobs: { enqueueDemo, cancel: vi.fn(), list: vi.fn(() => []) },
-      });
+      const handlers = makeValidationHandlers(enqueueDemo);
 
       expect(() => handlers['jobs.enqueueDemo']({ totalSteps, stepMs: 5 })).toThrow(
         /totalSteps.*1\.\.1000/,
@@ -113,13 +164,7 @@ describe('jobs handlers', () => {
     'rejects invalid stepMs %s before enqueue',
     async (stepMs) => {
       const enqueueDemo = vi.fn(() => ({ jobId: 'must-not-exist' }));
-      const handlers = createIpcHandlers({
-        appVersion: 'test',
-        platform: 'test',
-        versions: {},
-        nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
-        jobs: { enqueueDemo, cancel: vi.fn(), list: vi.fn(() => []) },
-      });
+      const handlers = makeValidationHandlers(enqueueDemo);
 
       expect(() => handlers['jobs.enqueueDemo']({ totalSteps: 5, stepMs })).toThrow(
         /stepMs.*1\.\.10000/,
@@ -130,13 +175,7 @@ describe('jobs handlers', () => {
 
   it.each([null, [], 42, 'demo'])('rejects malformed runtime input %j before enqueue', (input) => {
     const enqueueDemo = vi.fn(() => ({ jobId: 'must-not-exist' }));
-    const handlers = createIpcHandlers({
-      appVersion: 'test',
-      platform: 'test',
-      versions: {},
-      nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
-      jobs: { enqueueDemo, cancel: vi.fn(), list: vi.fn(() => []) },
-    });
+    const handlers = makeValidationHandlers(enqueueDemo);
 
     expect(() => handlers['jobs.enqueueDemo'](input as never)).toThrow(/input must be an object/);
     expect(enqueueDemo).not.toHaveBeenCalled();
@@ -163,5 +202,93 @@ describe('app.version handler', () => {
     }
     expect(result.appVersion).toBe('0.1.0-test');
     expect(result.platform).toBe('darwin');
+  });
+});
+
+describe('watch-folder and scan handlers', () => {
+  it('wraps the injected watch-folder list output', async () => {
+    const list = vi.fn(() => [SAMPLE_WATCH_FOLDER]);
+    const handlers = createIpcHandlers({
+      appVersion: 'test',
+      platform: 'test',
+      versions: {},
+      nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
+      jobs: {
+        enqueueDemo: vi.fn(() => ({ jobId: 'job' })),
+        cancel: vi.fn(),
+        list: vi.fn(() => []),
+        enqueueScan: vi.fn(() => ({ jobId: 'scan' })),
+      },
+      watchFolders: { list, add: () => Promise.resolve(SAMPLE_WATCH_FOLDER), remove: () => true },
+      files: { listByWatchFolder: () => [] },
+    });
+
+    expect(await handlers['watchFolders.list']()).toEqual({ watchFolders: [SAMPLE_WATCH_FOLDER] });
+    expect(list).toHaveBeenCalledOnce();
+  });
+
+  it('validates the add path and delegates to the injected add dependency', async () => {
+    const add = vi.fn(() => Promise.resolve(SAMPLE_WATCH_FOLDER));
+    const handlers = createIpcHandlers({
+      appVersion: 'test',
+      platform: 'test',
+      versions: {},
+      nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
+      jobs: {
+        enqueueDemo: vi.fn(() => ({ jobId: 'job' })),
+        cancel: vi.fn(),
+        list: vi.fn(() => []),
+        enqueueScan: vi.fn(() => ({ jobId: 'scan' })),
+      },
+      watchFolders: { list: () => [], add, remove: () => true },
+      files: { listByWatchFolder: () => [] },
+    });
+
+    expect(await handlers['watchFolders.add']({ path: '/mnt/astro' })).toEqual(SAMPLE_WATCH_FOLDER);
+    expect(add).toHaveBeenCalledExactlyOnceWith({ path: '/mnt/astro' });
+
+    // A blank path is rejected (synchronously) before the dependency is ever touched.
+    add.mockClear();
+    expect(() => handlers['watchFolders.add']({ path: '   ' })).toThrow(
+      /path must be a non-empty string/,
+    );
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it('wraps remove/enqueueScan/listByWatchFolder and validates their ids', async () => {
+    const remove = vi.fn(() => true);
+    const enqueueScan = vi.fn(() => ({ jobId: 'scan-9' }));
+    const listByWatchFolder = vi.fn(() => []);
+    const handlers = createIpcHandlers({
+      appVersion: 'test',
+      platform: 'test',
+      versions: {},
+      nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
+      jobs: {
+        enqueueDemo: vi.fn(() => ({ jobId: 'job' })),
+        cancel: vi.fn(),
+        list: vi.fn(() => []),
+        enqueueScan,
+      },
+      watchFolders: { list: () => [], add: () => Promise.resolve(SAMPLE_WATCH_FOLDER), remove },
+      files: { listByWatchFolder },
+    });
+
+    expect(await handlers['watchFolders.remove']({ id: 'wf-1' })).toEqual({ removed: true });
+    expect(remove).toHaveBeenCalledExactlyOnceWith('wf-1');
+
+    expect(await handlers['jobs.enqueueScan']({ watchFolderId: 'wf-1' })).toEqual({
+      jobId: 'scan-9',
+    });
+    expect(enqueueScan).toHaveBeenCalledExactlyOnceWith({ watchFolderId: 'wf-1' });
+
+    expect(await handlers['files.listByWatchFolder']({ watchFolderId: 'wf-1' })).toEqual({
+      files: [],
+    });
+    expect(listByWatchFolder).toHaveBeenCalledExactlyOnceWith('wf-1');
+
+    expect(() => handlers['jobs.enqueueScan']({ watchFolderId: '' })).toThrow(
+      /watchFolderId must be a non-empty string/,
+    );
   });
 });

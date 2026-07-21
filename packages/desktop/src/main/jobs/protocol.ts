@@ -12,8 +12,8 @@
  * registry entry in `worker-entry.ts` — not a schema or pool change.
  */
 
-/** Every job type the worker registry knows how to run. Only `'demo'` ships in P0-05. */
-export type JobType = 'demo';
+/** Every job type the worker registry knows how to run. `'scan'` added in P1-06. */
+export type JobType = 'demo' | 'scan';
 
 /** Payload shape for the `'demo'` job type — sleeps through N steps, reporting progress. */
 export interface DemoJobPayload {
@@ -23,6 +23,25 @@ export interface DemoJobPayload {
   stepMs?: number;
   /** Set on resume-after-restart dispatch; skip already-completed steps. */
   resumeFrom?: number;
+}
+
+/** Payload shape for the `'scan'` job type (P1-06 Stage 1) — a discovery walk of one watch folder. */
+export interface ScanJobPayload {
+  watchFolderId: string;
+  rootPath: string;
+  /** Lowercase extensions, no leading dot, e.g. ['fits','fit','xisf','cr2','cr3','nef','arw']. */
+  extensions: string[];
+  /** Additional basename patterns to skip, beyond the always-skipped hidden (dot-prefixed) entries. Case-insensitive exact basename match (e.g. 'node_modules', '@eaDir', '$RECYCLE.BIN', 'System Volume Information'). */
+  skipPatterns?: string[];
+}
+
+/** One qualifying file found during a Stage 1 discovery walk. */
+export interface DiscoveredFile {
+  relativePath: string; // POSIX-style '/' separators, relative to rootPath, no leading slash
+  filename: string;
+  extension: string; // lowercase, no leading dot
+  sizeBytes: number;
+  fileMtimeMs: number | null; // epoch ms, or null if stat didn't report mtime
 }
 
 /** Main -> worker: start a job. */
@@ -69,4 +88,12 @@ export interface CancelledMessage {
   jobId: string;
 }
 
-export type WorkerToMainMessage = ProgressMessage | DoneMessage | ErrorMessage | CancelledMessage;
+/** Worker -> main: a batch of newly-walked files, sent incrementally so main can upsert without buffering the whole tree. */
+export interface DiscoveredMessage {
+  type: 'discovered';
+  jobId: string;
+  files: DiscoveredFile[];
+}
+
+export type WorkerToMainMessage =
+  ProgressMessage | DoneMessage | ErrorMessage | CancelledMessage | DiscoveredMessage;

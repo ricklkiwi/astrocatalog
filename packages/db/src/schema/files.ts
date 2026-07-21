@@ -24,6 +24,12 @@ export const watchFolders = sqliteTable(
     driveLabel: text('drive_label'),
     isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
     lastScanAt: integer('last_scan_at', { mode: 'timestamp_ms' }),
+    /**
+     * JSON-stringified `string[]` of additional basename skip patterns
+     * (beyond the always-skipped hidden/dot-prefixed entries and the baked-in
+     * `node_modules`). `null` = use built-in defaults only (P1-06, DD-004).
+     */
+    skipPatterns: text('skip_patterns'),
   },
   (t) => [unique('watch_folders_path_uq').on(t.path)],
 );

@@ -16,6 +16,11 @@ export const IPC_CHANNELS = [
   'jobs.enqueueDemo',
   'jobs.cancel',
   'jobs.list',
+  'jobs.enqueueScan',
+  'watchFolders.list',
+  'watchFolders.add',
+  'watchFolders.remove',
+  'files.listByWatchFolder',
 ] as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
@@ -64,6 +69,66 @@ export interface JobProgressEvent extends JobSummary {
 }
 
 /**
+ * IPC-facing view of a `watch_folders` row (mirrors `@astrotracker/db`'s
+ * `WatchFolder`, kept as a local type so this contract stays import-free and
+ * the type-only renderer never needs to resolve `@astrotracker/db`).
+ * `skipPatterns` is surfaced already-parsed from the DB's JSON `skip_patterns`
+ * TEXT column (`null` when unset). `Date` fields survive the Electron
+ * structured-clone boundary intact.
+ */
+export interface WatchFolderRecord {
+  id: string;
+  path: string;
+  driveLabel: string | null;
+  isActive: boolean;
+  lastScanAt: Date | null;
+  skipPatterns: string[] | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** IPC-facing view of a `files` row (mirrors `@astrotracker/db`'s `FileRecord`). */
+export interface FileRecord {
+  id: string;
+  watchFolderId: string;
+  relativePath: string;
+  filename: string;
+  extension: string;
+  sizeBytes: number;
+  sha256: string | null;
+  fileMtime: Date | null;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+  status: string;
+  duplicateOfId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AddWatchFolderInput {
+  /** Absolute path to an existing directory; the main-process handler `stat`s it and rejects non-directories. */
+  path: string;
+  /** Optional glob-ish skip patterns persisted as JSON on the row. */
+  skipPatterns?: string[];
+}
+
+export interface RemoveWatchFolderInput {
+  id: string;
+}
+
+export interface EnqueueScanInput {
+  watchFolderId: string;
+}
+
+export interface EnqueueScanOutput {
+  jobId: string;
+}
+
+export interface ListFilesByWatchFolderInput {
+  watchFolderId: string;
+}
+
+/**
  * Channel → { input, output } map. Keyed by IpcChannel so a channel cannot be
  * listed in IPC_CHANNELS without a contract entry (and vice versa).
  */
@@ -72,6 +137,14 @@ export interface IpcContract extends Record<IpcChannel, { input: unknown; output
   'jobs.enqueueDemo': { input: EnqueueDemoInput | void; output: EnqueueDemoOutput };
   'jobs.cancel': { input: CancelJobInput; output: void };
   'jobs.list': { input: void; output: JobSummary[] };
+  'jobs.enqueueScan': { input: EnqueueScanInput; output: EnqueueScanOutput };
+  'watchFolders.list': { input: void; output: { watchFolders: WatchFolderRecord[] } };
+  'watchFolders.add': { input: AddWatchFolderInput; output: WatchFolderRecord };
+  'watchFolders.remove': { input: RemoveWatchFolderInput; output: { removed: boolean } };
+  'files.listByWatchFolder': {
+    input: ListFilesByWatchFolderInput;
+    output: { files: FileRecord[] };
+  };
 }
 
 export type IpcInput<C extends IpcChannel> = IpcContract[C]['input'];
