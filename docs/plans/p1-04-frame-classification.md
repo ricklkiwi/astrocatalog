@@ -71,7 +71,7 @@ always win and survive rescans"), never by this function.
 
 (a) **Yes, normalization strips wrapping single quotes.** PixInsight-converted XISF files have
 been observed in the wild carrying the original FITS single-quote string delimiters baked into
-the IMAGETYP *value itself* (e.g. the stored string is literally `'Master Bias'`, quotes
+the IMAGETYP _value itself_ (e.g. the stored string is literally `'Master Bias'`, quotes
 included, not `Master Bias`). `packages/core/src/xisf/metadata.ts`'s `toFrameMetadata()` does a
 direct pass-through of the `IMAGETYP` FITSKeyword value with no quote-stripping (confirmed by
 reading the source — `str(k, 'IMAGETYP')`, nothing more), so if this quirk occurs, the quoted
@@ -146,7 +146,7 @@ Field names (`frameType`, `frameTypeSource`) deliberately match the camelCase co
 `packages/db/src/schema/frames.ts` (`frameType`, `frameTypeSource`) so P1-07's pipeline can
 spread `classifyFrame(...)`'s result directly into a `frames` insert without renaming. No extra
 diagnostic fields (e.g. "which token matched") are added to the public result — DD-003 persists
-only these two columns, and test coverage for *why* a result was produced comes from the
+only these two columns, and test coverage for _why_ a result was produced comes from the
 table-driven test cases themselves, not a runtime-visible field.
 
 ## Precedence / fallback algorithm
@@ -167,7 +167,7 @@ classifyFrame(metadata, filePath):
 Decisions, stated precisely per the issue's "ambiguous → unknown, never guessed silently"
 criterion:
 
-- **A header match always short-circuits.** This is a strict fallback *chain*, not a vote
+- **A header match always short-circuits.** This is a strict fallback _chain_, not a vote
   between header and path — if IMAGETYP maps to `light` but the file's path contains
   `/darks/`, the result is `light`/`header`; path heuristics are not even computed. This
   reading matches DD-004's literal wording ("IMAGETYP header → path heuristics → unknown" is an
@@ -176,11 +176,11 @@ criterion:
   captured into a folder originally set up for lights) than a wrong header — trusting the more
   structured, machine-written signal over an inferred one is the safer default.
 - **An unrecognized-but-present IMAGETYP falls through to path heuristics — it is not
-  immediately `unknown`.** "Ambiguous → unknown" is about not *guessing* a type from thin
+  immediately `unknown`.** "Ambiguous → unknown" is about not _guessing_ a type from thin
   evidence, not about refusing to consult the next well-defined stage in the chain. Path
   heuristics are themselves a deterministic, non-guessing rule set (exact/bounded token
   matches, no fuzzy scoring) — consulting them for a custom or unrecognized capture program is
-  exactly what "path heuristics" is *for*. Only after both stages produce no match does the
+  exactly what "path heuristics" is _for_. Only after both stages produce no match does the
   frame become `unknown`.
 - **Empty string and whitespace-only IMAGETYP are treated identically to `null`** (i.e., as "no
   header signal," not as "an unrecognized non-empty value") — `normalizeImageType()` returns
@@ -210,30 +210,30 @@ budget). Returns `null` on a table miss.
 **Mapping table** (canonical normalized lexeme → `FrameType`; casing/delimiter variants below
 all fold to one of these through the normalization above):
 
-| Normalized lexeme  | → FrameType | Notes                                      |
-| ------------------- | ----------- | ------------------------------------------- |
-| `LIGHT`             | light       | N.I.N.A./Voyager/edge fixtures (`LIGHT`); APT/SGPro/SharpCap/ASIStudio fixtures fold here too (`Light`) |
-| `LIGHT FRAME`        | light       | MaxIm DL / CCDSoft convention (also the issue's own cited example) |
-| `LIGHTFRAME`         | light       | defensive no-delimiter variant |
-| `DARK`               | dark        | N.I.N.A./Voyager fixtures (`DARK`); APT/SGPro/SharpCap/ASIStudio fixtures fold here too (`Dark`) |
-| `DARK FRAME`         | dark        | MaxIm DL |
-| `DARKFRAME`          | dark        | defensive |
-| `MASTERDARK`         | dark        | issue's own cited example; "master-ness" doesn't change `frame_type` — see below |
-| `MASTER DARK`        | dark        | |
-| `FLAT`               | flat        | N.I.N.A./Voyager fixtures (`FLAT`); APT/SGPro/SharpCap/ASIStudio fixtures fold here too (`Flat`) |
-| `FLAT FIELD`         | flat        | MaxIm DL |
-| `FLATFIELD`          | flat        | defensive |
-| `MASTERFLAT`         | flat        | |
-| `MASTER FLAT`        | flat        | |
-| `BIAS`               | bias        | N.I.N.A. fixture (`BIAS`) |
-| `BIAS FRAME`         | bias        | MaxIm DL |
-| `BIASFRAME`          | bias        | defensive |
-| `MASTERBIAS`         | bias        | |
-| `MASTER BIAS`        | bias        | PixInsight quote-quirk example (`'Master Bias'`) strips to this |
-| `DARKFLAT`           | darkflat    | |
-| `DARK FLAT`           | darkflat    | (also reached from `Dark_Flat`/`Dark-Flat` via delimiter folding) |
-| `MASTERDARKFLAT`      | darkflat    | |
-| `MASTER DARK FLAT`    | darkflat    | |
+| Normalized lexeme  | → FrameType | Notes                                                                                                   |
+| ------------------ | ----------- | ------------------------------------------------------------------------------------------------------- |
+| `LIGHT`            | light       | N.I.N.A./Voyager/edge fixtures (`LIGHT`); APT/SGPro/SharpCap/ASIStudio fixtures fold here too (`Light`) |
+| `LIGHT FRAME`      | light       | MaxIm DL / CCDSoft convention (also the issue's own cited example)                                      |
+| `LIGHTFRAME`       | light       | defensive no-delimiter variant                                                                          |
+| `DARK`             | dark        | N.I.N.A./Voyager fixtures (`DARK`); APT/SGPro/SharpCap/ASIStudio fixtures fold here too (`Dark`)        |
+| `DARK FRAME`       | dark        | MaxIm DL                                                                                                |
+| `DARKFRAME`        | dark        | defensive                                                                                               |
+| `MASTERDARK`       | dark        | issue's own cited example; "master-ness" doesn't change `frame_type` — see below                        |
+| `MASTER DARK`      | dark        |                                                                                                         |
+| `FLAT`             | flat        | N.I.N.A./Voyager fixtures (`FLAT`); APT/SGPro/SharpCap/ASIStudio fixtures fold here too (`Flat`)        |
+| `FLAT FIELD`       | flat        | MaxIm DL                                                                                                |
+| `FLATFIELD`        | flat        | defensive                                                                                               |
+| `MASTERFLAT`       | flat        |                                                                                                         |
+| `MASTER FLAT`      | flat        |                                                                                                         |
+| `BIAS`             | bias        | N.I.N.A. fixture (`BIAS`)                                                                               |
+| `BIAS FRAME`       | bias        | MaxIm DL                                                                                                |
+| `BIASFRAME`        | bias        | defensive                                                                                               |
+| `MASTERBIAS`       | bias        |                                                                                                         |
+| `MASTER BIAS`      | bias        | PixInsight quote-quirk example (`'Master Bias'`) strips to this                                         |
+| `DARKFLAT`         | darkflat    |                                                                                                         |
+| `DARK FLAT`        | darkflat    | (also reached from `Dark_Flat`/`Dark-Flat` via delimiter folding)                                       |
+| `MASTERDARKFLAT`   | darkflat    |                                                                                                         |
+| `MASTER DARK FLAT` | darkflat    |                                                                                                         |
 
 Recognizing `MASTERDARK`/`Master Bias`/etc. maps to the **base** `frame_type` (`dark`, `bias`,
 …), not a separate "master" value — DD-003's `frame_type` enum has no master variant; the
@@ -249,55 +249,55 @@ by reading `fixtures/fits/**/*.fits` directly — `strings`-dumped and cross-che
 `fixtures/xisf/manifest.json`) plus documented MaxIm DL/CCDSoft and PixInsight/WBPP
 conventions and the issue's own cited examples.
 
-| # | Raw IMAGETYP value | Origin | Expected |
-|---|---|---|---|
-| 1 | `LIGHT` | fixture: nina, voyager, edge/malformed set | light |
-| 2 | `Light` (trailing-space-trimmed) | fixture: apt, sgpro, sharpcap, asistudio | light |
-| 3 | `light` | defensive lowercase | light |
-| 4 | `  LIGHT  ` | defensive whitespace padding | light |
-| 5 | `Light Frame` | MaxIm DL/CCDSoft; issue's cited example | light |
-| 6 | `LIGHT FRAME` | MaxIm DL casing variant | light |
-| 7 | `LightFrame` | defensive no-space | light |
-| 8 | `Light_Frame` | defensive underscore | light |
-| 9 | `Light-Frame` | defensive hyphen | light |
-| 10 | `'LIGHT'` | PixInsight quote-quirk | light |
-| 11 | `DARK` | fixture: nina, voyager | dark |
-| 12 | `Dark` | fixture: apt, sgpro, sharpcap, asistudio | dark |
-| 13 | `dark` | defensive lowercase | dark |
-| 14 | `Dark Frame` | MaxIm DL | dark |
-| 15 | `DARK FRAME` | MaxIm DL casing variant | dark |
-| 16 | `DarkFrame` | defensive | dark |
-| 17 | `masterDark` | issue's cited example | dark |
-| 18 | `MasterDark` | casing variant | dark |
-| 19 | `Master Dark` | spaced variant | dark |
-| 20 | `MASTER DARK` | uppercase variant | dark |
-| 21 | `FLAT` | fixture: nina, voyager | flat |
-| 22 | `Flat` | fixture: apt, sgpro, sharpcap, asistudio | flat |
-| 23 | `flat` | defensive lowercase | flat |
-| 24 | `Flat Field` | MaxIm DL | flat |
-| 25 | `FLAT FIELD` | MaxIm DL casing variant | flat |
-| 26 | `FlatField` | defensive | flat |
-| 27 | `MasterFlat` | | flat |
-| 28 | `Master Flat` | | flat |
-| 29 | `BIAS` | fixture: nina | bias |
-| 30 | `Bias` | plausible Title-case (no fixture has a Title-case Bias sample; inferred from the same sibling-software convention that produces Title-case Light/Dark/Flat) | bias |
-| 31 | `bias` | defensive lowercase | bias |
-| 32 | `Bias Frame` | MaxIm DL | bias |
-| 33 | `BIAS FRAME` | MaxIm DL casing variant | bias |
-| 34 | `masterBias` | | bias |
-| 35 | `'Master Bias'` | PixInsight quote-quirk, exact scenario from the issue's known-quirk description | bias |
-| 36 | `DARKFLAT` | | darkflat |
-| 37 | `DarkFlat` | | darkflat |
-| 38 | `Dark Flat` | | darkflat |
-| 39 | `DARK FLAT` | | darkflat |
-| 40 | `Dark-Flat` | hyphenated | darkflat |
-| 41 | `Dark_Flat` | underscored | darkflat |
-| 42 | `Master Dark Flat` | | darkflat |
-| 43 | `MASTERDARKFLAT` | | darkflat |
-| 44 | `TEST FRAME` | unrecognized custom-software value, no path signal in the same test case | unknown (falls through both stages) |
-| 45 | `''` (empty after quote-strip, i.e. raw was `"''"`) | defensive | unknown / falls to path (treated as absent) |
-| 46 | `null` | RAW frames (P1-03: `imageType` is always `null`) | falls to path (header stage skipped) |
-| 47 | `'   '` (whitespace-only) | defensive | falls to path (treated as absent) |
+| #   | Raw IMAGETYP value                                  | Origin                                                                                                                                                      | Expected                                    |
+| --- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| 1   | `LIGHT`                                             | fixture: nina, voyager, edge/malformed set                                                                                                                  | light                                       |
+| 2   | `Light` (trailing-space-trimmed)                    | fixture: apt, sgpro, sharpcap, asistudio                                                                                                                    | light                                       |
+| 3   | `light`                                             | defensive lowercase                                                                                                                                         | light                                       |
+| 4   | `  LIGHT  `                                         | defensive whitespace padding                                                                                                                                | light                                       |
+| 5   | `Light Frame`                                       | MaxIm DL/CCDSoft; issue's cited example                                                                                                                     | light                                       |
+| 6   | `LIGHT FRAME`                                       | MaxIm DL casing variant                                                                                                                                     | light                                       |
+| 7   | `LightFrame`                                        | defensive no-space                                                                                                                                          | light                                       |
+| 8   | `Light_Frame`                                       | defensive underscore                                                                                                                                        | light                                       |
+| 9   | `Light-Frame`                                       | defensive hyphen                                                                                                                                            | light                                       |
+| 10  | `'LIGHT'`                                           | PixInsight quote-quirk                                                                                                                                      | light                                       |
+| 11  | `DARK`                                              | fixture: nina, voyager                                                                                                                                      | dark                                        |
+| 12  | `Dark`                                              | fixture: apt, sgpro, sharpcap, asistudio                                                                                                                    | dark                                        |
+| 13  | `dark`                                              | defensive lowercase                                                                                                                                         | dark                                        |
+| 14  | `Dark Frame`                                        | MaxIm DL                                                                                                                                                    | dark                                        |
+| 15  | `DARK FRAME`                                        | MaxIm DL casing variant                                                                                                                                     | dark                                        |
+| 16  | `DarkFrame`                                         | defensive                                                                                                                                                   | dark                                        |
+| 17  | `masterDark`                                        | issue's cited example                                                                                                                                       | dark                                        |
+| 18  | `MasterDark`                                        | casing variant                                                                                                                                              | dark                                        |
+| 19  | `Master Dark`                                       | spaced variant                                                                                                                                              | dark                                        |
+| 20  | `MASTER DARK`                                       | uppercase variant                                                                                                                                           | dark                                        |
+| 21  | `FLAT`                                              | fixture: nina, voyager                                                                                                                                      | flat                                        |
+| 22  | `Flat`                                              | fixture: apt, sgpro, sharpcap, asistudio                                                                                                                    | flat                                        |
+| 23  | `flat`                                              | defensive lowercase                                                                                                                                         | flat                                        |
+| 24  | `Flat Field`                                        | MaxIm DL                                                                                                                                                    | flat                                        |
+| 25  | `FLAT FIELD`                                        | MaxIm DL casing variant                                                                                                                                     | flat                                        |
+| 26  | `FlatField`                                         | defensive                                                                                                                                                   | flat                                        |
+| 27  | `MasterFlat`                                        |                                                                                                                                                             | flat                                        |
+| 28  | `Master Flat`                                       |                                                                                                                                                             | flat                                        |
+| 29  | `BIAS`                                              | fixture: nina                                                                                                                                               | bias                                        |
+| 30  | `Bias`                                              | plausible Title-case (no fixture has a Title-case Bias sample; inferred from the same sibling-software convention that produces Title-case Light/Dark/Flat) | bias                                        |
+| 31  | `bias`                                              | defensive lowercase                                                                                                                                         | bias                                        |
+| 32  | `Bias Frame`                                        | MaxIm DL                                                                                                                                                    | bias                                        |
+| 33  | `BIAS FRAME`                                        | MaxIm DL casing variant                                                                                                                                     | bias                                        |
+| 34  | `masterBias`                                        |                                                                                                                                                             | bias                                        |
+| 35  | `'Master Bias'`                                     | PixInsight quote-quirk, exact scenario from the issue's known-quirk description                                                                             | bias                                        |
+| 36  | `DARKFLAT`                                          |                                                                                                                                                             | darkflat                                    |
+| 37  | `DarkFlat`                                          |                                                                                                                                                             | darkflat                                    |
+| 38  | `Dark Flat`                                         |                                                                                                                                                             | darkflat                                    |
+| 39  | `DARK FLAT`                                         |                                                                                                                                                             | darkflat                                    |
+| 40  | `Dark-Flat`                                         | hyphenated                                                                                                                                                  | darkflat                                    |
+| 41  | `Dark_Flat`                                         | underscored                                                                                                                                                 | darkflat                                    |
+| 42  | `Master Dark Flat`                                  |                                                                                                                                                             | darkflat                                    |
+| 43  | `MASTERDARKFLAT`                                    |                                                                                                                                                             | darkflat                                    |
+| 44  | `TEST FRAME`                                        | unrecognized custom-software value, no path signal in the same test case                                                                                    | unknown (falls through both stages)         |
+| 45  | `''` (empty after quote-strip, i.e. raw was `"''"`) | defensive                                                                                                                                                   | unknown / falls to path (treated as absent) |
+| 46  | `null`                                              | RAW frames (P1-03: `imageType` is always `null`)                                                                                                            | falls to path (header stage skipped)        |
+| 47  | `'   '` (whitespace-only)                           | defensive                                                                                                                                                   | falls to path (treated as absent)           |
 
 (47 rows — comfortably over the ≥40 minimum, including deliberate negative/fallthrough cases
 required by the acceptance criterion's "never guessed silently" wording.)
@@ -341,34 +341,34 @@ delimiter/start/end boundary in those words, so the regexes correctly do not fir
 
 ### ≥20 tested path patterns
 
-| # | Path | Notes | Expected |
-|---|---|---|---|
-| 1 | `/data/M31/2026-01-15/lights/frame_001.fits` | plural segment | light |
-| 2 | `/data/M31/2026-01-15/light/frame_001.fits` | singular segment | light |
-| 3 | `/data/calibration/darks/dark_-10c_300s_001.fits` | plural segment + filename token both dark | dark |
-| 4 | `/data/calibration/dark/dark_001.fits` | singular segment | dark |
-| 5 | `/data/calibration/flats/flat_L_001.fits` | plural segment | flat |
-| 6 | `/data/calibration/flat/flat_001.fits` | singular segment | flat |
-| 7 | `/data/calibration/bias/bias_001.fits` | singular | bias |
-| 8 | `/data/calibration/biases/bias_001.fits` | plural | bias |
-| 9 | `/data/calibration/darkflats/darkflat_001.fits` | concatenated darkflat segment | darkflat |
-| 10 | `/data/calibration/dark_flat/df_001.fits` | underscore-delimited darkflat segment | darkflat |
-| 11 | `/data/calibration/dark-flat/df_001.fits` | hyphen-delimited darkflat segment | darkflat |
-| 12 | `/data/calibration/masters/dark/master_dark_-10c_300s.fits` | `masters/` noise segment skipped | dark |
-| 13 | `/data/calibration/masters/flat/master_flat_L.fits` | masters/ nesting | flat |
-| 14 | `/data/calibration/masters/bias/master_bias.fits` | masters/ nesting | bias |
-| 15 | `/data/calibration/masters/darkflat/master_darkflat.fits` | masters/ nesting | darkflat |
-| 16 | `C:\Astro\M42\2026-02-02\LIGHT\frame_002.fits` | Windows backslashes + uppercase segment | light |
-| 17 | `/data/M31/lights_Ha/frame_003.fits` | delimiter-bounded prefix token in a compound segment | light |
-| 18 | `/data/sessions/2026-01-15/DARK_-10C/frame.fits` | uppercase segment with trailing detail | dark |
-| 19 | `/data/M42/2026-02-02/flat_L_001.xisf` | no dedicated directory — filename-embedded token (DD-004's `_flat_` example shape) | flat |
-| 20 | `/data/raw/bias_g100_001.cr2` | RAW frame, `imageType` always `null` — path is the *only* signal | bias |
-| 21 | `/data/M31/2026-01-15/frame_004.fits` | no type-indicating segment anywhere | unknown |
-| 22 | `/data/M31/starlight_project/frame_005.fits` | negative control: `light` substring inside `starlight`, not boundary-matched | unknown |
-| 23 | `/data/M31/flatiron_survey/frame_006.fits` | negative control: `flat` substring inside `flatiron` | unknown |
-| 24 | `/data/M31/biassing_test/frame_007.fits` | negative control: `bias` substring inside `biassing` (no `es` plural, no boundary after `bias`) | unknown |
-| 25 | `/data/M31/2026-01-15/DarkFlat_Library/master_darkflat_-10C.fits` | mixed-case concatenated darkflat, rule 1 must win over rule 3 (`dark`) | darkflat |
-| 26 | `/data/M31/2026-01-15/lights/darks/frame_008.fits` | conflicting segments in one path — deepest (`darks`) wins over shallower `lights` | dark |
+| #   | Path                                                              | Notes                                                                                           | Expected |
+| --- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------- |
+| 1   | `/data/M31/2026-01-15/lights/frame_001.fits`                      | plural segment                                                                                  | light    |
+| 2   | `/data/M31/2026-01-15/light/frame_001.fits`                       | singular segment                                                                                | light    |
+| 3   | `/data/calibration/darks/dark_-10c_300s_001.fits`                 | plural segment + filename token both dark                                                       | dark     |
+| 4   | `/data/calibration/dark/dark_001.fits`                            | singular segment                                                                                | dark     |
+| 5   | `/data/calibration/flats/flat_L_001.fits`                         | plural segment                                                                                  | flat     |
+| 6   | `/data/calibration/flat/flat_001.fits`                            | singular segment                                                                                | flat     |
+| 7   | `/data/calibration/bias/bias_001.fits`                            | singular                                                                                        | bias     |
+| 8   | `/data/calibration/biases/bias_001.fits`                          | plural                                                                                          | bias     |
+| 9   | `/data/calibration/darkflats/darkflat_001.fits`                   | concatenated darkflat segment                                                                   | darkflat |
+| 10  | `/data/calibration/dark_flat/df_001.fits`                         | underscore-delimited darkflat segment                                                           | darkflat |
+| 11  | `/data/calibration/dark-flat/df_001.fits`                         | hyphen-delimited darkflat segment                                                               | darkflat |
+| 12  | `/data/calibration/masters/dark/master_dark_-10c_300s.fits`       | `masters/` noise segment skipped                                                                | dark     |
+| 13  | `/data/calibration/masters/flat/master_flat_L.fits`               | masters/ nesting                                                                                | flat     |
+| 14  | `/data/calibration/masters/bias/master_bias.fits`                 | masters/ nesting                                                                                | bias     |
+| 15  | `/data/calibration/masters/darkflat/master_darkflat.fits`         | masters/ nesting                                                                                | darkflat |
+| 16  | `C:\Astro\M42\2026-02-02\LIGHT\frame_002.fits`                    | Windows backslashes + uppercase segment                                                         | light    |
+| 17  | `/data/M31/lights_Ha/frame_003.fits`                              | delimiter-bounded prefix token in a compound segment                                            | light    |
+| 18  | `/data/sessions/2026-01-15/DARK_-10C/frame.fits`                  | uppercase segment with trailing detail                                                          | dark     |
+| 19  | `/data/M42/2026-02-02/flat_L_001.xisf`                            | no dedicated directory — filename-embedded token (DD-004's `_flat_` example shape)              | flat     |
+| 20  | `/data/raw/bias_g100_001.cr2`                                     | RAW frame, `imageType` always `null` — path is the _only_ signal                                | bias     |
+| 21  | `/data/M31/2026-01-15/frame_004.fits`                             | no type-indicating segment anywhere                                                             | unknown  |
+| 22  | `/data/M31/starlight_project/frame_005.fits`                      | negative control: `light` substring inside `starlight`, not boundary-matched                    | unknown  |
+| 23  | `/data/M31/flatiron_survey/frame_006.fits`                        | negative control: `flat` substring inside `flatiron`                                            | unknown  |
+| 24  | `/data/M31/biassing_test/frame_007.fits`                          | negative control: `bias` substring inside `biassing` (no `es` plural, no boundary after `bias`) | unknown  |
+| 25  | `/data/M31/2026-01-15/DarkFlat_Library/master_darkflat_-10C.fits` | mixed-case concatenated darkflat, rule 1 must win over rule 3 (`dark`)                          | darkflat |
+| 26  | `/data/M31/2026-01-15/lights/darks/frame_008.fits`                | conflicting segments in one path — deepest (`darks`) wins over shallower `lights`               | dark     |
 
 (26 rows — over the ≥20 minimum, including 3 negative controls proving word-boundary
 correctness, a Windows-path case, a RAW/header-null case, a `masters/` nesting case, and a
@@ -389,7 +389,7 @@ same-path multiple-signal precedence case.)
   - RAW-style `imageType: null` with a path match → `frameTypeSource: 'path_heuristic'`.
   - RAW-style `imageType: null` with no path signal → `{ frameType: 'unknown', frameTypeSource: 'path_heuristic' }`.
   - `imageType: ''` and `imageType: '   '` both behave identically to `null` (fall to path).
-  - Unrecognized-but-present `imageType` (e.g. `'TEST FRAME'`) *with* a matching path still
+  - Unrecognized-but-present `imageType` (e.g. `'TEST FRAME'`) _with_ a matching path still
     resolves via path, not immediately `unknown` — proves the fall-through rule, not just the
     table-miss rule.
   - Fully ambiguous: unrecognized `imageType` and no path signal → `unknown`/`path_heuristic`.
@@ -502,14 +502,14 @@ future pipeline wiring without a deep import path.
   — distinct from the field being structurally absent) — must be treated identically to `null`,
   not as an unrecognized non-empty value.
 - RAW frames: `imageType` is always `null`, never merely absent for one file — path is
-  necessarily the *only* signal for every RAW frame in the library (P1-03's own doc comment).
+  necessarily the _only_ signal for every RAW frame in the library (P1-03's own doc comment).
 - Unrecognized-but-present IMAGETYP (custom/unlisted capture software) must still fall through
   to path heuristics rather than becoming `unknown` immediately — the acceptance criterion
   "never guessed silently" is about not fabricating a type from weak evidence, not about
   skipping a well-defined deterministic stage.
 - Windows-style backslash paths (files scanned from a Windows watch folder; CI runs the 3-OS
   matrix) must classify identically to the equivalent forward-slash path.
-- Path segments/filenames that merely *contain* a type word without a delimiter boundary
+- Path segments/filenames that merely _contain_ a type word without a delimiter boundary
   (`starlight`, `flatiron`, `biassing`) must never false-positive.
 - `masters/<type>/` nested calibration-library folder structures — "master-ness" does not
   change `frame_type`; it is a separate downstream concept (`master_frames.master_type`,
@@ -558,7 +558,7 @@ future pipeline wiring without a deep import path.
   plumbing that eventually sets `frame_type_source = 'manual'` — separate, later issues.
 - **P1-20** calibration matching / `master_frames` population — recognizing that an IMAGETYP
   value like `masterDark` implies "this is dark-type calibration data" is in scope; recognizing
-  "this specific frame is *the* master for a given rig/session and should get a `master_frames`
+  "this specific frame is _the_ master for a given rig/session and should get a `master_frames`
   row" is not.
 - A new `fixtures/xisf` binary fixture demonstrating the PixInsight quote quirk — explicitly
   decided unnecessary for this issue (see "PixInsight quote-quirk decision"); flagged as a

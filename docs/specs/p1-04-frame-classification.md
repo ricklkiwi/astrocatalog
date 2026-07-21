@@ -111,7 +111,7 @@ Each item is independently checkable against the diff.
 
 ## File-by-File Expected Diff
 
-All paths are new unless marked *modified*. Reviewer confirms each runtime file is placed exactly where the plan says (new top-level `classification/` folder, parallel to `fits/`, `xisf/`, `raw/` — **not** nested under `catalog/`).
+All paths are new unless marked _modified_. Reviewer confirms each runtime file is placed exactly where the plan says (new top-level `classification/` folder, parallel to `fits/`, `xisf/`, `raw/` — **not** nested under `catalog/`).
 
 - [ ] `packages/core/src/classification/types.ts` — new; `FrameType`, `FrameTypeSource`, `ClassificationResult` exactly per the Public API Contract.
 - [ ] `packages/core/src/classification/imagetyp-table.ts` — new; `normalizeImageType()`, `matchImageType()`, and the module-level lexeme→`FrameType` table (≥21 canonical lexemes covering all 5 non-`unknown` types, MaxIm "Frame"/"Field" phrasing, and `MASTER*` variants folding to base type).
@@ -121,7 +121,7 @@ All paths are new unless marked *modified*. Reviewer confirms each runtime file 
 - [ ] `packages/core/src/classification/classify.ts` — new; `classifyFrame()` orchestrator implementing the precedence/fallback algorithm exactly.
 - [ ] `packages/core/src/classification/classify.test.ts` — new; precedence/integration/edge-case tests per the "Test plan" (header-wins-over-path, RAW-null variants, empty/whitespace-as-absent, unrecognized-header-falls-through, fully-ambiguous→unknown, quote-quirk-with-conflicting-path, plus a handful of fixture-derived byte strings re-asserted through the full entry point).
 - [ ] `packages/core/src/classification/index.ts` — new; barrel exporting `classifyFrame` + the three types.
-- [ ] `packages/core/src/index.ts` — *modified*; adds the four-name classification export block from `./classification/index.js`. No other export block is altered or removed.
+- [ ] `packages/core/src/index.ts` — _modified_; adds the four-name classification export block from `./classification/index.js`. No other export block is altered or removed.
 
 ## Non-Goals (copied from plan's Out of Scope — do not flag these as gaps)
 
@@ -129,7 +129,7 @@ All paths are new unless marked *modified*. Reviewer confirms each runtime file 
 - **P1-07** — wiring `classifyFrame()` into the worker pipeline, writing `frames` rows, batching, error isolation. This issue ships only the pure function and its exports.
 - **Any `packages/db` schema/migration change** — none needed; DD-003's `frame_type` / `frame_type_source` columns and CHECK constraints already accept every value this function can produce.
 - **P1-16** — the "Needs review" UI for `unknown`-classified frames and the manual-override plumbing that sets `frame_type_source = 'manual'`.
-- **P1-20** — calibration matching / `master_frames` population. Recognizing that `masterDark` implies dark-type data is in scope; deciding a frame is *the* master for a rig/session is not.
+- **P1-20** — calibration matching / `master_frames` population. Recognizing that `masterDark` implies dark-type data is in scope; deciding a frame is _the_ master for a rig/session is not.
 - **A new `fixtures/xisf` binary fixture for the PixInsight quote quirk** — explicitly unnecessary here (tests use literal `FrameMetadata`-shaped objects, matching the `metadata.test.ts` convention); flagged as a possible P0-06-maintainers follow-up only.
 - **`bench/src/lib/seed-db.ts`'s placeholder `FRAME_TYPE_BY_IMAGETYP` map** — untouched by this issue; not part of any acceptance criterion here.
 
