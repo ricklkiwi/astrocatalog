@@ -119,4 +119,15 @@ describe('detectDriveLabel', () => {
     await expect(detectDriveLabel('\\\\server\\share\\lights')).resolves.toBeNull();
     expect(execFileMock).not.toHaveBeenCalled();
   });
+
+  it('resolves to null (never throws) when the Windows child process fails', async () => {
+    // Regression test: the win32 branch previously did `return detectWindows(...)`
+    // without `await`, so a rejection surfaced after the outer try/catch had
+    // already exited the try block and propagated uncaught to the caller
+    // (observed in CI as an IPC handler failure) instead of resolving to null.
+    setPlatform('win32');
+    stubExecFile({ error: new Error('Command failed: powershell ...'), stdout: '' });
+
+    await expect(detectDriveLabel('C:\\Users\\astro\\lights')).resolves.toBeNull();
+  });
 });
