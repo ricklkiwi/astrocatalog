@@ -31,9 +31,10 @@ agent's frontmatter fallback without rewriting the task.
 4. Coder         → implements the plan, commits after each step
 5. Reviewer      → reviews against spec, runs tests/benchmarks
    └─ Critical or Major findings → Coder (fix) → Reviewer (re-check) until clean
-6. PR            → push branch, open PR against main
-7. Backfill      → create backlog issues for deferred Minor/Suggestion items
-8. Final Report  → summarise to the user
+6. Archive       → move completed task docs out of active plan/spec folders and clean links
+7. PR            → push branch, open PR against main
+8. Backfill      → create backlog issues for deferred Minor/Suggestion items
+9. Final Report  → summarise to the user
 ```
 
 No step may be skipped — including Spec Writer and Reviewer, even for "trivial" changes.
@@ -55,7 +56,7 @@ For each candidate in order, extract dependency issue numbers from the body and 
 gh issue edit <N> --add-label in-progress
 ```
 
-If the user names a specific issue, verify its dependencies are closed; if not, tell the user which ones block it and stop. Do NOT create new feature issues — the backlog is the plan. Only create issues in Step 7 (backfill) or when the user explicitly asks.
+If the user names a specific issue, verify its dependencies are closed; if not, tell the user which ones block it and stop. Do NOT create new feature issues — the backlog is the plan. Only create issues in Step 8 (backfill) or when the user explicitly asks.
 
 ## Step 1: Slug and Branch
 
@@ -93,7 +94,7 @@ You are on branch <slug>. Commit after each plan step (conventional commits).
 Report every file changed and confirm pnpm -r build, lint, and test pass."
 ```
 
-## Step 5–6: Review and Fix Loop
+## Step 5: Review and Fix Loop
 
 ```
 "Review <slug> against docs/specs/<slug>.md. Changed files: <list>.
@@ -101,9 +102,55 @@ Preferred model: GPT-5.5, else Opus, else Sonnet.
 Run the test suite and report findings with severity."
 ```
 
-Critical/Major findings: post to the issue, send to the Coder one at a time with file/line/required fix, re-review. Repeat until PASS. Minor/Suggestion items are deferred to Step 7.
+Critical/Major findings: post to the issue, send to the Coder one at a time with file/line/required fix, re-review. Repeat until PASS. Minor/Suggestion items are deferred to Step 8.
 
 On PASS:
+
+## Step 6: Archive Completed Task Docs
+
+Once the Reviewer returns PASS, the task's plan/spec are no longer active working documents. Archive them before creating the PR so the PR links point at their final locations.
+
+Archive layout:
+
+```text
+docs/archive/tasks/<slug>/
+  plan.md
+  spec.md
+```
+
+Required archive actions:
+
+```bash
+mkdir -p docs/archive/tasks/<slug>
+git mv docs/plans/<slug>.md docs/archive/tasks/<slug>/plan.md
+git mv docs/specs/<slug>.md docs/archive/tasks/<slug>/spec.md
+```
+
+Then clean links in the branch:
+
+- Replace all repo references to `docs/plans/<slug>.md` with `docs/archive/tasks/<slug>/plan.md`
+- Replace all repo references to `docs/specs/<slug>.md` with `docs/archive/tasks/<slug>/spec.md`
+- Update the archived spec's `**Plan:** ...` header to the archived plan path
+- Update `docs/archive/tasks/README.md` with the issue, PR, archived plan path, archived spec path, and completion date
+- Verify no stale active paths remain:
+
+```bash
+grep -R "docs/plans/<slug>.md\|docs/specs/<slug>.md" . \
+  --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=release
+```
+
+The only files left in `docs/plans/` or `docs/specs/` should be tasks still in planning, implementation, or review. Completed tasks belong under `docs/archive/tasks/`.
+
+Commit the archive/link cleanup as the final task commit:
+
+```bash
+git add docs/archive/tasks/<slug> docs/archive/tasks/README.md <files with cleaned links>
+git commit -m "docs(<slug>): archive completed task documents"
+```
+
+## Step 7: PR
+
+Push the branch and open the PR:
 
 ```bash
 git push -u origin <slug>
@@ -114,20 +161,22 @@ gh pr create --base main --title "[P<x>-<nn>] <title>" --body "Closes #<N>
 ## Changes
 <files>
 ## Spec
-docs/specs/<slug>.md
+docs/archive/tasks/<slug>/spec.md
+## Plan
+docs/archive/tasks/<slug>/plan.md
 ## Test results
 <from reviewer>
 ## Deferred to backlog
 <items>"
 ```
 
-## Step 7: Backfill
+## Step 8: Backfill
 
 Each deferred Minor/Suggestion becomes an issue labelled `backlog` referencing the source issue and PR. Never let findings disappear into chat.
 
-## Step 8: Final Report
+## Step 9: Final Report
 
-Issue claimed, PR URL, what was built, reviewer findings fixed, test results, backlog issues created.
+Issue claimed, PR URL, archived task-doc paths, what was built, reviewer findings fixed, test results, backlog issues created.
 
 ## Rules
 

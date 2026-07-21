@@ -23,6 +23,9 @@ GPT-5.6 -> GPT-5.5 -> Sonnet -> GPT-5.4
 The `model:` value in each `.agent.md` frontmatter is only a compatibility fallback for loaders
 that require simple Claude aliases.
 
+See `docs/agents/USAGE.md` for how to invoke each agent's role and pipeline order in a harness
+without a fixed subagent-loading directory.
+
 ## Update Rule
 
 When changing agent behavior, update the relevant prompt in `docs/agents/`. If the change affects

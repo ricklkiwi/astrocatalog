@@ -50,6 +50,13 @@ export {
   type RawValue,
 } from './raw/index.js';
 export {
+  detectProfile,
+  applyCaptureProfile,
+  ALL_PROFILES,
+  type CaptureProfile,
+  type CaptureProfileFixup,
+} from './capture-profiles/index.js';
+export {
   classifyFrame,
   type ClassificationResult,
   type FrameType,

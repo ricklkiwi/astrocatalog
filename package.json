@@ -6,7 +6,7 @@
   "type": "module",
   "packageManager": "pnpm@10.34.4",
   "engines": {
-    "node": "^24"
+    "node": "^26"
   },
   "scripts": {
     "dev": "pnpm --filter @astrotracker/desktop dev",
@@ -14,6 +14,7 @@
     "typecheck": "pnpm -r build",
     "lint": "pnpm run lint:root && pnpm -r lint",
     "lint:root": "eslint eslint.config.mjs vitest.config.ts && prettier --check .",
+    "pretest": "pnpm rebuild -r better-sqlite3",
     "test": "vitest run",
     "package": "pnpm --filter @astrotracker/desktop package",
     "e2e": "pnpm --filter @astrotracker/desktop e2e",
@@ -28,6 +29,9 @@
       "electron",
       "esbuild",
       "sharp"
+    ],
+    "ignoredBuiltDependencies": [
+      "electron-winstaller"
     ]
   },
   "devDependencies": {

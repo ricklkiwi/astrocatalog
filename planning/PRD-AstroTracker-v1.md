@@ -198,23 +198,18 @@ AstroTracker is a **desktop-first application with online integration**:
 
 ### 6.4 Calibration Frame Management
 
-- **Calibration Library:** Dedicated section for managing master darks, flats, bias, and dark-flats
-- **Smart Matching:** Suggest appropriate calibration frames for a set of lights based on:
-  - Camera/sensor match
-  - Temperature match (within configurable tolerance, e.g., +/- 2 degrees C)
-  - Exposure time match (for darks)
-  - Filter match (for flats)
-  - Optical train match (for flats)
-  - Recency (prefer newer calibration frames)
-- **Calibration Status Indicators:** Flag when calibration frames are missing, stale, or mismatched for a session
-- **Master Frame Tracking:** Record which raw calibration subs were used to generate each master frame
+- **Calibration Library:** Detect and list candidate master darks, flats, bias, and dark-flats
+- **Gap Detection:** Flag sessions/targets whose lights appear to lack required calibration frames
+- **Ranked Suggestions:** Suggest likely matching masters using simple, visible criteria: camera/sensor, exposure time for darks, filter for flats, binning, temperature tolerance when present, and recency
+- **Calibration Status Indicators:** Show `complete`, `partial`, `stale`, or `missing` status for sessions and targets
+- **Deferred Advanced Management:** Provenance editing, superseded-master handling, exposure-scaled darks, and advanced camera-type rules are v1.x unless beta feedback proves they are essential for v1.0
 
-### 6.5 Processing Workflow Tracking
+### 6.5 File Retrieval & Processing Handoff
 
-- **Processing Projects:** Create a processing project that links to source light frames, calibration masters, and intermediate files
-- **Processed Image Linking:** Attach final processed images (TIFF, PNG, JPG) to a target with links back to all source data
-- **Processing Notes:** Record processing steps, software used, key parameters
-- **Version History:** Track multiple processing attempts per target (e.g., "M31 v1 - first attempt", "M31 v2 - added Ha data")
+- **File Collection:** Quickly find and select source light frames by target, session, filter, frame type, equipment, and date range
+- **Processing Handoff:** Copy newline-separated absolute file paths for use in PixInsight, Siril, or other processing tools
+- **Source Traceability:** From any target or session, reveal source files in Finder/Explorer without moving or renaming them
+- **Lightweight Final Image Link:** Optionally attach a final TIFF/PNG/JPG to a target as a reference/hero image; full processing-project tracking is v1.x
 
 ### 6.6 Statistics & Reporting
 
@@ -328,7 +323,7 @@ FWHM, HFR, STARS, GUIDEERR, HUMIDITY, PRESSURE, WINDSPD, BORESSION
 - Average user catalogs 1,000+ files within first week
 - 70% of users return weekly during imaging season
 - 80% of users configure at least one watch folder
-- 50% of users create processing project links
+- 50% of users use copy/export file handoff for processing
 
 ### 9.3 Value Metrics
 
@@ -369,7 +364,7 @@ FWHM, HFR, STARS, GUIDEERR, HUMIDITY, PRESSURE, WINDSPD, BORESSION
 - Smart target recommendations (online)
 - Cloud metadata sync
 - Advanced calibration management
-- Processing project tracking
+- Processing project tracking (v1.x+)
 - Priority support
 
 **Team Tier ($149/year):**
