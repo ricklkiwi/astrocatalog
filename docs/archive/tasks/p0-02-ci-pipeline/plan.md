@@ -107,7 +107,7 @@ Not touched (verified, reasons noted):
   `fail-fast: false` matrix of `ubuntu-latest`, `windows-latest`, `macos-latest` that:
   checks out (`actions/checkout`), installs pnpm via `pnpm/action-setup` **with no `version`
   input** (it reads the pinned `pnpm@10.34.4` from the root `packageManager` field — one
-  source of truth, no drift), installs Node 24 via `actions/setup-node` with `node-version: 24`
+  source of truth, no drift), installs Node 26 via `actions/setup-node` with `node-version: 26`
   and `cache: pnpm` (caches the pnpm store keyed per-OS + lockfile hash), then runs
   `pnpm install --frozen-lockfile`, `pnpm -r build` (the typecheck step — `tsc -p` per
   package in dependency order, which also produces the `dist/` output the workspace-linked
@@ -251,7 +251,7 @@ None — the following defaults were chosen and should be called out in the PR:
    work. A root `typecheck` alias points at it for discoverability.
 2. **Root `test` script becomes `vitest run`** (the #45 projects runner); `pnpm -r test`
    remains available per package. CI uses the root form for single-reporter output.
-3. **Node version in CI: major pin `24`** matching `engines.node: ^24`; no Node version
+3. **Node version in CI: major pin `26`** matching `engines.node: ^26`; no Node version
    matrix (single runtime target per DD-001/Electron).
 4. **`ci-ok` aggregate job** is the sole documented required status check, rather than the
    three matrix legs individually.
@@ -261,4 +261,4 @@ None — the following defaults were chosen and should be called out in the PR:
    `pnpm format` normalization commit — accepted as the intent of #46 ("root-level
    lint/format coverage").
 
-Plan written: docs/plans/p0-02-ci-pipeline.md — 7 steps
+Plan written: docs/archive/tasks/p0-02-ci-pipeline/plan.md — 7 steps

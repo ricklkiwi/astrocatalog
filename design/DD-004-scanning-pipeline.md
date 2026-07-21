@@ -29,7 +29,7 @@ Stage 5 ENRICH     background: SHA-256 hashing → duplicate marking;
 - **Classification order** for frame type: `IMAGETYP` header → path heuristics (`/lights/`, `/darks/`, `_flat_`, etc.) → `unknown` (user resolves in UI). Source recorded in `frame_type_source`; manual overrides always win and survive rescans.
 - **Watch mode:** chokidar watches active folders; new files debounce 30 s (capture software writes sequentially all night) then enter the pipeline.
 - **Error isolation:** a malformed file logs a parse error on its `files` row and never aborts the batch.
-- **Benchmarks in CI:** a synthetic 10k-header fixture set must scan (stages 1-3) under a CI-adjusted time budget; regression fails the build.
+- **Benchmarks in CI:** a synthetic 10k-header fixture set must scan (stages 1-3) under a CI-adjusted time budget; regression fails the build. Realistic I/O benchmark packs record p50/p95 timings for cold/warm cache runs and document HDD, external-drive, and slow-share degraded behavior.
 
 ## Header parsing specifics
 

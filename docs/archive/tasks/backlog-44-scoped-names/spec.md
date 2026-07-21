@@ -1,6 +1,6 @@
 # Spec: [Backlog] Scope package names to @astrotracker/* before real deps land
 
-**Slug:** backlog-44-scoped-names **Issue:** #44 **Plan:** docs/plans/backlog-44-scoped-names.md **Date:** 2026-07-05
+**Slug:** backlog-44-scoped-names **Issue:** #44 **Plan:** docs/archive/tasks/backlog-44-scoped-names/plan.md **Date:** 2026-07-05
 
 ## Definition of Done
 
@@ -44,7 +44,7 @@
 - Renaming Vitest project names in `vitest.workspace.ts` (`'core'`, `'db'`, `'desktop'`, `'renderer'`) — these key off `root` paths, not `package.json#name`; Reviewer must not flag them as missed.
 - Any change to `eslint.config.mjs` — its `no-restricted-imports` rule scopes via the file glob `packages/core/src/**/*.ts`, a path, not a package name.
 - Any change to `tsconfig.base.json` or per-package `tsconfig.json` — none reference package names.
-- Editing `docs/plans/p0-01-monorepo-init.md` or `docs/specs/p0-01-monorepo-init.md` — historical records of an already-merged issue; left describing the old bare names.
+- Editing `docs/archive/tasks/p0-01-monorepo-init/plan.md` or `docs/archive/tasks/p0-01-monorepo-init/spec.md` — historical records of an already-merged issue; left describing the old bare names.
 - Any prose in `README.md` outside the package-layout table's "May depend on" cells (e.g., the "Allowed dependency direction: `core` ← `db` ← `desktop`" sentence, the `core` purity paragraph) — the plan scopes the README edit to the table cells only; Reviewer must not require the rest of the prose to be rewritten.
 - Directory moves — `packages/core`, `packages/db`, `packages/desktop`, `packages/desktop/renderer` paths are unchanged; only `package.json#name` and dependency keys change.
 - Changing `version`, `description`, or any `package.json` field other than `name` and the dependency keys being renamed.
@@ -60,4 +60,4 @@
 - **gate-green**: from a clean checkout, run `pnpm install && pnpm -r build && pnpm -r lint && pnpm -r test` as one chained command; assert exit code 0.
 - **placeholder-output-unchanged**: run `pnpm --filter @astrotracker/db test` and `pnpm --filter @astrotracker/desktop test`, assert the existing assertions on `describeDb()`/`describeDesktop()` string output still pass without modification to the test files.
 
-Spec written: docs/specs/backlog-44-scoped-names.md — 22 criteria
+Spec written: docs/archive/tasks/backlog-44-scoped-names/spec.md — 22 criteria

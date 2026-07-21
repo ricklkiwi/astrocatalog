@@ -209,7 +209,7 @@ start a retryable condition rather than a one-shot title read.
 scopes Playwright to the packaged app, and packaging itself is Win/mac only per
 `electron-builder.yml`; adding a Linux GUI leg would need `xvfb` for no packaging target this
 repo produces). Steps mirror `ci.yml`'s setup (checkout, `pnpm/action-setup`, `setup-node@v4`
-node 24 + pnpm cache, `pnpm install --frozen-lockfile`), then `pnpm -r build` (workspace
+node 26 + pnpm cache, `pnpm install --frozen-lockfile`), then `pnpm -r build` (workspace
 `@astrotracker/core`/`@astrotracker/db` must have `dist/` built before electron-vite can bundle
 them — the same ordering `CONTRIBUTING.md`'s local gate already documents), then `pnpm e2e`.
 `packages/desktop/playwright-report/` is uploaded via `actions/upload-artifact@v4` with
@@ -349,4 +349,4 @@ None. The one real design decision this issue required — packaged artifact vs.
 — is resolved above (Defaults #1: `electron-builder --dir`) with reasoning recorded so a
 reviewer can challenge the call directly instead of it being left pending.
 
-Plan written: docs/plans/p0-08-playwright-e2e.md — 7 steps
+Plan written: docs/archive/tasks/p0-08-playwright-e2e/plan.md — 7 steps

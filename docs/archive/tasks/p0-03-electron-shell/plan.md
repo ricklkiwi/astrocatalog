@@ -226,7 +226,7 @@ violate the "no renderer→desktop import" rule.
   require. The Step 6 startup smoke turns this into a visible failure in the packaged artifact
   instead of a latent P0-04 landmine.
 - **Unsigned mac DMG and Gatekeeper**: on first open macOS quarantines the app
-  ("damaged"/"unidentified developer"). Expected until P1-33 (signing/notarization); README
+  ("damaged"/"unidentified developer"). Expected until P1-35 (signing/notarization); README
   packaging note documents right-click-Open / `xattr -dr com.apple.quarantine` for testers so
   it isn't misread as a broken build.
 - **Renderer devDependency edge misused at runtime**: someone writes
@@ -263,7 +263,7 @@ violate the "no renderer→desktop import" rule.
   an inert rebuild-proof only
 - Worker pool, job queue, IPC progress events (P0-05)
 - Playwright E2E on the packaged app (P0-08) — this issue's tests are unit-level only
-- Code signing, notarization, auto-update (P1-33); mac DMG and Win NSIS stay unsigned
+- Code signing, notarization, auto-update (P1-35); mac DMG and Win NSIS stay unsigned
 - Real UI: pages, navigation, shadcn/ui, Tailwind, Zustand stores (DD-008 / Phase 1 UI issues) —
   the renderer is a single version screen
 - Any FITS/XISF/RAW parsing or `packages/core` changes
@@ -278,4 +278,4 @@ contract sharing, sandboxed CJS preload, native deps added now with a startup sm
 host-arch-only artifacts) are judgment calls no DD constrains, chosen to be cheap to reverse;
 each is flagged there for reviewer attention rather than blocking work.
 
-Plan written: docs/plans/p0-03-electron-shell.md — 8 steps
+Plan written: docs/archive/tasks/p0-03-electron-shell/plan.md — 8 steps

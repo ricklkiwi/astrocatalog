@@ -373,4 +373,4 @@ None. The nine defaults above are judgment calls no DD constrains — each is fl
 attention rather than blocking work, and each is cheap to reverse (schema columns are additive,
 the job-type registry is a lookup table, the pool size is one constant).
 
-Plan written: docs/plans/p0-05-worker-pool.md — 8 steps
+Plan written: docs/archive/tasks/p0-05-worker-pool/plan.md — 8 steps

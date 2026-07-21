@@ -1,6 +1,6 @@
 # Spec: [P0-03] Electron shell with typed IPC and packaged builds
 
-**Slug:** p0-03-electron-shell **Issue:** #3 **Plan:** docs/plans/p0-03-electron-shell.md **Date:** 2026-07-06
+**Slug:** p0-03-electron-shell **Issue:** #3 **Plan:** docs/archive/tasks/p0-03-electron-shell/plan.md **Date:** 2026-07-06
 
 Verification-mode legend used on every criterion below (Reviewer runs on macOS only):
 
@@ -75,7 +75,7 @@ Verification-mode legend used on every criterion below (Reviewer runs on macOS o
 - Drizzle schema, migrations, real DB bootstrap, repositories (P0-04) — `better-sqlite3` usage here is an inert rebuild-proof only; no schema, no on-disk file, no repository layer.
 - Worker pool, job queue, IPC progress events (P0-05).
 - Playwright E2E on the packaged app (P0-08) — this issue's automated tests are unit-level only; manual-launch checks above are the stand-in, not a replacement requirement to add Playwright now.
-- Code signing, notarization, auto-update (P1-33); mac DMG and Windows NSIS installer stay **unsigned** — Gatekeeper "damaged"/"unidentified developer" warnings on first launch are expected, not a bug, and are documented in README rather than fixed.
+- Code signing, notarization, auto-update (P1-35); mac DMG and Windows NSIS installer stay **unsigned** — Gatekeeper "damaged"/"unidentified developer" warnings on first launch are expected, not a bug, and are documented in README rather than fixed.
 - Real UI: pages, navigation, shadcn/ui, Tailwind, Zustand stores (Phase 1 UI issues) — the renderer is a single version screen only; Reviewer must not ask for more UI.
 - Any FITS/XISF/RAW parsing or `packages/core` changes.
 - **Windows-local packaging verification** — impossible on this macOS machine; this is the one item of AC2 fully deferred to CI. Reviewer verifies only that `electron-builder.yml`'s Windows target block and README's documented CI contract are correct, not that a `.exe` was produced.
@@ -97,4 +97,4 @@ Verification-mode legend used on every criterion below (Reviewer runs on macOS o
 - **manual-dev-launch** (not automatable): run `pnpm dev`, confirm one window opens with the version screen populated (all seven fields), edit a renderer file and observe HMR, edit `src/main/index.ts` and observe Electron restart, edit `src/preload/index.ts` and observe reload.
 - **manual-packaged-launch** (not automatable): run `pnpm package`, mount/install the resulting `.dmg` after clearing quarantine, launch the app, confirm the version screen matches the dev-mode output including SQLite/sharp versions.
 
-Spec written: docs/specs/p0-03-electron-shell.md — 35 criteria
+Spec written: docs/archive/tasks/p0-03-electron-shell/spec.md — 35 criteria

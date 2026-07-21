@@ -1,6 +1,6 @@
 # Spec: [P0-05] Worker pool and persistent job queue
 
-**Slug:** p0-05-worker-pool **Issue:** #5 **Plan:** docs/plans/p0-05-worker-pool.md **Date:** 2026-07-08
+**Slug:** p0-05-worker-pool **Issue:** #5 **Plan:** docs/archive/tasks/p0-05-worker-pool/plan.md **Date:** 2026-07-08
 
 ## Definition of Done
 
@@ -127,4 +127,4 @@ Copied and expanded from the plan — Reviewer must not flag any of the followin
 - **ipc-progress-payload-shape**: assert the renderer-facing `jobs.progress` payload uses `id`/`progressCurrent`/`progressTotal`/`progressMessage` field names, while `main/index.ts` performs the mapping from the orchestrator's internal `jobId`/`current`/`total`/`message` shape before broadcasting.
 - **job-demo-component**: render `JobDemo` with mocked `window.astrotracker`; click enqueue; assert `invoke('jobs.enqueueDemo', ...)` called; fire a mocked `'jobs.progress'` event via the captured `on` listener; assert displayed percentage updates; unmount; assert the unsubscribe function returned by `on` was called.
 
-Spec written: docs/specs/p0-05-worker-pool.md — 63 criteria
+Spec written: docs/archive/tasks/p0-05-worker-pool/spec.md — 63 criteria

@@ -7,7 +7,13 @@
 
 Metadata-only SQLite catalog. Files are referenced by path; image data never enters the DB. Drizzle ORM manages schema + versioned migrations from day one.
 
-## Core tables (v1)
+## Schema rollout
+
+P0 creates only the foundation catalog spine: watch folders, physical files, parsed frames, scan jobs, settings, schema migrations, and the indexes needed for those repositories. Feature-owned tables are added by the first vertical slice that uses them, with a Drizzle migration and round-trip migration test in that same issue.
+
+This keeps early schema work tied to proven behavior instead of front-loading the entire v1 domain model before parsers, target resolution, session detection, and calibration matching have been validated.
+
+## Planned tables by feature area
 
 ```sql
 -- Physical storage roots the user watches
@@ -69,14 +75,14 @@ sessions(
 -- Distinct telescope+camera(+rotator/reducer) combos, auto-detected
 equipment_profiles(id, name, telescope, camera, focal_length, aperture, pixel_size, is_user_confirmed, created_at, updated_at)
 
--- Calibration masters and their provenance
+-- Calibration masters; raw-sub provenance arrives with advanced calibration management
 master_frames(
   id, file_id → files, master_type,   -- 'dark'|'flat'|'bias'|'darkflat'
   camera_raw, equipment_profile_id, filter_id,
   exposure_seconds, ccd_temp, gain, offset, binning_x, binning_y,
   created_date, sub_count, notes, created_at, updated_at
 )
-master_frame_subs(master_frame_id, frame_id)   -- which raw subs built the master
+master_frame_subs(master_frame_id, frame_id)   -- v1.x: which raw subs built the master
 
 -- Processing workflow
 processing_projects(id, target_id, name, version_label, status, software, notes, created_at, updated_at)
@@ -95,7 +101,7 @@ schema_migrations(version, applied_at)
 
 - **`headers_json` on every frame:** raw header dump preserved so future features (new keywords) never require rescanning disks.
 - **Aggregation performance:** integration-time rollups are `SUM(exposure_seconds) GROUP BY target_id, filter_id` over indexed columns. Indexes: `frames(target_id, filter_id, frame_type)`, `frames(session_id)`, `frames(date_obs_utc)`, `files(sha256)`, `target_aliases(alias_normalized)`.
-- **FTS5** virtual table over target names/aliases, session notes, project notes.
+- **FTS5** is added incrementally with the target/notes features that need it; P0 does not create search tables before searchable entities exist.
 - **Missing vs deleted:** files on disconnected drives are marked `missing`, never auto-deleted — statistics remain stable when external drives are offline. Rows are removed only by explicit user action.
 - **Lazy hashing:** SHA-256 computed in background after metadata scan (hashing is I/O-heavy); duplicate detection is therefore eventually-consistent.
 - **Sync-ready timestamps:** all logical entities that may sync in Phase 2 carry `created_at` and `updated_at` from v1. User-visible deletes are explicit tombstones in a later sync migration; v1 does not hard-delete catalog rows except through explicit local cleanup actions.
@@ -106,5 +112,5 @@ schema_migrations(version, applied_at)
 
 ## Consequences
 
-- Schema evolution goes through Drizzle migrations; every migration gets a round-trip test against a fixture DB.
+- Schema evolution goes through Drizzle migrations; every feature-owned table is introduced in the feature slice that first uses it, and every migration gets a round-trip test against a fixture DB.
 - Cloud sync (Phase 2) syncs logical entities (targets, frames-metadata, sessions), keyed by stable UUIDs — all PKs are UUIDv7 strings, not autoincrement ints, to make sync/merge feasible.

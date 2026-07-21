@@ -1,6 +1,6 @@
 # Spec: [P0-08] Playwright E2E harness on packaged app
 
-**Slug:** p0-08-playwright-e2e **Issue:** #8 **Plan:** docs/plans/p0-08-playwright-e2e.md **Date:** 2026-07-11
+**Slug:** p0-08-playwright-e2e **Issue:** #8 **Plan:** docs/archive/tasks/p0-08-playwright-e2e/plan.md **Date:** 2026-07-11
 
 Verification-mode legend used on every criterion below:
 
@@ -189,7 +189,7 @@ appDataDir>` captured via a shared temp marker, or simply that `libraryDir` exis
 - [ ] **[local]** Given `.github/workflows/e2e.yml`, when read, then its `on:` triggers match
       `ci.yml`'s (`push` to `main`, `pull_request`), its matrix is exactly
       `[windows-latest, macos-latest]` (no `ubuntu-latest` leg), and its steps are, in order:
-      checkout, `pnpm/action-setup@v4`, `actions/setup-node@v4` (node 24, pnpm cache),
+      checkout, `pnpm/action-setup@v4`, `actions/setup-node@v4` (node 26, pnpm cache),
       `pnpm install --frozen-lockfile`, `pnpm -r build`, `pnpm e2e`.
 - [ ] **[local]** Given the same file, when read, then it sets `timeout-minutes: 20` on the job
       and uploads `packages/desktop/playwright-report/` via `actions/upload-artifact@v4` gated on
@@ -387,4 +387,4 @@ appDataDir>` captured via a shared temp marker, or simply that `libraryDir` exis
 - **docs-present**: grep `README.md` for `pnpm e2e` and `fixtures.ts`; grep `CONTRIBUTING.md` for
   `e2e.yml`.
 
-Spec written: docs/specs/p0-08-playwright-e2e.md — 60 criteria
+Spec written: docs/archive/tasks/p0-08-playwright-e2e/spec.md — 60 criteria

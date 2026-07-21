@@ -346,4 +346,4 @@ something to compare against — not a zero-baseline that trivially "passes" for
 
 None.
 
-Plan written: docs/plans/p0-07-benchmark-harness.md — 9 steps
+Plan written: docs/archive/tasks/p0-07-benchmark-harness/plan.md — 9 steps

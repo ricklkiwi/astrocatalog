@@ -324,4 +324,4 @@ None. Defaults chosen (flag in PR if any looks wrong):
 4. **Fixture binaries are committed** _and_ regenerable from checked-in definitions, with a
    byte-determinism test — reviewability of binaries comes from the declarative definitions.
 
-Plan written: docs/plans/p0-06-fixtures-library.md — 8 steps
+Plan written: docs/archive/tasks/p0-06-fixtures-library/plan.md — 8 steps

@@ -1,6 +1,6 @@
 # Spec: [P0-04] Database layer — Drizzle schema v1 and migration runner
 
-**Slug:** p0-04-db-layer **Issue:** #4 **Plan:** docs/plans/p0-04-db-layer.md **Date:** 2026-07-06
+**Slug:** p0-04-db-layer **Issue:** #4 **Plan:** docs/archive/tasks/p0-04-db-layer/plan.md **Date:** 2026-07-06
 
 ## Definition of Done
 
@@ -110,4 +110,4 @@ Copied and expanded from the plan — Reviewer must not flag any of the followin
 - **dist-vs-src-migration-path**: run the migration-resolution logic once under Vitest (`src/`) and once against a built `dist/` output; assert both resolve to `packages/db/drizzle/` and both apply migrations successfully.
 - **fts5-missing-fast-fail**: mock/stub the FTS5-availability check to report unavailable; call `openDatabase()`; assert it throws before attempting migration 0001, with a message naming FTS5 (not the raw SQLite "no such module" text).
 
-Spec written: docs/specs/p0-04-db-layer.md — 50 criteria
+Spec written: docs/archive/tasks/p0-04-db-layer/spec.md — 50 criteria

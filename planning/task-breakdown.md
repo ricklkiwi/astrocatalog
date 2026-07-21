@@ -40,7 +40,7 @@ Electron app: main process, preload with contextIsolation, React renderer via Vi
 **Acceptance criteria:**
 
 - `pnpm dev` launches app with hot reload; renderer calls `app.version` over typed IPC
-- `pnpm package` produces installable artifacts on Win and mac (verified in CI packaging workflow)
+- `pnpm package` produces a local installable artifact on the current OS and verifies native modules load in the packaged app
 - Renderer has no nodeIntegration; preload exposes only the typed API
 
 ### P0-04: Database layer — Drizzle schema v1 and migration runner
@@ -48,12 +48,12 @@ Electron app: main process, preload with contextIsolation, React renderer via Vi
 **Labels:** phase:0, pkg:db, type:infra
 **Refs:** DD-003
 **Depends on:** P0-01
-Implement full v1 schema from DD-003 (all tables, indexes, FTS5 tables, UUIDv7 PKs, `updated_at` on every table), Drizzle migration setup, DB bootstrap (app-data path, WAL mode, busy_timeout), and repository layer skeleton with typed query helpers.
+Implement the foundation schema from DD-003 (`watch_folders`, `files`, `frames`, `scan_jobs`, `settings`, `schema_migrations`), Drizzle migration setup, DB bootstrap (app-data path, WAL mode, busy_timeout), and repository layer skeleton with typed query helpers. Feature-owned tables are added by the vertical slice that first uses them.
 **Acceptance criteria:**
 
-- Migration from empty DB creates full schema; round-trip test (create → insert fixtures → query) passes
+- Migration from empty DB creates the foundation schema; round-trip test (create → insert file/frame fixtures → query) passes
 - UUIDv7 generator utility with test
-- FTS5 index populated via triggers, verified by a search test
+- Foundation indexes are created and verified by query-plan or repository tests; FTS5 is added with target/notes search slices
 - Repositories expose no raw connection to callers
 
 ### P0-05: Worker pool and persistent job queue
@@ -84,11 +84,12 @@ Assemble `fixtures/`: real FITS headers (as standalone header-only .fits files) 
 **Labels:** phase:0, type:test
 **Refs:** DD-001, DD-004; PRD §8.4
 **Depends on:** P0-04, P0-06
-Benchmark runner (Vitest bench or custom) measuring: header parse throughput, bulk DB insert rate, aggregate query latency on a synthetic 100k-frame DB. CI job fails on >20% regression against stored baselines.
+Benchmark runner (Vitest bench or custom) measuring: header parse throughput, bulk DB insert rate, aggregate query latency on a synthetic 100k-frame DB, plus hooks for realistic I/O benchmark packs. CI job fails on >20% regression against stored baselines.
 **Acceptance criteria:**
 
-- `pnpm bench` outputs results table; baselines stored in repo
+- `pnpm bench` outputs results table with p50/p95 metrics; baselines stored in repo
 - CI job compares and fails on regression; docs explain updating baselines
+- Realistic I/O benchmark pack format documented: cold/warm cache runs, HDD/external-drive assumptions, network/slow-drive notes, and degraded-mode expectations
 
 ### P0-08: Playwright E2E harness on packaged app
 
@@ -217,7 +218,7 @@ File-system watching on active folders with 30 s debounce feeding the pipeline; 
 
 **Labels:** phase:1, pkg:core, type:feat
 **Refs:** DD-005
-Build-time script compiling OpenNGC (+ Messier common names, popular Sharpless/Barnard/vdB) into a bundled lookup asset (JSON or SQLite): designations, cross-references, common names, RA/DEC, type, constellation. CC-BY-SA attribution included in app about screen data.
+Introduce the target catalog storage/asset schema needed by DD-005, then build-time script compiling OpenNGC (+ Messier common names, popular Sharpless/Barnard/vdB) into a bundled lookup asset (JSON or SQLite): designations, cross-references, common names, RA/DEC, type, constellation. CC-BY-SA attribution included in app about screen data.
 **Acceptance criteria:**
 
 - Asset contains ≥ 13,000 objects; M31 ↔ NGC 224 ↔ 'Andromeda Galaxy' cross-referenced
@@ -229,7 +230,7 @@ Build-time script compiling OpenNGC (+ Messier common names, popular Sharpless/B
 **Labels:** phase:1, pkg:core, type:feat
 **Refs:** DD-005
 **Depends on:** P1-10
-Implement DD-005 resolution: normalization, alias lookup, catalog lookup, coordinate-fallback suggestions, mosaic panel extraction. Pure functions + a resolver service that persists user aliases.
+Add `targets` and `target_aliases` migrations if not already present, then implement DD-005 resolution: normalization, alias lookup, catalog lookup, coordinate-fallback suggestions, mosaic panel extraction. Pure functions + a resolver service that persists user aliases.
 **Acceptance criteria:**
 
 - Table-driven tests: ≥ 60 name variants incl. 'M 31'/'M31'/'m-31'/'NGC224'/'Andromeda Galaxy'/'Sh2-101'/'M 31 Panel 2'
@@ -241,7 +242,7 @@ Implement DD-005 resolution: normalization, alias lookup, catalog lookup, coordi
 **Labels:** phase:1, pkg:core, type:feat
 **Refs:** DD-005
 **Depends on:** P0-04
-Data-driven raw→canonical filter mapping per DD-005 table, unknown filters become their own visible canonical entries, user merge with remembered mappings.
+Add `filters` and filter-mapping persistence, then implement data-driven raw→canonical filter mapping per DD-005 table, unknown filters become their own visible canonical entries, user merge with remembered mappings.
 **Acceptance criteria:**
 
 - Table-driven tests ≥ 30 raw variants incl. dualband filters
@@ -274,7 +275,7 @@ Targets page per DD-008: card grid + table toggle, virtualized; search (FTS) and
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-008; PRD §6.2
 **Depends on:** P1-14
-Per-target view: per-filter integration bars (DD-008 colors), session timeline, equipment used, date range, frame counts by type, status control (planning/capturing/ready/processed/complete), notes editor, linked processing projects placeholder.
+Per-target view: per-filter integration bars (DD-008 colors), session timeline, equipment used, date range, frame counts by type, status control (planning/capturing/ready/processed/complete), notes editor, linked final images placeholder.
 **Acceptance criteria:**
 
 - All PRD §6.2 dashboard elements present; renders < 1 s on a 200-session target (benchmark seed)
@@ -285,7 +286,7 @@ Per-target view: per-filter integration bars (DD-008 colors), session timeline, 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-005, DD-008
 **Depends on:** P1-11, P1-12, P1-04
-Review page listing unresolved OBJECT names (with fuzzy + coordinate suggestions), unknown frame types, unknown filters, and duplicates; bulk assignment actions; sidebar badge count.
+Review page listing unresolved OBJECT names (with fuzzy + coordinate suggestions), unknown frame types, and unknown filters; bulk assignment actions; sidebar badge count.
 **Acceptance criteria:**
 
 - Assigning an unresolved name creates alias; all matching frames re-resolve immediately and on future scans
@@ -298,7 +299,7 @@ Review page listing unresolved OBJECT names (with fuzzy + coordinate suggestions
 **Labels:** phase:1, pkg:core, type:feat
 **Refs:** DD-006; PRD §6.3
 **Depends on:** P1-07
-Pure `detectSessions()` per DD-006: astronomical-day windowing, 4 h gap splitting, equipment-profile splitting, calibration-only sessions, idempotent re-runs, manual-assignment locks respected.
+Add `sessions` persistence and assignment-lock storage, then implement pure `detectSessions()` per DD-006: astronomical-day windowing, 4 h gap splitting, equipment-profile splitting, calibration-only sessions, idempotent re-runs, manual-assignment locks respected.
 **Acceptance criteria:**
 
 - Table-driven tests: midnight-spanning night, two-run night, multi-rig night, DSLR without CCD-TEMP, calibration-only night, timezone edge (site vs system tz)
@@ -309,7 +310,7 @@ Pure `detectSessions()` per DD-006: astronomical-day windowing, 4 h gap splittin
 **Labels:** phase:1, pkg:core, pkg:db, type:feat
 **Refs:** DD-003, DD-006; PRD §6.3
 **Depends on:** P1-07
-Detect distinct TELESCOP+INSTRUME(+FOCALLEN) combos into `equipment_profiles`; fuzzy-consolidate near-identical strings as suggestions; user confirm/rename/merge UI on Equipment page with usage hours per profile.
+Add `equipment_profiles` persistence, then detect distinct TELESCOP+INSTRUME(+FOCALLEN) combos into `equipment_profiles`; fuzzy-consolidate near-identical strings as suggestions; user confirm/rename/merge UI on Equipment page with usage hours per profile.
 **Acceptance criteria:**
 
 - Same rig with minor header string drift ('EdgeHD 8' vs 'EdgeHD8') suggested as one profile, merged only on user confirm
@@ -326,27 +327,28 @@ Calendar heat-map + list; detail view: targets, filter/exposure breakdown, equip
 - E2E: seeded multi-night library shows correct session grouping; merge/split persists across rescan
 - All PRD §6.3 detail elements render; absent header data degrades gracefully
 
-### P1-20: Calibration matching engine
+### P1-20: Calibration gap detection and ranked suggestions
 
 **Labels:** phase:1, pkg:core, type:feat
 **Refs:** DD-006; PRD §6.4
 **Depends on:** P1-17
-Implement `matchCalibration()` per DD-006: hard filters per master type, soft scoring (temp closeness, recency, sub count), flat staleness decay, per-target/session status (complete/partial/stale/missing), camera-type-aware "needed set" rules.
+Implement v1 `matchCalibration()` per DD-006: conservative hard filters by master type, simple ranked suggestions, gap flags, flat staleness warnings, and per-target/session status (complete/partial/stale/missing). Defer provenance editing, superseded-master lifecycle, exposure-scaled darks, and advanced camera-type-specific needed-set rules to v1.x.
 **Acceptance criteria:**
 
-- Table-driven tests per DD-006 matrix: mono+FW, OSC, DSLR (no set-point), dualband, tolerance boundaries (±2 °C edges), stale flats
-- Deterministic ranking; manual assignment respected on re-match
+- Table-driven tests per DD-006 matrix: mono+FW, OSC+dualband, tolerance boundaries (±2 °C edges), stale flats, missing masters
+- Deterministic ranking with visible reason fields; manual suggestion override respected on re-match
 
-### P1-21: Master frame library and provenance
+### P1-21: Master frame candidate library
 
 **Labels:** phase:1, pkg:desktop, pkg:db, type:feat
 **Refs:** DD-003; PRD §6.4
 **Depends on:** P1-20
-Detect master frames (IMAGETYP master variants or user designation); Calibration page: masters grouped by camera/type with properties; record/edit which raw subs built each master (`master_frame_subs`); mark superseded masters.
+Add a minimal `master_frames` migration, then detect master-frame candidates (IMAGETYP master variants or user designation). Calibration page groups masters by camera/type and shows the properties used by matching. Do not include raw-sub provenance editing or superseded-master lifecycle in v1.0.
 **Acceptance criteria:**
 
 - Masters auto-detected from fixture headers; manual designation flow works
-- Provenance view lists sub frames; superseded masters excluded from matching by default
+- Master detail shows matching-relevant properties and which suggestions use it
+- No action deletes, modifies, or marks source image files as superseded
 
 ### P1-22: Calibration gap report and status indicators
 
@@ -370,29 +372,31 @@ Rich-text-lite (markdown) notes on sessions with weather/equipment-issue quick t
 - Notes persist, render markdown, searchable from global search
 - Quick tags filterable on Sessions page
 
-### Projects, stats, polish (M5)
+### Retrieval, stats, polish (M5)
 
-### P1-24: Processing projects
-
-**Labels:** phase:1, pkg:desktop, pkg:db, type:feat
-**Refs:** DD-003, DD-008; PRD §6.5
-**Depends on:** P1-15, P1-21
-Create project for a target; select input lights (by session/filter selection) and calibration masters; status kanban (in-progress/complete/abandoned); processing notes (software, steps, parameters); version labels ("M31 v2 – added Ha").
-**Acceptance criteria:**
-
-- E2E: create project from target detail, select inputs, move through statuses
-- Version history listed on target detail; inputs remain linked if files move (via P1-08 move detection)
-
-### P1-25: Processed image linking
+### P1-24: Lightweight final image linking
 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** PRD §6.5
-**Depends on:** P1-24
-Attach final TIFF/PNG/JPG to a project (file picker or detected in watch folders); mark one as target hero image; trace-back view: final image → project → sessions → frames → calibration masters.
+**Depends on:** P1-15
+Add a minimal `processed_images` or target-linked final-image table, then attach a final TIFF/PNG/JPG path directly to a target as an optional reference image; mark one linked image as the target hero. This is deliberately not a processing-project tracker.
 **Acceptance criteria:**
 
-- Hero image shows on target card/detail; trace-back view navigates full chain (E2E)
-- Finals excluded from light-frame statistics
+- Hero image shows on target card/detail when present
+- Linked final images are excluded from light-frame statistics
+- Removing the link never deletes or modifies the image file
+
+### P1-25: File collection and processing handoff
+
+**Labels:** phase:1, pkg:desktop, type:feat
+**Refs:** PRD §6.5
+**Depends on:** P1-14, P1-19
+Selection flows for collecting source files by target, session, filter, frame type, equipment, and date range; copy absolute paths for PixInsight/Siril handoff and reveal selected files in Finder/Explorer.
+**Acceptance criteria:**
+
+- E2E: select M31 Ha light frames across sessions and copy newline-separated absolute paths
+- Reveal-in-Finder/Explorer works for selected files without modifying them
+- Missing files are clearly marked and omitted from copied path lists unless explicitly included
 
 ### P1-26: FITS/XISF thumbnail generation (Stage 5b)
 
@@ -439,7 +443,19 @@ Export targets, sessions, frames, and statistics rollups as CSV and JSON to user
 - Exports re-import cleanly into a spreadsheet (schema test: headers, escaping, UTF-8 BOM for Excel)
 - JSON validates against a published schema file in repo
 
-### P1-30: Onboarding flow and empty states
+### P1-30: Duplicate review workflow
+
+**Labels:** phase:1, pkg:desktop, type:feat
+**Refs:** DD-004, DD-008; PRD §6.1
+**Depends on:** P1-08
+Review queue section for duplicate files after background hashing has identified them: canonical file display, duplicate groups, missing/moved-file context, and safe catalog-only resolution actions.
+**Acceptance criteria:**
+
+- Duplicate groups show deterministic canonical selection and all duplicate paths
+- User can mark a duplicate as ignored/accepted without deleting or modifying source files
+- E2E: seeded duplicate files appear in duplicate review only after hashing completes
+
+### P1-31: Onboarding flow and empty states
 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-008
@@ -450,7 +466,7 @@ First-run wizard per DD-008 (welcome → watch folder → live scan preview → 
 - E2E: fresh app-data → wizard → scan → dashboard populated
 - Every nav page has a designed empty state (visual snapshot tests)
 
-### P1-31: Settings, theming, and free-tier limit
+### P1-32: Settings, theming, and free-tier limit
 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-008; PRD §11
@@ -463,32 +479,44 @@ Settings page consolidating: watch folders, tolerances, session gap, timezone/si
 
 ### Release (M6)
 
-### P1-32: Performance validation and optimization pass
+### P1-33: Performance validation and optimization pass
 
 **Labels:** phase:1, type:test
 **Refs:** PRD §8.4
 **Depends on:** P1-27, P1-28
-Run full benchmark suite against PRD targets on reference Win + mac hardware; profile and fix the top bottlenecks; document results.
+Run full benchmark suite against PRD targets on reference Win + mac hardware, including the realistic I/O benchmark pack; profile and fix the top bottlenecks; document results and degraded-mode behavior.
 **Acceptance criteria:**
 
-- 10k-file scan < 5 min; 100k library load < 3 s; target dashboard < 1 s; thumbnails ≥ 50/s — all evidenced in a committed benchmark report
+- 10k-file scan < 5 min; 100k library load < 3 s; target dashboard < 1 s; thumbnails ≥ 50/s — all evidenced in a committed benchmark report with p50/p95, cold/warm cache runs, and storage assumptions
 - CI baselines updated
+- Slow external drive/network share behavior documented, including watcher fallback, throttling, and user-facing degraded-mode messaging
 
-### P1-33: Code signing, notarization, auto-update
+### P1-34: CI package artifact workflow
 
 **Labels:** phase:1, pkg:desktop, type:infra
 **Depends on:** P0-03
+Wire the manual packaging workflow to build the packaged app on `windows-latest` and `macos-latest`, then upload the produced `.exe` and `.dmg` artifacts. This is separate from P0-03, which proves local packaging and native-module loading only.
+**Acceptance criteria:**
+
+- Manual-dispatch workflow runs `pnpm install && pnpm package` on Windows and macOS
+- Workflow uploads Windows `.exe` and macOS `.dmg` artifacts from `packages/desktop/release/`
+- Packaging workflow failures are visible but do not block ordinary feature PR CI unless explicitly enabled
+
+### P1-35: Code signing, notarization, auto-update
+
+**Labels:** phase:1, pkg:desktop, type:infra
+**Depends on:** P1-34
 Windows code signing, macOS notarization, electron-updater against GitHub Releases with staged rollout channel (beta/stable).
 **Acceptance criteria:**
 
 - Signed installers install without OS warnings on both platforms
 - Beta-channel build auto-updates to a newer beta release (verified manually, process documented)
 
-### P1-34: v1.0 release — docs, website copy, beta feedback triage
+### P1-36: v1.0 release — docs, website copy, beta feedback triage
 
 **Labels:** phase:1, type:docs
-**Depends on:** P1-30, P1-31, P1-32, P1-33
-User documentation (getting started, folder scanning, calibration matching concepts, FAQ), in-app help links, release notes, README polish, triage of closed-beta feedback into labeled backlog issues.
+**Depends on:** P1-31, P1-32, P1-33, P1-35
+User documentation (getting started, folder scanning, file retrieval/handoff, calibration matching concepts, FAQ), in-app help links, release notes, README polish, triage of closed-beta feedback into labeled backlog issues.
 **Acceptance criteria:**
 
 - Docs published (repo /docs or site); every MVP feature covered
@@ -506,6 +534,47 @@ A `.pxiproject` bundle's `project.xosm` file is well-formed XML (PixInsight's "X
 - Malformed/truncated XML → structured error, never throws/hangs; a size bound prevents unbounded reads on corrupt input
 - Never reads any `project.data/*` file — verified by a mock-reader/fs-spy test
 - Projects without an astrometric solution (never plate-solved) parse cleanly with that field absent, not an error
+
+---
+
+## Phase 1.x — Processing Workflow Tracking
+
+These tasks are deliberately outside v1.0. They build on the useful archive/retrieval product after scanning, organization, calibration gaps, and processing handoff are working well on real libraries.
+
+### P1x-01: Processing projects
+
+**Labels:** phase:1.x, pkg:desktop, pkg:db, type:feat
+**Refs:** DD-003, DD-008; PRD §6.5
+**Depends on:** P1-24, P1-25, P1-21
+Add `processing_projects`, `project_frame_inputs`, and `project_master_frame_inputs` migrations. Create project for a target; select input lights and calibration masters; status kanban (in-progress/complete/abandoned); processing notes (software, steps, parameters); version labels ("M31 v2 - added Ha").
+**Acceptance criteria:**
+
+- E2E: create project from target detail, select inputs, move through statuses
+- Version history listed on target detail; inputs remain linked if files move (via P1-08 move detection)
+
+### P1x-02: Processing trace-back view
+
+**Labels:** phase:1.x, pkg:desktop, type:feat
+**Refs:** PRD §6.5
+**Depends on:** P1x-01
+Extend linked final images so each can attach to a processing project and navigate final image -> project -> sessions -> frames -> calibration masters.
+**Acceptance criteria:**
+
+- Trace-back view navigates the full chain from a final image to source data
+- Existing v1 target-level final-image links migrate cleanly into project-linked images when assigned
+
+### P1x-03: Advanced calibration management
+
+**Labels:** phase:1.x, pkg:core, pkg:desktop, pkg:db, type:feat
+**Refs:** DD-003, DD-006, DD-008; PRD §6.4
+**Depends on:** P1-20, P1-21, P1-22
+Add the calibration-management behavior intentionally deferred from v1.0: raw-sub provenance editing (`master_frame_subs`), superseded-master lifecycle, exposure-scaled dark suggestions, and advanced camera-type-specific needed-set rules.
+**Acceptance criteria:**
+
+- Provenance view lists and edits the raw calibration subs used to build each master
+- Superseded masters are excluded from default suggestions but remain visible and reversible
+- Exposure-scaled darks are clearly labeled as scaled and ranked below exact matches
+- Camera-type rules are data-driven, user-overridable, and covered for DSLR, OSC, mono+filterwheel, and set-point cooled cameras
 
 ---
 
@@ -648,7 +717,7 @@ Heuristic guidance table: suggested total integration per target type per Bortle
 **Labels:** phase:2, pkg:cloud, pkg:desktop, type:feat
 **Refs:** DD-007; PRD §11
 **Depends on:** P2-02
-Stripe subscriptions (Pro $59/yr, $7/mo; Team $149/yr per PRD), entitlement API, desktop entitlement cache with 14-day offline grace, free-tier limit enforcement wiring (P1-31 flag), upgrade flows.
+Stripe subscriptions (Pro $59/yr, $7/mo; Team $149/yr per PRD), entitlement API, desktop entitlement cache with 14-day offline grace, free-tier limit enforcement wiring (P1-32 flag), upgrade flows.
 **Acceptance criteria:**
 
 - Stripe test-mode E2E: subscribe → entitlement active on desktop; cancel → downgrade after period
@@ -720,7 +789,7 @@ Projects page gains 'Team' scope: shared target progress (combined per-filter in
 
 **Labels:** phase:3, pkg:desktop, type:feat
 **Refs:** PRD §7 Phase 3
-**Depends on:** P1-25
+**Depends on:** P1x-02
 Link processed images to AstroBin entries (OAuth or API key per AstroBin API): push acquisition details (integration per filter, equipment, dates) to pre-fill AstroBin technical card; store backlink.
 **Acceptance criteria:**
 

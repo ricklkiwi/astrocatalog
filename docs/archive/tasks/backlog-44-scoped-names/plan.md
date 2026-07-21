@@ -46,7 +46,7 @@ Not touched (verified, reasons noted):
   `packages/core/src/**/*.ts` (a path), not a package name. No change needed.
 - `tsconfig.base.json` / per-package `tsconfig.json` — no TS project references or path
   mappings key off package names (each just `extends` the base by relative path).
-- `docs/plans/p0-01-monorepo-init.md`, `docs/specs/p0-01-monorepo-init.md` — historical
+- `docs/archive/tasks/p0-01-monorepo-init/plan.md`, `docs/archive/tasks/p0-01-monorepo-init/spec.md` — historical
   record of already-completed issue P0-01; they document what the dependency graph looked
   like at that time using the old bare names. Left as-is (see Out of Scope).
 
@@ -134,7 +134,7 @@ Not touched (verified, reasons noted):
 - Renaming the Vitest project names in `vitest.workspace.ts` (`'core'`, `'db'`, `'desktop'`,
   `'renderer'`) — these are display labels tied to `root` paths, not collision-prone npm
   identifiers; leaving them unscoped carries no risk and renaming is cosmetic.
-- Editing `docs/plans/p0-01-monorepo-init.md` or `docs/specs/p0-01-monorepo-init.md` to
+- Editing `docs/archive/tasks/p0-01-monorepo-init/plan.md` or `docs/archive/tasks/p0-01-monorepo-init/spec.md` to
   reflect the new names — these are historical records of a already-completed, already-merged
   issue (P0-01) and describe the state of the repo as it was at that time; rewriting history
   docs is not part of this rename.
@@ -149,4 +149,4 @@ Not touched (verified, reasons noted):
 
 None.
 
-Plan written: docs/plans/backlog-44-scoped-names.md — 5 steps
+Plan written: docs/archive/tasks/backlog-44-scoped-names/plan.md — 5 steps
