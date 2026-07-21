@@ -17,7 +17,7 @@ import {
 
 export interface BenchMetric {
   name: string;
-  unit: 'rows/sec' | 'queries/sec' | 'headers/sec';
+  unit: 'rows/sec' | 'queries/sec' | 'headers/sec' | 'files/sec';
   value: number;
   higherIsBetter: true;
   samples: number[];

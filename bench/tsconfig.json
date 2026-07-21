@@ -1,7 +1,14 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
+    // No `rootDir`: this is a `noEmit` typecheck (tsx/vitest run the sources
+    // directly), and the DD-004 scan benchmark imports the pure, Electron-free
+    // production `runScanJob` from `packages/desktop/src` by relative source
+    // path. An explicit `rootDir` would reject that cross-package source file
+    // (TS6059) even though nothing is emitted; without it the typecheck simply
+    // includes the reachable source. Only `scan-job.ts` + its type-only
+    // `protocol.ts`/`job-context.ts` are pulled in — never `pool.ts` or the
+    // electron-vite `worker-entry?modulePath` import.
     "noEmit": true,
     "declaration": false,
     "declarationMap": false,
