@@ -35,6 +35,20 @@ export {
   type XisfProperty,
   type XisfReader,
 } from './xisf/index.js';
+export {
+  cameraInstrument,
+  extractCr3TiffBlocks,
+  looksLikeCr3,
+  normalizeDateObs,
+  parseRawHeader,
+  toFrameMetadata as rawToFrameMetadata,
+  type RawErrorCode,
+  type RawHeader,
+  type RawKeywords,
+  type RawParseError,
+  type RawParseResult,
+  type RawValue,
+} from './raw/index.js';
 
 export const coreVersion = '0.1.0';
 

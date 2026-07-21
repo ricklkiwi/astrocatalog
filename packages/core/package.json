@@ -17,5 +17,7 @@
     "lint": "eslint src && prettier --check src",
     "test": "vitest run --dir src"
   },
-  "dependencies": {}
+  "dependencies": {
+    "exifr": "^7.1.3"
+  }
 }
