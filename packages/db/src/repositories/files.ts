@@ -53,6 +53,15 @@ export interface FilesRepository extends CrudRepository<typeof files> {
    * out-of-band). Never deletes rows. Returns the updated rows.
    */
   markMissingNotSeenSince(watchFolderId: string, cutoff: Date): FileRecord[];
+  /** Every file row under `watchFolderId` (used to build the P1-07 incremental-skip snapshot). */
+  listByWatchFolder(watchFolderId: string): FileRecord[];
+  /**
+   * Record a Stage-2 parse error on a file row, or clear it (pass `null`) on a
+   * successful (re-)parse — DD-004 "Parse errors recorded on the file row"
+   * (P1-07). Re-stamps `updated_at`. Returns the updated row, or `undefined`
+   * if no row has that id.
+   */
+  recordParseError(fileId: string, error: string | null): FileRecord | undefined;
 }
 
 export function createFilesRepository(db: DrizzleDb): FilesRepository {
@@ -87,6 +96,7 @@ export function createFilesRepository(db: DrizzleDb): FilesRepository {
           lastSeenAt: seenAt,
           status: 'present' as const,
           duplicateOfId: null,
+          parseError: null,
         };
         const inserted = db.insert(files).values(row).returning().get();
         return { file: inserted, isNew: true, changed: true, wasRestored: false };
@@ -158,6 +168,19 @@ export function createFilesRepository(db: DrizzleDb): FilesRepository {
         )
         .returning()
         .all();
+    },
+
+    listByWatchFolder(watchFolderId: string): FileRecord[] {
+      return db.select().from(files).where(eq(files.watchFolderId, watchFolderId)).all();
+    },
+
+    recordParseError(fileId: string, error: string | null): FileRecord | undefined {
+      return db
+        .update(files)
+        .set({ parseError: error, updatedAt: new Date() })
+        .where(eq(files.id, fileId))
+        .returning()
+        .get();
     },
   };
 }

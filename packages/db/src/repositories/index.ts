@@ -22,6 +22,7 @@ import type { FramesListFilter, FramesRepository } from './frames.js';
 import type { MasterFramesRepository } from './master-frames.js';
 import type { ProjectsRepository } from './projects.js';
 import type {
+  CounterDelta,
   EnqueueJobInput,
   JobStatus,
   ProgressUpdate,
@@ -83,6 +84,7 @@ export type {
   EquipmentProfilesRepository,
   MasterFramesRepository,
   ProjectsRepository,
+  CounterDelta,
   EnqueueJobInput,
   JobStatus,
   ProgressUpdate,

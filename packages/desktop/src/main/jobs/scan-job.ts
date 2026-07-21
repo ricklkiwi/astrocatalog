@@ -1,28 +1,40 @@
 /**
- * The `'scan'` job's directory-walk logic (P1-06 Stage 1 of the DD-004
- * pipeline). A plain async function with an injected `ctx`, so it's
- * unit-testable directly against a real temp dir with no `worker_threads`
- * instance. `worker-entry.ts` is the only production caller, wiring `ctx` to
- * real `postMessage` calls and the `cancelled` flag.
+ * The `'scan'` job: directory walk (DD-004 Stage 1, P1-06) plus inline
+ * header-parse + classify (DD-004 Stages 2–3, P1-07). A plain async function
+ * with an injected `ctx`, so it's unit-testable directly against a real temp
+ * dir with no `worker_threads` instance. `worker-entry.ts` is the only
+ * production caller, wiring `ctx` to real `postMessage` calls and the
+ * `cancelled` flag.
  *
- * fs-using but **read-only** (`readdir`/`lstat`/`stat` only — never write,
- * move, rename, or delete: CLAUDE.md non-destructive guarantee) and DB-free
- * (never imports `@astrotracker/db`; the walker reports discovered files up
- * over `ctx.reportDiscovered`, and the main process is the sole SQLite
- * writer — DD-002 Default 3). DD-002's "no fs side effects in domain logic"
- * bans fs in `packages/core`; a desktop-package worker doing fs *reads* is
- * exactly what the P0-05 pool exists for.
+ * fs-using but **read-only** (`readdir`/`stat` and bounded header reads via
+ * `open()`+`read()` — never write, move, rename, or delete: CLAUDE.md
+ * non-destructive guarantee) and DB-free (never imports `@astrotracker/db`;
+ * the walker reports discovered files — with their parse result or parse
+ * error — up over `ctx.reportDiscovered`, and the main process is the sole
+ * SQLite writer, DD-002 Default 3). The Stage-2/3 work itself is done by
+ * `@astrotracker/core`'s pure `parseAndClassifyFile` (no fs, no DB); this
+ * worker only owns the file I/O feeding it, exactly what the P0-05 pool exists
+ * for.
+ *
+ * Incremental (DD-004): a file is parsed only if it's new or its size/mtime
+ * changed since the orchestrator's `knownFiles` snapshot. An unchanged file is
+ * reported with its Stage-1 stat facts only (no `parsed`/`parseError`), so the
+ * orchestrator leaves its existing `frames` row untouched — a rescan of an
+ * unchanged tree performs zero re-parses.
  *
  * Single-pass walk (no separate counting pass — that would double I/O and
- * fight DD-004's "10k files < 5min" budget that P1-07 inherits), so progress
- * `total` is genuinely indeterminate (`null`).
+ * fight DD-004's "10k files < 5min" budget), so progress `total` is genuinely
+ * indeterminate (`null`).
  */
 import type { Dirent } from 'node:fs';
-import { readdir, stat } from 'node:fs/promises';
+import type { FileHandle } from 'node:fs/promises';
+import { open, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
+import { parseAndClassifyFile, type BoundedReader } from '@astrotracker/core';
+
 import type { JobContext } from './job-context.js';
-import type { DiscoveredFile, ScanJobPayload } from './protocol.js';
+import type { DiscoveredFile, KnownFileStat, ScanJobPayload } from './protocol.js';
 
 /** Target discovered-file batch size before flushing to `ctx.reportDiscovered`. */
 const BATCH_SIZE = 200;
@@ -53,6 +65,7 @@ export async function runScanJob(payload: ScanJobPayload, ctx: JobContext): Prom
   const skipNames = new Set(
     [...ALWAYS_SKIP, ...(payload.skipPatterns ?? [])].map((name) => name.toLowerCase()),
   );
+  const knownFiles = payload.knownFiles ?? {};
 
   const batch: DiscoveredFile[] = [];
   let cumulativeCount = 0;
@@ -135,13 +148,32 @@ export async function runScanJob(payload: ScanJobPayload, ctx: JobContext): Prom
         continue;
       }
 
-      batch.push({
-        relativePath: toPosixRelative(payload.rootPath, fullPath),
+      const relativePath = toPosixRelative(payload.rootPath, fullPath);
+      // Truncate to integer ms: the `files.file_mtime` column stores epoch-ms
+      // Date, so sub-ms precision (APFS/ext4 report nanoseconds via mtimeMs)
+      // would round-trip lossily and make the incremental size/mtime match
+      // below spuriously fail on rescan — forcing a needless re-parse. Compare
+      // at the same granularity the DB persists.
+      const fileMtimeMs = Number.isFinite(stats.mtimeMs) ? Math.floor(stats.mtimeMs) : null;
+      const discovered: DiscoveredFile = {
+        relativePath,
         filename: name,
         extension,
         sizeBytes: stats.size,
-        fileMtimeMs: Number.isFinite(stats.mtimeMs) ? stats.mtimeMs : null,
-      });
+        fileMtimeMs,
+      };
+
+      // Incremental skip (DD-004): only new/changed files reach Stages 2–3.
+      if (!isUnchanged(knownFiles[relativePath], stats.size, fileMtimeMs)) {
+        const outcome = await parseDiscoveredFile(fullPath, extension, relativePath);
+        if (outcome.parseError !== undefined) {
+          discovered.parseError = outcome.parseError;
+        } else {
+          discovered.parsed = outcome.parsed;
+        }
+      }
+
+      batch.push(discovered);
       cumulativeCount += 1;
 
       if (batch.length >= BATCH_SIZE) {
@@ -152,6 +184,67 @@ export async function runScanJob(payload: ScanJobPayload, ctx: JobContext): Prom
 
   // Flush the partial final batch.
   flush();
+}
+
+/**
+ * True when a walked file's on-disk size/mtime match its snapshot entry — the
+ * DD-004 "re-parse only if size or mtime changed" test. A file absent from the
+ * snapshot (`known === undefined`) is new, hence never unchanged.
+ */
+function isUnchanged(
+  known: KnownFileStat | undefined,
+  sizeBytes: number,
+  fileMtimeMs: number | null,
+): boolean {
+  if (known === undefined) {
+    return false;
+  }
+  return known.sizeBytes === sizeBytes && known.fileMtimeMs === fileMtimeMs;
+}
+
+/** Outcome of a single file's Stage-2/3 attempt: exactly one field is set. */
+type ParseOutcome =
+  | { parsed: DiscoveredFile['parsed']; parseError?: undefined }
+  | { parseError: string; parsed?: undefined };
+
+/**
+ * Header-parse + classify one new/changed file (DD-004 Stages 2–3). Opens the
+ * file read-only and hands `@astrotracker/core`'s pure `parseAndClassifyFile`
+ * a bounded reader backed by the file descriptor — FITS/XISF pull header
+ * blocks on demand, RAW pulls a single bounded prefix — so the pixel payload
+ * is never read (DD-004 header-only). Any fs error (unreadable/vanished file)
+ * is caught and surfaced as a `parseError` string, never thrown: one bad file
+ * must not abort the batch (DD-004 error isolation).
+ */
+async function parseDiscoveredFile(
+  fullPath: string,
+  extension: string,
+  relativePath: string,
+): Promise<ParseOutcome> {
+  let handle: FileHandle | undefined;
+  try {
+    handle = await open(fullPath, 'r');
+    const fd = handle;
+    const read: BoundedReader = async (offset, length) => {
+      const buffer = Buffer.allocUnsafe(length);
+      const { bytesRead } = await fd.read(buffer, 0, length, offset);
+      return buffer.subarray(0, bytesRead);
+    };
+    const result = await parseAndClassifyFile(extension, read, relativePath);
+    if (result.status === 'error') {
+      return { parseError: `${result.errorCode}: ${result.message}` };
+    }
+    return { parsed: result.frame };
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : String(caught);
+    return { parseError: `READ_ERROR: ${message}` };
+  } finally {
+    if (handle !== undefined) {
+      // Closing can itself throw on an already-broken handle — never let that
+      // abort the walk (non-destructive read path).
+      await handle.close().catch(() => undefined);
+    }
+  }
 }
 
 /** Lowercased extension without leading dot, or `null` if the name has no extension. */
