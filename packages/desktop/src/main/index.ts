@@ -24,6 +24,17 @@ import { broadcastIpcEvent, toIpcJobProgressEvent } from './ipc/broadcast.js';
 import { createIpcHandlers, registerIpcHandlers } from './ipc/register.js';
 import { runNativeSmoke } from './native-smoke.js';
 
+// Packaged builds already get this from electron-builder's `productName`
+// (read from the bundle's metadata before this module runs). Unpackaged
+// `pnpm dev` has no such metadata, so Electron falls back to the nearest
+// package.json's `name` — the scoped `@astrotracker/desktop`, which macOS
+// treats the `/` in as a path separator, splitting `app.getPath('userData')`
+// into a nested `@astrotracker/desktop/` folder instead of `AstroTracker/`.
+// Setting it explicitly keeps the userData location (and therefore
+// astrotracker.db's path) identical between `pnpm dev` and a packaged build.
+// Must run before any `app.getPath(...)` call, which caches the resolved path.
+app.setName('AstroTracker');
+
 /** Set by electron-vite dev; absent in packaged/preview builds. */
 const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
 let database: AstroDatabase | undefined;
