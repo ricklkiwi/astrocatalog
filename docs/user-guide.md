@@ -13,9 +13,11 @@ silently drift into describing features that don't exist yet as if they do.
 
 ## What Works Today
 
-AstroTracker is pre-development: the monorepo, CI, database schema/repositories, and the Electron
-shell exist, but none of the cataloging features below are implemented yet. Running the app today
-shows a single diagnostic screen, not a real catalog.
+AstroTracker is early Phase 1: the monorepo, CI, database schema/repositories, and the Electron
+shell exist, and the file-discovery/parsing/hashing pipeline (P1-01–P1-08) now runs end-to-end —
+but there is still no catalog UI (no Dashboard/Targets/Sessions/Review Queue) to browse what it
+found. Running the app today lets you scan a real library and watch it get indexed, but you can't
+yet look at the results without opening the SQLite database directly (see below).
 
 ### Running it
 
@@ -26,7 +28,7 @@ pnpm dev             # launches the Electron app with hot reload
 
 ### What you'll see
 
-A single window with two things on it:
+A single window with three things on it:
 
 1. **Version info** — a table of the app, Electron, Chrome, Node, platform, SQLite, and `sharp`
    versions, fetched from the Electron main process over the typed IPC bridge. This exists as
@@ -34,14 +36,48 @@ A single window with two things on it:
    both actually work — not a real feature.
 2. **Worker demo** — a "Start demo job" button that enqueues a fake background job on the worker
    pool and shows a live progress bar (via `jobs.progress` IPC events) until it finishes, plus a
-   "Cancel" button to cancel it mid-run. This proves the background job/worker-pool
-   infrastructure that real scanning and thumbnailing will later run on — it doesn't scan or
-   process any real files.
+   "Cancel" button to cancel it mid-run. Proves the background job/worker-pool infrastructure
+   real scanning runs on; doesn't touch any real files itself.
+3. **Watch folders** — add a folder by absolute path and scan it. This is real: it walks your
+   actual files, parses their headers, and hashes them. See "Running it over your own library"
+   below.
 
-There is currently no way to point AstroTracker at a folder of FITS/XISF/RAW files, no target or
-session catalog, and no calibration matching — that's all Phase 1 work tracked in
-[`planning/task-breakdown.md`](../planning/task-breakdown.md) and the repo's
-[Issues](../../../issues).
+### Running it over your own library
+
+1. Launch the app (`pnpm dev`, or a packaged build — see below).
+2. Under **Watch folders**, type the absolute path to a folder of captures (e.g.
+   `/Users/you/Astrophotography/Lights`) into **Folder path** and click **Add folder**.
+3. Click **Scan now** next to the folder you just added. A live label next to it tracks progress
+   (`running: NN%` while the file count is known, `running: working` while still walking).
+4. What happens, automatically, in order:
+   - **Discovery (Stage 1):** recursively walks the folder, skipping hidden/dot-prefixed entries
+     and `node_modules`, matching by extension — `fits`/`fit`/`fts`, `xisf`, `cr2`/`cr3`/`nef`/
+     `arw`/`dng`. Every match becomes a `files` row (path, size, modified time).
+   - **Parse + classify (Stages 2–3):** each new or changed file gets a header-only read (FITS
+     2880-byte blocks / XISF XML header / RAW EXIF — never the pixel data) and is classified as
+     light/dark/flat/bias/darkflat/unknown, inline with the same scan.
+   - **Background hashing + duplicates (Stage 5a):** once the scan settles, a low-priority
+     background pass SHA-256-hashes files (yielding to any new scan you start), and marks exact
+     content duplicates — the earliest-discovered copy is kept as canonical, later copies are
+     flagged `duplicate` and linked to it.
+   - **Rescans are incremental and safe:** unchanged files (same size + mtime) aren't re-parsed.
+     If a drive is disconnected, its files are marked `missing`, never deleted; reconnecting and
+     rescanning restores them. A file moved to a new path is detected by content hash and
+     re-linked in place (its history isn't lost).
+   - Nothing is ever written to, moved, or deleted on your original files — everything above is a
+     read-only pass into the app's own SQLite catalog.
+5. **There is no results UI yet.** To see what got cataloged, open the app's SQLite database
+   directly with any SQLite browser/CLI:
+   - macOS: `~/Library/Application Support/AstroTracker/astrotracker.db`
+   - Windows: `%APPDATA%/AstroTracker/astrotracker.db`
+
+   Relevant tables: `watch_folders`, `files` (`status`: `present`/`missing`/`duplicate`;
+   `sha256`/`duplicate_of_id` once hashed), `frames` (parsed metadata, one row per image file),
+   `scan_jobs` (progress/counters for each scan or hash pass).
+
+There is still no target or session catalog and no calibration matching in the UI — that's
+ongoing Phase 1 work tracked in [`planning/task-breakdown.md`](../planning/task-breakdown.md) and
+the repo's [Issues](../../../issues).
 
 ### Packaged builds
 
@@ -49,8 +85,8 @@ session catalog, and no calibration matching — that's all Phase 1 work tracked
 `packages/desktop/release/`. Unsigned means Gatekeeper will call it "damaged" or from an
 "unidentified developer" on first launch — right-click → Open, or run
 `xattr -dr com.apple.quarantine /Applications/AstroTracker.app`. Code signing lands in P1-35. A
-packaged build shows the same version/worker-demo screen as `pnpm dev` — packaging status, not
-feature status.
+packaged build shows the same screen described above (version info, worker demo, watch folders) as
+`pnpm dev` — packaging status, not feature status.
 
 ---
 
