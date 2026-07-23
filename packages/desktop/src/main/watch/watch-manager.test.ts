@@ -278,6 +278,33 @@ describe('watcher-limit-enters-fallback', () => {
       expect(h.enqueueScan).toHaveBeenCalledOnce();
     }
   });
+
+  it('still fires its own fallback rescan even while an unrelated manually-triggered scan is in flight for the folder (no dedup)', () => {
+    const h = makeHarness();
+    h.manager.start([{ id: 'wf-1', rootPath: '/mnt/astro', enabled: true }]);
+    completeLastScan(h, 'wf-1'); // clear WatchManager's own in-flight tracking
+    const watcher = latestWatcher(h, '/mnt/astro');
+
+    // A manually-triggered "Scan now" job independently in flight for this
+    // folder — WatchManager never enqueued it, so it has no way to know
+    // (JobProgressEvent carries no watchFolderId, per plan Edge Cases).
+    h.fireJobEvent({
+      jobId: 'manual-scan-77',
+      jobType: 'scan',
+      status: 'running',
+      current: 1,
+      total: 10,
+      message: null,
+    });
+
+    h.enqueueScan.mockClear();
+    watcher.emit('error', Object.assign(new Error('boom'), { code: 'EMFILE' }));
+    expect(watcher.closeCalls).toBe(1);
+
+    vi.advanceTimersByTime(h.fallbackRescanIntervalMs);
+    // Fires regardless of the unrelated manual scan still "running" — both may fire.
+    expect(h.enqueueScan).toHaveBeenCalledOnce();
+  });
 });
 
 describe('enoent-does-not-enter-fallback', () => {
