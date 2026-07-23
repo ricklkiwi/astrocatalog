@@ -57,6 +57,16 @@ describe('createIgnoredPredicate', () => {
  * fake — the fake in `watch-manager.test.ts` only proves `WatchManager`
  * *consumes* `ready()` correctly, not that the real adapter implements it
  * correctly).
+ *
+ * Uses a plain `mkdtempSync(tmpdir())` path, not a pre-canonicalized one —
+ * deliberately exercising `createChokidarWatcher`'s own `toWatchablePath`
+ * normalization (see `chokidar-watcher.ts`), which is what keeps this block
+ * from crashing the whole vitest worker on Windows CI (a native
+ * `fs-event.c` assertion when the OS hands back a differently-cased/8.3
+ * short-name form of the watched directory than what was passed in — see
+ * that function's doc comment for the full explanation). If this block ever
+ * starts failing that way again, the regression is in `toWatchablePath`,
+ * not in this test.
  */
 describe('createChokidarWatcher — ready()', () => {
   let dir: string | undefined;

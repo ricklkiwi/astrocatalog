@@ -11,6 +11,7 @@
  * existing, unmodified `scan-job.ts` walker, triggered later via
  * `WatchManager`'s debounced `enqueueScan`.
  */
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 
 import { SUPPORTED_EXTENSION_SET } from '@astrotracker/core';
@@ -23,6 +24,41 @@ import type { WatcherFactory, WatcherFactoryOptions, WatcherLike } from './types
  * same baked-in default `scan-job.ts` applies.
  */
 const ALWAYS_SKIP = ['node_modules'];
+
+/**
+ * Resolves `rootPath` to its OS-canonical form before it's handed to
+ * chokidar's native fs-event backend, Windows-only (P1-09 CI fix). Windows
+ * can hand back a directory in an 8.3 short-name form (e.g. a CI runner's
+ * `RUNNER~1` alias for `runneradmin`) that doesn't case-insensitively match
+ * the long-form path libuv later reports for an event under it — tripping a
+ * native assertion (`fs-event.c:72`) that crashes the whole process, not
+ * just the one watch. `realpathSync.native` resolves that 8.3 aliasing the
+ * same way `GetFinalPathNameByHandle` would.
+ *
+ * Deliberately gated to `win32`: chokidar constructs every event's `filePath`
+ * by joining the exact root it was given, so canonicalizing also changes
+ * what callers see in `on('add'|'change'|'unlink', filePath)` (e.g. resolves
+ * macOS's `/var` → `/private/var` symlink) — a real, if usually harmless,
+ * behavior change. `WatchManager` never reads these paths (they only trigger
+ * `scheduleDebounce`; the actual catalog walk is `scan-job.ts` re-rooted from
+ * the DB's stored `folder.path`), so it's safe everywhere, but there's no
+ * reason to pay for the surprise on platforms that don't have this bug.
+ *
+ * Falls back to the original `rootPath` if realpath resolution fails (e.g.
+ * a race where the folder was removed between `watchFolders.add`'s
+ * existence check and this call) — chokidar's own `'error'` handling covers
+ * a subsequently-missing directory; this function must never throw.
+ */
+function toWatchablePath(rootPath: string): string {
+  if (process.platform !== 'win32') {
+    return rootPath;
+  }
+  try {
+    return realpathSync.native(rootPath);
+  } catch {
+    return rootPath;
+  }
+}
 
 /** Lowercased extension without leading dot, or `null` if the basename has none. */
 function extensionOf(basename: string): string | null {
@@ -89,13 +125,17 @@ export function createIgnoredPredicate(
  * and can be attached by the caller immediately, same tick as always;
  * `ready()` is a separate, additional listener pair that never removes or
  * shadows the caller's own subscriptions.
+ *
+ * `rootPath` is passed through {@link toWatchablePath} first (P1-09 CI fix)
+ * so the native watch backend always installs its handle against an
+ * OS-canonical path — see that function's doc comment.
  */
 export const createChokidarWatcher: WatcherFactory = (
   rootPath: string,
   options: WatcherFactoryOptions,
 ): WatcherLike => {
   const ignored = createIgnoredPredicate(options.skipPatterns ?? []);
-  const watcher = chokidarWatch(rootPath, {
+  const watcher = chokidarWatch(toWatchablePath(rootPath), {
     ignoreInitial: true,
     followSymlinks: false,
     awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 100 },
