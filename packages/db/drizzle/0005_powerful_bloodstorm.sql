@@ -1,0 +1,1 @@
+ALTER TABLE `watch_folders` ADD `live_watch_enabled` integer DEFAULT false NOT NULL;

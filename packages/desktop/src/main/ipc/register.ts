@@ -13,6 +13,7 @@ import {
   type EnqueueDemoInput,
   type EnqueueScanInput,
   type IpcContract,
+  type SetLiveWatchInput,
   type WatchFolderRecord,
 } from '../../ipc/contract.js';
 
@@ -51,6 +52,11 @@ export interface IpcHandlerDeps {
      */
     add(input: AddWatchFolderInput): Promise<WatchFolderRecord>;
     remove(id: string): boolean;
+    /**
+     * Persists the live-watch opt-in flag and flips the runtime watcher on/off
+     * (P1-09); returns the updated record.
+     */
+    setLiveWatch(id: string, enabled: boolean): WatchFolderRecord | Promise<WatchFolderRecord>;
   };
   files: {
     listByWatchFolder(
@@ -104,8 +110,21 @@ function validateAddWatchFolderInput(input: unknown): AddWatchFolderInput {
 
 function validateWatchFolderId(input: unknown, label: string): string {
   const obj = requireObject(input, label);
-  const key = label === 'watchFolders.remove' ? 'id' : 'watchFolderId';
+  const key =
+    label === 'watchFolders.remove' || label === 'watchFolders.setLiveWatch'
+      ? 'id'
+      : 'watchFolderId';
   return requireNonEmptyString(obj[key], key);
+}
+
+function validateSetLiveWatchInput(input: unknown): SetLiveWatchInput {
+  const obj = requireObject(input, 'watchFolders.setLiveWatch');
+  const id = requireNonEmptyString(obj['id'], 'id');
+  const enabled = obj['enabled'];
+  if (typeof enabled !== 'boolean') {
+    throw new Error('enabled must be a boolean');
+  }
+  return { id, enabled };
 }
 
 function validateEnqueueDemoInput(input: EnqueueDemoInput | void): Required<EnqueueDemoInput> {
@@ -147,6 +166,10 @@ export function createIpcHandlers(deps: IpcHandlerDeps): IpcHandlers {
     'watchFolders.remove': (input) => ({
       removed: deps.watchFolders.remove(validateWatchFolderId(input, 'watchFolders.remove')),
     }),
+    'watchFolders.setLiveWatch': (input) => {
+      const { id, enabled } = validateSetLiveWatchInput(input);
+      return deps.watchFolders.setLiveWatch(id, enabled);
+    },
     'files.listByWatchFolder': (input) => ({
       files: deps.files.listByWatchFolder(validateWatchFolderId(input, 'files.listByWatchFolder')),
     }),

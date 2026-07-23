@@ -23,6 +23,8 @@ import { createWorkerPool, type WorkerPool } from './jobs/pool.js';
 import { broadcastIpcEvent, toIpcJobProgressEvent } from './ipc/broadcast.js';
 import { createIpcHandlers, registerIpcHandlers } from './ipc/register.js';
 import { runNativeSmoke } from './native-smoke.js';
+import { createChokidarWatcher } from './watch/chokidar-watcher.js';
+import { createWatchManager, type WatchManager } from './watch/watch-manager.js';
 
 // Packaged builds already get this from electron-builder's `productName`
 // (read from the bundle's metadata before this module runs). Unpackaged
@@ -40,6 +42,30 @@ const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
 let database: AstroDatabase | undefined;
 let orchestrator: JobQueueOrchestrator | undefined;
 let pool: WorkerPool | undefined;
+let watchManager: WatchManager | undefined;
+
+/** DD-004 defaults: 30s debounce, 5min fallback rescan interval. */
+const DEFAULT_WATCH_DEBOUNCE_MS = 30_000;
+const DEFAULT_WATCH_FALLBACK_INTERVAL_MS = 300_000;
+
+/**
+ * Reads a positive-integer override from `process.env[name]`, falling back
+ * to `fallback` on a missing or invalid (non-numeric, non-positive) value —
+ * the same single-env-var-override pattern already used for
+ * `ELECTRON_RENDERER_URL` below. Lets tests/E2E shrink the debounce/fallback
+ * windows without a real 30s/5min wait.
+ */
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined) {
+    return fallback;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
 
 /** Parses the JSON `skip_patterns` column defensively — `null` when unset or unparseable. */
 function readSkipPatterns(row: WatchFolder): string[] | null {
@@ -63,6 +89,7 @@ function toWatchFolderRecord(row: WatchFolder): WatchFolderRecord {
     isActive: row.isActive,
     lastScanAt: row.lastScanAt,
     skipPatterns: readSkipPatterns(row),
+    liveWatchEnabled: row.liveWatchEnabled,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -135,6 +162,25 @@ void app.whenReady().then(() => {
     );
   });
 
+  watchManager = createWatchManager({
+    debounceMs: readPositiveIntEnv('ASTROTRACKER_WATCH_DEBOUNCE_MS', DEFAULT_WATCH_DEBOUNCE_MS),
+    fallbackRescanIntervalMs: readPositiveIntEnv(
+      'ASTROTRACKER_WATCH_FALLBACK_INTERVAL_MS',
+      DEFAULT_WATCH_FALLBACK_INTERVAL_MS,
+    ),
+    createWatcher: createChokidarWatcher,
+    enqueueScan: (input) => orchestrator!.enqueueScan(input),
+    onJobEvent: (listener) => orchestrator!.onEvent(listener),
+    onStatusChange: (event) => {
+      broadcastIpcEvent(
+        () => BrowserWindow.getAllWindows().map((window) => window.webContents),
+        'watch.status',
+        event,
+      );
+    },
+    extensions: SUPPORTED_EXTENSIONS,
+  });
+
   registerIpcHandlers(
     ipcMain,
     createIpcHandlers({
@@ -180,9 +226,37 @@ void app.whenReady().then(() => {
             lastScanAt: null,
             skipPatterns: skipPatterns === undefined ? null : JSON.stringify(skipPatterns),
           });
+          // Register the folder's rootPath/skipPatterns with WatchManager so
+          // a later setLiveWatch(id, true) call (no restart needed) can
+          // resolve them — every new folder is created watch-disabled
+          // (P1-09: watchFolders.add gains no liveWatchEnabled field).
+          watchManager?.registerFolder({
+            id: row.id,
+            rootPath: row.path,
+            skipPatterns: readSkipPatterns(row) ?? undefined,
+          });
           return toWatchFolderRecord(row);
         },
-        remove: (id) => database!.repos.watchFolders.remove(id),
+        remove: (id) => {
+          // Tear down the runtime watcher/timers before removing the row —
+          // no watcher left running against a folder whose row no longer
+          // exists.
+          watchManager?.stop(id);
+          return database!.repos.watchFolders.remove(id);
+        },
+        setLiveWatch: async (id, enabled) => {
+          const updated = database!.repos.watchFolders.update(id, { liveWatchEnabled: enabled });
+          if (updated === undefined) {
+            throw new Error(`Unknown watch folder: ${id}`);
+          }
+          // Awaited (P1-09 CI fix): resolves once the watcher itself is
+          // ready (chokidar's 'ready' event) when enabling, so a caller that
+          // writes a file right after this IPC call resolves can't race
+          // chokidar's own async setup — see WatchManager.setEnabled's doc
+          // comment.
+          await watchManager?.setEnabled(id, enabled);
+          return toWatchFolderRecord(updated);
+        },
       },
       files: {
         listByWatchFolder: (watchFolderId) =>
@@ -192,6 +266,19 @@ void app.whenReady().then(() => {
   );
 
   orchestrator.start();
+  // Every isActive watch-folder row is registered (so a later setLiveWatch
+  // can resolve its rootPath); only isActive && liveWatchEnabled ones get a
+  // live watcher attached (P1-09).
+  const bootFolders = database.repos.watchFolders
+    .list()
+    .filter((folder) => folder.isActive)
+    .map((folder) => ({
+      id: folder.id,
+      rootPath: folder.path,
+      skipPatterns: readSkipPatterns(folder) ?? undefined,
+      enabled: folder.liveWatchEnabled,
+    }));
+  watchManager.start(bootFolders);
   createWindow();
 
   // macOS convention: re-create the window on dock activation.
@@ -210,6 +297,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  void watchManager?.stopAll();
   void pool?.terminateAll();
   try {
     database?.close();

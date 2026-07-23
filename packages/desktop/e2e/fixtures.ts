@@ -45,10 +45,18 @@ interface FixtureDependencies {
   resolveBuild: typeof resolveBuild;
   createTempAppDataDir: typeof createTempAppDataDir;
   createTempLibraryDir: typeof createTempLibraryDir;
-  launch: (appPath: string, appDataDir: string) => Promise<ElectronApplication>;
+  launch: (
+    appPath: string,
+    appDataDir: string,
+    extraEnv?: Record<string, string>,
+  ) => Promise<ElectronApplication>;
 }
 
-async function launchElectron(appPath: string, appDataDir: string): Promise<ElectronApplication> {
+async function launchElectron(
+  appPath: string,
+  appDataDir: string,
+  extraEnv: Record<string, string> = {},
+): Promise<ElectronApplication> {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (entry): entry is [string, string] => entry[1] !== undefined,
@@ -57,6 +65,7 @@ async function launchElectron(appPath: string, appDataDir: string): Promise<Elec
   // Some agent shells set this so Electron behaves like plain Node; clear it
   // or Playwright's Electron/Chromium switches are rejected before boot.
   delete env['ELECTRON_RUN_AS_NODE'];
+  Object.assign(env, extraEnv);
   return _electron.launch({ args: [appPath, `--user-data-dir=${appDataDir}`], env });
 }
 
@@ -79,6 +88,7 @@ async function attemptCleanup(name: string, cleanup: () => Promise<void>, errors
 export async function runElectronAppFixture(
   use: (fixture: ElectronAppFixture) => Promise<void>,
   dependencies: FixtureDependencies = fixtureDependencies,
+  electronEnv: Record<string, string> = {},
 ): Promise<void> {
   let app: ElectronApplication | undefined;
   let appData: Awaited<ReturnType<typeof createTempAppDataDir>> | undefined;
@@ -89,7 +99,7 @@ export async function runElectronAppFixture(
     const build = dependencies.resolveBuild();
     appData = await dependencies.createTempAppDataDir();
     library = await dependencies.createTempLibraryDir();
-    app = await dependencies.launch(build.appPath, appData.path);
+    app = await dependencies.launch(build.appPath, appData.path, electronEnv);
     await use({ app, appDataDir: appData.path, libraryDir: library.path });
   } catch (error) {
     primaryError = error;
@@ -124,9 +134,20 @@ export async function runElectronAppFixture(
   }
 }
 
-export const test = base.extend<{ electronApp: ElectronAppFixture }>({
-  // eslint-disable-next-line no-empty-pattern -- Playwright fixture functions must destructure their (here empty) dependencies.
-  electronApp: async ({}, use) => runElectronAppFixture(use),
+export const test = base.extend<{
+  /**
+   * Additive, defaulted env overrides merged into the env passed to
+   * `_electron.launch()` (P1-09). Settable per-spec via
+   * `test.use({ electronEnv: {...} })` — e.g. shrinking
+   * `ASTROTRACKER_WATCH_DEBOUNCE_MS`/`ASTROTRACKER_WATCH_FALLBACK_INTERVAL_MS`
+   * so a live-watch spec never waits on the real 30s/5min defaults. Specs
+   * that don't opt in get `{}`, changing no existing fixture behavior.
+   */
+  electronEnv: Record<string, string>;
+  electronApp: ElectronAppFixture;
+}>({
+  electronEnv: [{}, { option: true }],
+  electronApp: async ({ electronEnv }, use) => runElectronAppFixture(use, undefined, electronEnv),
 });
 
 export { expect };

@@ -17,6 +17,7 @@ function makeFolder(overrides: Partial<WatchFolderRecord> = {}): WatchFolderReco
     isActive: true,
     lastScanAt: null,
     skipPatterns: null,
+    liveWatchEnabled: false,
     createdAt: new Date(0),
     updatedAt: new Date(0),
     ...overrides,
@@ -108,8 +109,10 @@ describe('WatchFolders', () => {
       }
       return Promise.resolve(undefined);
     });
-    const on = vi.fn((_channel: string, listener: (payload: unknown) => void) => {
-      progressListener = listener;
+    const on = vi.fn((channel: string, listener: (payload: unknown) => void) => {
+      if (channel === 'jobs.progress') {
+        progressListener = listener;
+      }
       return unsubscribe;
     });
     const { unmount } = renderWatchFolders({ invoke, on } as unknown as AstroTrackerBridge);
@@ -161,5 +164,119 @@ describe('WatchFolders', () => {
       expect(screen.queryByText('/mnt/remove-me')).toBeNull();
     });
     expect(invoke).toHaveBeenCalledWith('watchFolders.remove', { id: 'wf-x' });
+  });
+
+  it('toggles live watch via watchFolders.setLiveWatch with the correct input', async () => {
+    const folders: WatchFolderRecord[] = [makeFolder({ id: 'wf-1', liveWatchEnabled: false })];
+    const invoke = vi.fn((channel: string, input?: unknown) => {
+      if (channel === 'watchFolders.list') {
+        return Promise.resolve({ watchFolders: [...folders] });
+      }
+      if (channel === 'watchFolders.setLiveWatch') {
+        const { id, enabled } = input as { id: string; enabled: boolean };
+        const folder = folders.find((f) => f.id === id);
+        if (folder !== undefined) {
+          folder.liveWatchEnabled = enabled;
+        }
+        return Promise.resolve(folder);
+      }
+      return Promise.resolve(undefined);
+    });
+    renderWatchFolders({ invoke, on: vi.fn(() => vi.fn()) } as unknown as AstroTrackerBridge);
+
+    fireEvent.click(await screen.findByRole('button', { name: /enable live watch/i }));
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('watchFolders.setLiveWatch', {
+        id: 'wf-1',
+        enabled: true,
+      });
+    });
+    // The list is refetched, flipping the button's label to the "on" state.
+    expect(await screen.findByRole('button', { name: /disable live watch/i })).toBeTruthy();
+  });
+
+  it.each([
+    ['off', false, undefined, 'Live watch: off'],
+    ['watching', true, { mode: 'watching', message: null }, 'Live watch: watching'],
+    [
+      'fallback',
+      true,
+      { mode: 'fallback', message: 'EMFILE: too many open files' },
+      'Live watch: fallback — EMFILE: too many open files',
+    ],
+  ] as const)(
+    'renders the "%s" status text for the corresponding WatchMode',
+    async (_label, liveWatchEnabled, eventOverrides, expectedText) => {
+      let statusListener: ((payload: unknown) => void) | undefined;
+      const invoke = vi.fn((channel: string) => {
+        if (channel === 'watchFolders.list') {
+          return Promise.resolve({
+            watchFolders: [makeFolder({ id: 'wf-1', liveWatchEnabled })],
+          });
+        }
+        return Promise.resolve(undefined);
+      });
+      const on = vi.fn((channel: string, listener: (payload: unknown) => void) => {
+        if (channel === 'watch.status') {
+          statusListener = listener;
+        }
+        return vi.fn();
+      });
+      renderWatchFolders({ invoke, on } as unknown as AstroTrackerBridge);
+
+      await screen.findByText('/mnt/astro');
+
+      if (eventOverrides !== undefined) {
+        await act(async () => {
+          statusListener?.({
+            watchFolderId: 'wf-1',
+            updatedAt: '2026-07-22T10:00:00.000Z',
+            ...eventOverrides,
+          });
+        });
+      }
+
+      expect(await screen.findByText(expectedText)).toBeTruthy();
+    },
+  );
+
+  it('a watch.status event for one folder updates only that folder’s row', async () => {
+    let statusListener: ((payload: unknown) => void) | undefined;
+    const invoke = vi.fn((channel: string) => {
+      if (channel === 'watchFolders.list') {
+        return Promise.resolve({
+          watchFolders: [
+            makeFolder({ id: 'wf-1', path: '/mnt/one', liveWatchEnabled: true }),
+            makeFolder({ id: 'wf-2', path: '/mnt/two', liveWatchEnabled: true }),
+          ],
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+    const on = vi.fn((channel: string, listener: (payload: unknown) => void) => {
+      if (channel === 'watch.status') {
+        statusListener = listener;
+      }
+      return vi.fn();
+    });
+    renderWatchFolders({ invoke, on } as unknown as AstroTrackerBridge);
+
+    await screen.findByText('/mnt/one');
+    await screen.findByText('/mnt/two');
+    expect(screen.getAllByText('Live watch: watching')).toHaveLength(2);
+
+    await act(async () => {
+      statusListener?.({
+        watchFolderId: 'wf-1',
+        mode: 'fallback',
+        message: 'EMFILE',
+        updatedAt: '2026-07-22T10:00:00.000Z',
+      });
+    });
+
+    expect(await screen.findByText('Live watch: fallback — EMFILE')).toBeTruthy();
+    // wf-2's row is untouched.
+    expect(screen.getAllByText('Live watch: watching')).toHaveLength(1);
   });
 });

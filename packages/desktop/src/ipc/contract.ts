@@ -20,13 +20,14 @@ export const IPC_CHANNELS = [
   'watchFolders.list',
   'watchFolders.add',
   'watchFolders.remove',
+  'watchFolders.setLiveWatch',
   'files.listByWatchFolder',
 ] as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
 
 /** Every main→renderer event channel in the contract, as runtime data (preload whitelist source). */
-export const IPC_EVENT_CHANNELS = ['jobs.progress'] as const;
+export const IPC_EVENT_CHANNELS = ['jobs.progress', 'watch.status'] as const;
 
 export type IpcEventChannel = (typeof IPC_EVENT_CHANNELS)[number];
 
@@ -83,8 +84,34 @@ export interface WatchFolderRecord {
   isActive: boolean;
   lastScanAt: Date | null;
   skipPatterns: string[] | null;
+  /** Per-folder opt-in for live chokidar watching (P1-09). Default `false`. */
+  liveWatchEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Runtime live-watch state for a folder (P1-09). Not persisted — recomputed
+ * by `WatchManager.start()` at every app boot. `'watching'`: a live chokidar
+ * watcher is attached. `'fallback'`: the watcher hit an OS resource limit
+ * (ENOSPC/EMFILE/ENFILE) and the folder fell back to periodic rescanning.
+ * `'off'`: live watch is disabled for this folder.
+ */
+export type WatchMode = 'watching' | 'fallback' | 'off';
+
+/** Main → renderer push event reporting a watch-folder's live-watch mode transition (P1-09). */
+export interface WatchStatusEvent {
+  watchFolderId: string;
+  mode: WatchMode;
+  /** Human-readable detail, e.g. the fallback reason. `null` when not applicable. */
+  message: string | null;
+  /** UTC ISO-8601 timestamp of the transition. */
+  updatedAt: string;
+}
+
+export interface SetLiveWatchInput {
+  id: string;
+  enabled: boolean;
 }
 
 /** IPC-facing view of a `files` row (mirrors `@astrotracker/db`'s `FileRecord`). */
@@ -141,6 +168,7 @@ export interface IpcContract extends Record<IpcChannel, { input: unknown; output
   'watchFolders.list': { input: void; output: { watchFolders: WatchFolderRecord[] } };
   'watchFolders.add': { input: AddWatchFolderInput; output: WatchFolderRecord };
   'watchFolders.remove': { input: RemoveWatchFolderInput; output: { removed: boolean } };
+  'watchFolders.setLiveWatch': { input: SetLiveWatchInput; output: WatchFolderRecord };
   'files.listByWatchFolder': {
     input: ListFilesByWatchFolderInput;
     output: { files: FileRecord[] };
@@ -152,6 +180,7 @@ export type IpcOutput<C extends IpcChannel> = IpcContract[C]['output'];
 
 export interface IpcEventContract extends Record<IpcEventChannel, { payload: unknown }> {
   'jobs.progress': { payload: JobProgressEvent };
+  'watch.status': { payload: WatchStatusEvent };
 }
 
 export type IpcEventPayload<C extends IpcEventChannel> = IpcEventContract[C]['payload'];
