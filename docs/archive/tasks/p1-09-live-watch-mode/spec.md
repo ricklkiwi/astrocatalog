@@ -1,6 +1,6 @@
 # Spec: [P1-09] Live watch mode (chokidar)
 
-**Slug:** p1-09-live-watch-mode **Issue:** #17 **Plan:** docs/plans/p1-09-live-watch-mode.md **Date:** 2026-07-22
+**Slug:** p1-09-live-watch-mode **Issue:** #17 **Plan:** docs/archive/tasks/p1-09-live-watch-mode/plan.md **Date:** 2026-07-22
 
 Criteria are tagged `[local]` (Reviewer verifies directly in this worktree/PR diff — unit tests,
 E2E run locally via `pnpm e2e`, lint, typecheck, build) or `[github]` (only observable after push,
@@ -382,4 +382,4 @@ issue acceptance criteria:
   matches the burst size (proving cataloging happened), then assert the `'scan'`-job count for that
   folder increased by exactly 1 over the pre-burst count — not by 3.
 
-Spec written: docs/specs/p1-09-live-watch-mode.md
+Spec written: docs/archive/tasks/p1-09-live-watch-mode/spec.md

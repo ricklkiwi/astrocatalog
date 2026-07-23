@@ -25,3 +25,4 @@ The orchestrator archives task docs after reviewer PASS and before opening the P
 | p0-07-benchmark-harness | #7    | TBD | [plan](p0-07-benchmark-harness/plan.md) | [spec](p0-07-benchmark-harness/spec.md) | 2026-07-08 |
 | p0-08-playwright-e2e    | #8    | TBD | [plan](p0-08-playwright-e2e/plan.md)    | [spec](p0-08-playwright-e2e/spec.md)    | 2026-07-11 |
 | backlog-44-scoped-names | #44   | TBD | [plan](backlog-44-scoped-names/plan.md) | [spec](backlog-44-scoped-names/spec.md) | 2026-07-05 |
+| p1-09-live-watch-mode   | #17   | TBD | [plan](p1-09-live-watch-mode/plan.md)   | [spec](p1-09-live-watch-mode/spec.md)   | 2026-07-22 |
