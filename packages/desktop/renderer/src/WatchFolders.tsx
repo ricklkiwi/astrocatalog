@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import type { JobProgressEvent, WatchFolderRecord } from '@astrotracker/desktop';
+import type { JobProgressEvent, WatchFolderRecord, WatchStatusEvent } from '@astrotracker/desktop';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ipc } from './ipc';
@@ -19,6 +19,21 @@ function progressLabel(event: JobProgressEvent | undefined): string {
 }
 
 /**
+ * Live-watch status text for one folder's row: seeded from the persisted
+ * `liveWatchEnabled` flag, refined by the most recent `watch.status` event
+ * received for this folder's id (if any) — that event's `mode` always wins
+ * once received, since it reflects the actual runtime state (which can be
+ * `'fallback'` even while `liveWatchEnabled` is still `true`).
+ */
+function watchStatusLabel(folder: WatchFolderRecord, event: WatchStatusEvent | undefined): string {
+  const mode = event?.mode ?? (folder.liveWatchEnabled ? 'watching' : 'off');
+  if (mode === 'fallback') {
+    return `Live watch: fallback — ${event?.message ?? 'unknown error'}`;
+  }
+  return `Live watch: ${mode}`;
+}
+
+/**
  * P1-06 watch-folder settings: list the configured folders, add one by
  * absolute path, remove a folder, and trigger a scan whose live progress is
  * shown per row (reusing the generic `jobs.progress` event stream).
@@ -32,6 +47,8 @@ export function WatchFolders() {
   const [scanEvents, setScanEvents] = useState<Record<string, JobProgressEvent>>({});
   // jobId → watchFolderId, read inside the (stable) progress listener without stale closures.
   const folderByJob = useRef<Map<string, string>>(new Map());
+  // Latest watch.status event keyed by watch-folder id (P1-09).
+  const [watchStatus, setWatchStatus] = useState<Record<string, WatchStatusEvent>>({});
 
   const {
     data: folders,
@@ -51,6 +68,20 @@ export function WatchFolders() {
       setScanEvents((current) => ({ ...current, [folderId]: event }));
     });
   }, []);
+
+  useEffect(() => {
+    return ipc.on('watch.status', (event) => {
+      setWatchStatus((current) => ({ ...current, [event.watchFolderId]: event }));
+    });
+  }, []);
+
+  const setLiveWatchMutation = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      ipc.invoke('watchFolders.setLiveWatch', { id, enabled }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: WATCH_FOLDERS_KEY });
+    },
+  });
 
   const addMutation = useMutation({
     mutationFn: (path: string) => ipc.invoke('watchFolders.add', { path }),
@@ -135,7 +166,17 @@ export function WatchFolders() {
               >
                 Remove
               </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setLiveWatchMutation.mutate({ id: folder.id, enabled: !folder.liveWatchEnabled })
+                }
+                disabled={setLiveWatchMutation.isPending}
+              >
+                {folder.liveWatchEnabled ? 'Disable live watch' : 'Enable live watch'}
+              </button>
               <span aria-live="polite">{progressLabel(scanEvents[folder.id])}</span>
+              <span aria-live="polite">{watchStatusLabel(folder, watchStatus[folder.id])}</span>
             </li>
           ))}
         </ul>
