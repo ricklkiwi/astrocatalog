@@ -16,6 +16,7 @@ const SAMPLE_WATCH_FOLDER: WatchFolderRecord = {
   isActive: true,
   lastScanAt: null,
   skipPatterns: null,
+  liveWatchEnabled: false,
   createdAt: new Date(0),
   updatedAt: new Date(0),
 };
@@ -37,6 +38,7 @@ function makeValidationHandlers(enqueueDemo: () => { jobId: string }) {
       list: () => [],
       add: () => Promise.resolve(SAMPLE_WATCH_FOLDER),
       remove: () => true,
+      setLiveWatch: () => SAMPLE_WATCH_FOLDER,
     },
     files: { listByWatchFolder: () => [] },
   });
@@ -65,18 +67,9 @@ function makeHandlers() {
     },
     watchFolders: {
       list: () => [],
-      add: () =>
-        Promise.resolve({
-          id: 'wf-1',
-          path: '/mnt/astro',
-          driveLabel: null,
-          isActive: true,
-          lastScanAt: null,
-          skipPatterns: null,
-          createdAt: new Date(0),
-          updatedAt: new Date(0),
-        }),
+      add: () => Promise.resolve(SAMPLE_WATCH_FOLDER),
       remove: () => true,
+      setLiveWatch: () => SAMPLE_WATCH_FOLDER,
     },
     files: {
       listByWatchFolder: () => [],
@@ -111,9 +104,10 @@ describe('jobs handlers', () => {
       'watchFolders.list',
       'watchFolders.add',
       'watchFolders.remove',
+      'watchFolders.setLiveWatch',
       'files.listByWatchFolder',
     ]);
-    expect(IPC_EVENT_CHANNELS).toEqual(['jobs.progress']);
+    expect(IPC_EVENT_CHANNELS).toEqual(['jobs.progress', 'watch.status']);
   });
 
   it('delegates enqueue/cancel/list to injected job dependencies', async () => {
@@ -219,7 +213,12 @@ describe('watch-folder and scan handlers', () => {
         list: vi.fn(() => []),
         enqueueScan: vi.fn(() => ({ jobId: 'scan' })),
       },
-      watchFolders: { list, add: () => Promise.resolve(SAMPLE_WATCH_FOLDER), remove: () => true },
+      watchFolders: {
+        list,
+        add: () => Promise.resolve(SAMPLE_WATCH_FOLDER),
+        remove: () => true,
+        setLiveWatch: () => SAMPLE_WATCH_FOLDER,
+      },
       files: { listByWatchFolder: () => [] },
     });
 
@@ -240,7 +239,12 @@ describe('watch-folder and scan handlers', () => {
         list: vi.fn(() => []),
         enqueueScan: vi.fn(() => ({ jobId: 'scan' })),
       },
-      watchFolders: { list: () => [], add, remove: () => true },
+      watchFolders: {
+        list: () => [],
+        add,
+        remove: () => true,
+        setLiveWatch: () => SAMPLE_WATCH_FOLDER,
+      },
       files: { listByWatchFolder: () => [] },
     });
 
@@ -270,7 +274,12 @@ describe('watch-folder and scan handlers', () => {
         list: vi.fn(() => []),
         enqueueScan,
       },
-      watchFolders: { list: () => [], add: () => Promise.resolve(SAMPLE_WATCH_FOLDER), remove },
+      watchFolders: {
+        list: () => [],
+        add: () => Promise.resolve(SAMPLE_WATCH_FOLDER),
+        remove,
+        setLiveWatch: () => SAMPLE_WATCH_FOLDER,
+      },
       files: { listByWatchFolder },
     });
 
@@ -290,5 +299,45 @@ describe('watch-folder and scan handlers', () => {
     expect(() => handlers['jobs.enqueueScan']({ watchFolderId: '' })).toThrow(
       /watchFolderId must be a non-empty string/,
     );
+  });
+
+  it('validates and delegates watchFolders.setLiveWatch to the injected dependency', async () => {
+    const setLiveWatch = vi.fn(() => ({ ...SAMPLE_WATCH_FOLDER, liveWatchEnabled: true }));
+    const handlers = createIpcHandlers({
+      appVersion: 'test',
+      platform: 'test',
+      versions: {},
+      nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
+      jobs: {
+        enqueueDemo: vi.fn(() => ({ jobId: 'job' })),
+        cancel: vi.fn(),
+        list: vi.fn(() => []),
+        enqueueScan: vi.fn(() => ({ jobId: 'scan' })),
+      },
+      watchFolders: {
+        list: () => [],
+        add: () => Promise.resolve(SAMPLE_WATCH_FOLDER),
+        remove: () => true,
+        setLiveWatch,
+      },
+      files: { listByWatchFolder: () => [] },
+    });
+
+    expect(await handlers['watchFolders.setLiveWatch']({ id: 'wf-1', enabled: true })).toEqual({
+      ...SAMPLE_WATCH_FOLDER,
+      liveWatchEnabled: true,
+    });
+    expect(setLiveWatch).toHaveBeenCalledExactlyOnceWith('wf-1', true);
+
+    // Malformed input is rejected before the dependency is ever called
+    // (mirroring the watchFolders.remove/jobs.enqueueScan id-validation pattern).
+    setLiveWatch.mockClear();
+    expect(() => handlers['watchFolders.setLiveWatch']({ id: '', enabled: true })).toThrow(
+      /id must be a non-empty string/,
+    );
+    expect(() =>
+      handlers['watchFolders.setLiveWatch']({ id: 'wf-1', enabled: 'yes' } as never),
+    ).toThrow(/enabled must be a boolean/);
+    expect(setLiveWatch).not.toHaveBeenCalled();
   });
 });
