@@ -30,6 +30,13 @@ export const watchFolders = sqliteTable(
      * `node_modules`). `null` = use built-in defaults only (P1-06, DD-004).
      */
     skipPatterns: text('skip_patterns'),
+    /**
+     * Per-folder opt-in for live chokidar watching (P1-09, DD-004). Default
+     * `false` — watching consumes OS file-descriptor/inotify budget the user
+     * should choose to spend. Runtime watch mode (`'watching'`/`'fallback'`)
+     * is ephemeral and NOT persisted here; only the user's on/off intent is.
+     */
+    liveWatchEnabled: integer('live_watch_enabled', { mode: 'boolean' }).notNull().default(false),
   },
   (t) => [unique('watch_folders_path_uq').on(t.path)],
 );
