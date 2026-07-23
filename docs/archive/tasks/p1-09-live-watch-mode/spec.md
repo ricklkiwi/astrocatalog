@@ -175,8 +175,7 @@ Given/When/Then, one observable behaviour per criterion, mapped to the plan's 7 
       `packages/db/src/repositories/shared.ts`) and calls `watchManager.setEnabled(id, enabled)` to
       flip the runtime watcher — both effects happen from one IPC call, not one without the other.
 - [ ] `[local]` Given a `watch.status` event from `WatchManager`, then it is broadcast to every
-      renderer window the same way `jobs.progress` already is (`broadcastIpcEvent(() =>
-      BrowserWindow.getAllWindows().map((w) => w.webContents), 'watch.status', payload)`).
+      renderer window the same way `jobs.progress` already is, via `broadcastIpcEvent`.
 - [ ] `[local]` Given the `watchFolders.remove` handler, then it tears down that folder's runtime
       watcher/timers (`watchManager.stop(id)`) before or as part of removing the DB row — no watcher
       left running against a folder whose row no longer exists.
