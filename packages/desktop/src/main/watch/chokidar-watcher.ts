@@ -82,6 +82,13 @@ export function createIgnoredPredicate(
  * cycle-avoidance policy); `awaitWriteFinish` with a short 2s stability
  * threshold solves the narrower "has this one file's bytes stopped changing"
  * problem — distinct from `WatchManager`'s own 30s debounce window.
+ *
+ * The returned {@link WatcherLike}'s `ready()` resolves on chokidar's own
+ * `'ready'` event (P1-09 CI fix, see {@link WatcherLike.ready}'s doc comment)
+ * — `.on('add'|'change'|'unlink'|'error', ...)` subscriptions are unaffected
+ * and can be attached by the caller immediately, same tick as always;
+ * `ready()` is a separate, additional listener pair that never removes or
+ * shadows the caller's own subscriptions.
  */
 export const createChokidarWatcher: WatcherFactory = (
   rootPath: string,
@@ -94,5 +101,25 @@ export const createChokidarWatcher: WatcherFactory = (
     awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 100 },
     ignored: (filePath) => ignored(filePath),
   });
-  return watcher;
+  // Resolves on 'ready', or on an 'error' fired before 'ready' (initial-scan
+  // setup itself can fail, e.g. an immediate EMFILE/ENOSPC while chokidar is
+  // still installing per-directory watches — see WatcherLike.ready's doc
+  // comment for why this must not hang forever in that case). These are
+  // *additional* `.once` listeners alongside whatever the caller attaches
+  // via `.on(...)` right after this function returns — independent
+  // registrations on the same EventEmitter, so neither set interferes with
+  // or consumes events meant for the other.
+  const ready = new Promise<void>((resolve) => {
+    const onReady = (): void => {
+      watcher.off('error', onError);
+      resolve();
+    };
+    const onError = (): void => {
+      watcher.off('ready', onReady);
+      resolve();
+    };
+    watcher.once('ready', onReady);
+    watcher.once('error', onError);
+  });
+  return Object.assign(watcher, { ready: () => ready });
 };

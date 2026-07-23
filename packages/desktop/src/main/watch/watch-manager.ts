@@ -70,8 +70,22 @@ export interface WatchManager {
   start(folders: Array<WatchManagerFolder & { enabled: boolean }>): void;
   /** Registers a folder's metadata without attaching a watcher — for a folder added after `start()` (P1-09: new folders are created watch-disabled). */
   registerFolder(folder: WatchManagerFolder): void;
-  /** Toggles live watching for an already-registered folder. Idempotent. */
-  setEnabled(watchFolderId: string, enabled: boolean): void;
+  /**
+   * Toggles live watching for an already-registered folder. Idempotent.
+   *
+   * The returned promise resolves once the underlying watcher has confirmed
+   * readiness (chokidar's own `'ready'` event, see `WatcherLike.ready`'s doc
+   * comment) when `enabled` is `true` — immediately when `enabled` is
+   * `false`. Callers that need "a file written right now will reliably be
+   * seen" (e.g. `watchFolders.setLiveWatch`'s IPC handler) must await this
+   * rather than treat the *call* returning as the folder being live: chokidar
+   * itself needs to finish its initial recursive scan and OS watch-handle
+   * setup first, which is not instantaneous — especially on Windows, where
+   * `ReadDirectoryChangesW` setup plus slow CI-runner disk I/O can add
+   * meaningful latency (P1-09 CI fix — a fast-following write lost this race
+   * on Windows CI before this method awaited readiness).
+   */
+  setEnabled(watchFolderId: string, enabled: boolean): Promise<void>;
   /** Tears down a folder's watcher/timers and forgets it (used by `watchFolders.remove`). Does not cancel an in-flight scan job. */
   stop(watchFolderId: string): void;
   /** Tears down every folder's watcher/timers. Awaited on `before-quit`. */
@@ -166,11 +180,26 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
     enterFallback(id, `Live watch disabled after a ${code} error; periodic rescanning instead.`);
   }
 
-  function attachWatcher(id: string): void {
+  /**
+   * Attaches (or, if already watching, no-ops on) a folder's watcher.
+   *
+   * State transitions (mode → 'watching', the status event, the immediate
+   * catch-up scan) all happen synchronously, same as before P1-09's CI fix —
+   * changing that would ripple into every timing-sensitive test in this
+   * file for no behavioral gain. What's new is the *returned* promise: it
+   * resolves only once the watcher itself confirms readiness, so a caller
+   * that needs to know "is it now actually safe to assume a write will be
+   * seen" (`setEnabled` → `watchFolders.setLiveWatch`'s IPC handler) has a
+   * signal to await, instead of racing chokidar's own async setup.
+   */
+  function attachWatcher(id: string): Promise<void> {
     const state = folders.get(id);
-    if (state === undefined || state.mode === 'watching') {
+    if (state === undefined) {
+      return Promise.resolve();
+    }
+    if (state.mode === 'watching') {
       // Already watching: idempotent, no duplicate chokidar instance.
-      return;
+      return state.watcher?.ready() ?? Promise.resolve();
     }
     clearFolderTimers(state);
     const watcher = createWatcher(state.rootPath, { skipPatterns: state.skipPatterns });
@@ -185,6 +214,7 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
     // tree contents at attach time — fire one immediate catch-up scan
     // (Edge Cases: "app restarted / live-watch just toggled on").
     requestScan(id);
+    return watcher.ready();
   }
 
   function enterFallback(id: string, message: string): void {
@@ -265,7 +295,11 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
       for (const folder of inputFolders) {
         upsertFolder(folder);
         if (folder.enabled) {
-          attachWatcher(folder.id);
+          // Boot-time attachment: fire-and-forget, same as before P1-09's CI
+          // fix — nothing here needs to block app startup on chokidar's
+          // per-folder readiness. (Callers that need the readiness signal —
+          // `setEnabled` below — get it via its own returned promise.)
+          void attachWatcher(folder.id);
         }
       }
     },
@@ -274,12 +308,12 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
       upsertFolder(folder);
     },
 
-    setEnabled(watchFolderId, enabled): void {
+    setEnabled(watchFolderId, enabled): Promise<void> {
       if (enabled) {
-        attachWatcher(watchFolderId);
-      } else {
-        deactivate(watchFolderId);
+        return attachWatcher(watchFolderId);
       }
+      deactivate(watchFolderId);
+      return Promise.resolve();
     },
 
     stop(watchFolderId): void {

@@ -21,6 +21,18 @@ export interface WatcherLike {
    * read `.code` (`ENOSPC`/`EMFILE`/`ENFILE` trigger the fallback path).
    */
   on(event: 'error', listener: (error: unknown) => void): void;
+  /**
+   * Resolves once the watcher's initial setup has settled — for the real
+   * chokidar adapter, chokidar's own `'ready'` event (initial recursive scan
+   * + OS watch-handle setup, e.g. `ReadDirectoryChangesW` on Windows), or an
+   * `'error'` during that setup, whichever comes first (so a caller awaiting
+   * this can never hang forever on a setup failure). Before this resolves,
+   * event delivery for a file written into the tree isn't reliably
+   * guaranteed — `WatchManager` awaits it before reporting a folder as
+   * `'watching'`, closing a race where a fast-following write loses to slow
+   * watch-handle setup (observed on Windows CI runners, P1-09).
+   */
+  ready(): Promise<void>;
   /** Stops watching and releases OS resources. Never throws for a normal close. */
   close(): Promise<void>;
 }

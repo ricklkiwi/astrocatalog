@@ -11,10 +11,26 @@ import type { WatchStatusEvent } from '../../ipc/contract.js';
 
 type Listener = (arg: never) => void;
 
-/** A fake `WatcherLike` whose event listeners the test can trigger directly. */
+/**
+ * A fake `WatcherLike` whose event listeners the test can trigger directly.
+ *
+ * `ready()` defaults to an already-resolved promise (chokidar's setup is
+ * instantaneous as far as every *other* test in this file cares — none of
+ * them exercise the P1-09 readiness wait) so `attachWatcher`'s own
+ * synchronous side effects (mode → 'watching', the status event, the
+ * catch-up scan) are unaffected and every existing synchronous assertion
+ * keeps working unchanged. Tests that specifically exercise the readiness
+ * wait construct a `FakeWatcher` with a controllable `ready` promise instead
+ * (see `resolveReady` below).
+ */
 class FakeWatcher implements WatcherLike {
   listeners = new Map<string, Listener[]>();
   closeCalls = 0;
+  private readonly readyPromise: Promise<void>;
+
+  constructor(readyPromise: Promise<void> = Promise.resolve()) {
+    this.readyPromise = readyPromise;
+  }
 
   on(event: 'add' | 'change' | 'unlink', listener: (path: string) => void): void;
   on(event: 'error', listener: (error: unknown) => void): void;
@@ -30,10 +46,23 @@ class FakeWatcher implements WatcherLike {
     }
   }
 
+  ready(): Promise<void> {
+    return this.readyPromise;
+  }
+
   close(): Promise<void> {
     this.closeCalls += 1;
     return Promise.resolve();
   }
+}
+
+/** A `{ promise, resolve }` pair for a `FakeWatcher` whose readiness the test controls explicitly. */
+function pendingReady(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
 }
 
 interface Harness {
@@ -50,13 +79,18 @@ interface Harness {
 let nextJobId = 0;
 
 function makeHarness(
-  overrides: { debounceMs?: number; fallbackRescanIntervalMs?: number } = {},
+  overrides: {
+    debounceMs?: number;
+    fallbackRescanIntervalMs?: number;
+    /** Overrides how each `FakeWatcher` is constructed — e.g. to inject a controllable `ready()` promise. */
+    makeWatcher?: (rootPath: string) => FakeWatcher;
+  } = {},
 ): Harness {
   const debounceMs = overrides.debounceMs ?? 1000;
   const fallbackRescanIntervalMs = overrides.fallbackRescanIntervalMs ?? 5000;
   const watchersByRoot = new Map<string, FakeWatcher[]>();
   const createWatcher: ReturnType<typeof vi.fn> = vi.fn(((rootPath: string) => {
-    const watcher = new FakeWatcher();
+    const watcher = overrides.makeWatcher ? overrides.makeWatcher(rootPath) : new FakeWatcher();
     const existing = watchersByRoot.get(rootPath) ?? [];
     existing.push(watcher);
     watchersByRoot.set(rootPath, existing);
@@ -435,6 +469,70 @@ describe('setEnabled(id, false) / re-enable', () => {
     h.manager.setEnabled('wf-1', true);
     expect(h.enqueueScan).toHaveBeenCalledOnce(); // fresh catch-up scan
     expect(h.statusEvents.at(-1)?.mode).toBe('watching');
+  });
+});
+
+describe('readiness (P1-09 CI fix: setEnabled awaits watcher.ready() before resolving)', () => {
+  it('does not resolve until the watcher reports readiness, even though mode/status/catch-up already happened synchronously', async () => {
+    const ready = pendingReady();
+    const h = makeHarness({ makeWatcher: () => new FakeWatcher(ready.promise) });
+    h.manager.registerFolder({ id: 'wf-1', rootPath: '/mnt/astro' });
+
+    let settled = false;
+    const enablePromise = h.manager.setEnabled('wf-1', true).then(() => {
+      settled = true;
+    });
+
+    // Deliberately decoupled from readiness (see attachWatcher's doc
+    // comment): the folder is already reported "watching" and its catch-up
+    // scan already fired, synchronously, before the watcher itself is ready.
+    expect(h.statusEvents.at(-1)?.mode).toBe('watching');
+    expect(h.enqueueScan).toHaveBeenCalledOnce();
+
+    // Give any already-queued microtasks a chance to run — the promise must
+    // still not have settled, because the fake watcher's readiness is under
+    // this test's explicit control and hasn't been granted yet.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    ready.resolve();
+    await enablePromise;
+    expect(settled).toBe(true);
+  });
+
+  it('resolves immediately for setEnabled(id, false), without waiting on any watcher', async () => {
+    const h = makeHarness();
+    h.manager.start([{ id: 'wf-1', rootPath: '/mnt/astro', enabled: true }]);
+
+    await expect(h.manager.setEnabled('wf-1', false)).resolves.toBeUndefined();
+  });
+
+  it('a redundant setEnabled(id, true) call while attach is already pending resolves against the same watcher, without creating a second one', async () => {
+    const ready = pendingReady();
+    const h = makeHarness({ makeWatcher: () => new FakeWatcher(ready.promise) });
+    h.manager.registerFolder({ id: 'wf-1', rootPath: '/mnt/astro' });
+
+    const first = h.manager.setEnabled('wf-1', true);
+    const second = h.manager.setEnabled('wf-1', true);
+
+    // Mode already flipped to 'watching' synchronously on the first call, so
+    // the second call's idempotency guard (mode === 'watching') is what
+    // prevents a duplicate chokidar instance here — not any tracking of the
+    // in-flight readiness wait itself.
+    expect(h.createWatcher).toHaveBeenCalledOnce();
+
+    let secondSettled = false;
+    void second.then(() => {
+      secondSettled = true;
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(secondSettled).toBe(false);
+
+    ready.resolve();
+    await Promise.all([first, second]);
+    expect(secondSettled).toBe(true);
   });
 });
 

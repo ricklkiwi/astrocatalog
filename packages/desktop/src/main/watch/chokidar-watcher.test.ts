@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
-import { createIgnoredPredicate } from './chokidar-watcher.js';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { createChokidarWatcher, createIgnoredPredicate } from './chokidar-watcher.js';
 
 describe('createIgnoredPredicate', () => {
   it('does not ignore a supported extension under a non-skipped directory', () => {
@@ -44,5 +48,66 @@ describe('createIgnoredPredicate', () => {
     const ignored = createIgnoredPredicate(['@eaDir']);
     // "@eaDirectory" is not an exact segment match for "@eaDir".
     expect(ignored('/mnt/astro/@eaDirectory/light.fits')).toBe(false);
+  });
+});
+
+/**
+ * P1-09 CI fix: `WatcherLike.ready()` must resolve once chokidar's own
+ * `'ready'` event fires (verified against a real chokidar instance, not a
+ * fake — the fake in `watch-manager.test.ts` only proves `WatchManager`
+ * *consumes* `ready()` correctly, not that the real adapter implements it
+ * correctly).
+ */
+describe('createChokidarWatcher — ready()', () => {
+  let dir: string | undefined;
+  let watcher: ReturnType<typeof createChokidarWatcher> | undefined;
+
+  afterEach(async () => {
+    if (watcher !== undefined) {
+      await watcher.close();
+      watcher = undefined;
+    }
+    if (dir !== undefined) {
+      rmSync(dir, { recursive: true, force: true });
+      dir = undefined;
+    }
+  });
+
+  it('resolves once chokidar has finished its initial setup', async () => {
+    dir = mkdtempSync(path.join(tmpdir(), 'astro-p1-09-chokidar-ready-'));
+    watcher = createChokidarWatcher(dir, {});
+
+    // Must not hang: a real chokidar watcher against a real (empty) temp
+    // directory settles quickly.
+    await watcher.ready();
+  });
+
+  it('only reports an add/change/unlink event to a listener attached before ready() resolves once the write happens — no event is lost by attaching early', async () => {
+    dir = mkdtempSync(path.join(tmpdir(), 'astro-p1-09-chokidar-ready-'));
+    watcher = createChokidarWatcher(dir, {});
+
+    const added: string[] = [];
+    watcher.on('add', (filePath) => added.push(filePath));
+
+    await watcher.ready();
+
+    const target = path.join(dir, 'light.fits');
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out waiting for add event')), 10_000);
+      watcher?.on('add', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      writeFileSync(target, 'stub-bytes');
+    });
+
+    expect(added.some((p) => p === target)).toBe(true);
+  });
+
+  it('resolves ready() exactly once even if called/awaited from multiple places', async () => {
+    dir = mkdtempSync(path.join(tmpdir(), 'astro-p1-09-chokidar-ready-'));
+    watcher = createChokidarWatcher(dir, {});
+
+    await Promise.all([watcher.ready(), watcher.ready(), watcher.ready()]);
   });
 });

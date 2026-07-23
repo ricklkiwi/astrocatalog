@@ -244,12 +244,17 @@ void app.whenReady().then(() => {
           watchManager?.stop(id);
           return database!.repos.watchFolders.remove(id);
         },
-        setLiveWatch: (id, enabled) => {
+        setLiveWatch: async (id, enabled) => {
           const updated = database!.repos.watchFolders.update(id, { liveWatchEnabled: enabled });
           if (updated === undefined) {
             throw new Error(`Unknown watch folder: ${id}`);
           }
-          watchManager?.setEnabled(id, enabled);
+          // Awaited (P1-09 CI fix): resolves once the watcher itself is
+          // ready (chokidar's 'ready' event) when enabling, so a caller that
+          // writes a file right after this IPC call resolves can't race
+          // chokidar's own async setup — see WatchManager.setEnabled's doc
+          // comment.
+          await watchManager?.setEnabled(id, enabled);
           return toWatchFolderRecord(updated);
         },
       },
