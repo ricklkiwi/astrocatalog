@@ -230,7 +230,7 @@ Introduce the target catalog storage/asset schema needed by DD-005, then build-t
 **Labels:** phase:1, pkg:core, type:feat
 **Refs:** DD-005
 **Depends on:** P1-10
-Add `targets` and `target_aliases` migrations if not already present, then implement DD-005 resolution: normalization, alias lookup, catalog lookup, coordinate-fallback suggestions, mosaic panel extraction. Pure functions + a resolver service that persists user aliases.
+`targets` and `target_aliases` already exist (migration 0000, see ADR-004) — alter them for any column/index this slice needs, don't recreate them. Implement DD-005 resolution: normalization, alias lookup, catalog lookup, coordinate-fallback suggestions, mosaic panel extraction. Pure functions + a resolver service that persists user aliases.
 **Acceptance criteria:**
 
 - Table-driven tests: ≥ 60 name variants incl. 'M 31'/'M31'/'m-31'/'NGC224'/'Andromeda Galaxy'/'Sh2-101'/'M 31 Panel 2'
@@ -242,7 +242,7 @@ Add `targets` and `target_aliases` migrations if not already present, then imple
 **Labels:** phase:1, pkg:core, type:feat
 **Refs:** DD-005
 **Depends on:** P0-04
-Add `filters` and filter-mapping persistence, then implement data-driven raw→canonical filter mapping per DD-005 table, unknown filters become their own visible canonical entries, user merge with remembered mappings.
+`filters` already exists (migration 0000, see ADR-004) — alter it and add filter-mapping persistence as needed. Implement data-driven raw→canonical filter mapping per DD-005 table, unknown filters become their own visible canonical entries, user merge with remembered mappings.
 **Acceptance criteria:**
 
 - Table-driven tests ≥ 30 raw variants incl. dualband filters
@@ -299,7 +299,7 @@ Review page listing unresolved OBJECT names (with fuzzy + coordinate suggestions
 **Labels:** phase:1, pkg:core, type:feat
 **Refs:** DD-006; PRD §6.3
 **Depends on:** P1-07
-Add `sessions` persistence and assignment-lock storage, then implement pure `detectSessions()` per DD-006: astronomical-day windowing, 4 h gap splitting, equipment-profile splitting, calibration-only sessions, idempotent re-runs, manual-assignment locks respected.
+`sessions` already exists (migration 0000, see ADR-004) — alter it and add assignment-lock storage as needed. Implement pure `detectSessions()` per DD-006: astronomical-day windowing, 4 h gap splitting, equipment-profile splitting, calibration-only sessions, idempotent re-runs, manual-assignment locks respected.
 **Acceptance criteria:**
 
 - Table-driven tests: midnight-spanning night, two-run night, multi-rig night, DSLR without CCD-TEMP, calibration-only night, timezone edge (site vs system tz)
@@ -310,7 +310,7 @@ Add `sessions` persistence and assignment-lock storage, then implement pure `det
 **Labels:** phase:1, pkg:core, pkg:db, type:feat
 **Refs:** DD-003, DD-006; PRD §6.3
 **Depends on:** P1-07
-Add `equipment_profiles` persistence, then detect distinct TELESCOP+INSTRUME(+FOCALLEN) combos into `equipment_profiles`; fuzzy-consolidate near-identical strings as suggestions; user confirm/rename/merge UI on Equipment page with usage hours per profile.
+`equipment_profiles` already exists (migration 0000, see ADR-004) — alter it as needed. Detect distinct TELESCOP+INSTRUME(+FOCALLEN) combos into `equipment_profiles`; fuzzy-consolidate near-identical strings as suggestions; user confirm/rename/merge UI on Equipment page with usage hours per profile.
 **Acceptance criteria:**
 
 - Same rig with minor header string drift ('EdgeHD 8' vs 'EdgeHD8') suggested as one profile, merged only on user confirm
@@ -343,7 +343,7 @@ Implement v1 `matchCalibration()` per DD-006: conservative hard filters by maste
 **Labels:** phase:1, pkg:desktop, pkg:db, type:feat
 **Refs:** DD-003; PRD §6.4
 **Depends on:** P1-20
-Add a minimal `master_frames` migration, then detect master-frame candidates (IMAGETYP master variants or user designation). Calibration page groups masters by camera/type and shows the properties used by matching. Do not include raw-sub provenance editing or superseded-master lifecycle in v1.0.
+`master_frames` already exists (migration 0000, see ADR-004) — alter it for the columns matching needs, don't recreate it. Detect master-frame candidates (IMAGETYP master variants or user designation). Calibration page groups masters by camera/type and shows the properties used by matching. Do not include raw-sub provenance editing or superseded-master lifecycle in v1.0.
 **Acceptance criteria:**
 
 - Masters auto-detected from fixture headers; manual designation flow works
@@ -379,7 +379,7 @@ Rich-text-lite (markdown) notes on sessions with weather/equipment-issue quick t
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** PRD §6.5
 **Depends on:** P1-15
-Add a minimal `processed_images` or target-linked final-image table, then attach a final TIFF/PNG/JPG path directly to a target as an optional reference image; mark one linked image as the target hero. This is deliberately not a processing-project tracker.
+Add a target-linked final-image table. (`processed_images` was dropped in migration 0006 with the rest of the processing-project group — see ADR-004 — so this slice creates its own minimal table rather than reusing it.) Attach a final TIFF/PNG/JPG path directly to a target as an optional reference image; mark one linked image as the target hero. This is deliberately not a processing-project tracker.
 **Acceptance criteria:**
 
 - Hero image shows on target card/detail when present
@@ -546,7 +546,7 @@ These tasks are deliberately outside v1.0. They build on the useful archive/retr
 **Labels:** phase:1.x, pkg:desktop, pkg:db, type:feat
 **Refs:** DD-003, DD-008; PRD §6.5
 **Depends on:** P1-24, P1-25, P1-21
-Add `processing_projects`, `project_frame_inputs`, and `project_master_frame_inputs` migrations. Create project for a target; select input lights and calibration masters; status kanban (in-progress/complete/abandoned); processing notes (software, steps, parameters); version labels ("M31 v2 - added Ha").
+Add `processing_projects`, `project_frame_inputs`, and `project_master_frame_inputs` migrations. The polymorphic `project_inputs` table that shipped early in migration 0000 was dropped in 0006 for contradicting DD-003; create the two separate join tables DD-003 specifies (ADR-004). Create project for a target; select input lights and calibration masters; status kanban (in-progress/complete/abandoned); processing notes (software, steps, parameters); version labels ("M31 v2 - added Ha").
 **Acceptance criteria:**
 
 - E2E: create project from target detail, select inputs, move through statuses

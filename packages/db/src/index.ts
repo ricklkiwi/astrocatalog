@@ -14,9 +14,6 @@ import type {
   frames,
   masterFrames,
   masterFrameSubs,
-  processedImages,
-  processingProjects,
-  projectInputs,
   scanJobs,
   sessions,
   settings,
@@ -49,7 +46,6 @@ export type {
   SessionsRepository,
   EquipmentProfilesRepository,
   MasterFramesRepository,
-  ProjectsRepository,
   CounterDelta,
   EnqueueJobInput,
   JobStatus,
@@ -82,12 +78,6 @@ export type MasterFrame = InferSelectModel<typeof masterFrames>;
 export type NewMasterFrame = NewRow<typeof masterFrames>;
 export type MasterFrameSub = InferSelectModel<typeof masterFrameSubs>;
 export type NewMasterFrameSub = NewRow<typeof masterFrameSubs>;
-export type ProcessingProject = InferSelectModel<typeof processingProjects>;
-export type NewProcessingProject = NewRow<typeof processingProjects>;
-export type ProjectInput = InferSelectModel<typeof projectInputs>;
-export type NewProjectInput = NewRow<typeof projectInputs>;
-export type ProcessedImage = InferSelectModel<typeof processedImages>;
-export type NewProcessedImage = NewRow<typeof processedImages>;
 export type ScanJob = InferSelectModel<typeof scanJobs>;
 export type NewScanJob = NewRow<typeof scanJobs>;
 export type Thumbnail = InferSelectModel<typeof thumbnails>;

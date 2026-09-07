@@ -2,9 +2,9 @@ import { sql } from 'drizzle-orm';
 
 import type { DrizzleDb } from './shared.js';
 
-/** One FTS5 hit. `entityType` discriminates the four indexed source tables. */
+/** One FTS5 hit. `entityType` discriminates the indexed source tables. */
 export interface SearchHit {
-  entityType: 'target' | 'target_alias' | 'session' | 'project';
+  entityType: 'target' | 'target_alias' | 'session';
   entityId: string;
   title: string;
   snippet: string;

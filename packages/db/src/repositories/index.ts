@@ -8,7 +8,6 @@ import { createFilesRepository } from './files.js';
 import { createFiltersRepository } from './filters.js';
 import { createFramesRepository } from './frames.js';
 import { createMasterFramesRepository } from './master-frames.js';
-import { createProjectsRepository } from './projects.js';
 import { createScanJobsRepository } from './scan-jobs.js';
 import { createSearchRepository } from './search.js';
 import { createSessionsRepository } from './sessions.js';
@@ -27,7 +26,6 @@ import type {
 import type { FiltersRepository } from './filters.js';
 import type { FramesListFilter, FramesRepository } from './frames.js';
 import type { MasterFramesRepository } from './master-frames.js';
-import type { ProjectsRepository } from './projects.js';
 import type {
   CounterDelta,
   EnqueueJobInput,
@@ -52,7 +50,6 @@ export interface Repositories {
   sessions: SessionsRepository;
   equipmentProfiles: EquipmentProfilesRepository;
   masterFrames: MasterFramesRepository;
-  projects: ProjectsRepository;
   scanJobs: ScanJobsRepository;
   settings: SettingsRepository;
   search: SearchRepository;
@@ -68,7 +65,6 @@ export function createRepositories(db: DrizzleDb): Repositories {
     sessions: createSessionsRepository(db),
     equipmentProfiles: createEquipmentProfilesRepository(db),
     masterFrames: createMasterFramesRepository(db),
-    projects: createProjectsRepository(db),
     scanJobs: createScanJobsRepository(db),
     settings: createSettingsRepository(db),
     search: createSearchRepository(db),
@@ -93,7 +89,6 @@ export type {
   SessionsRepository,
   EquipmentProfilesRepository,
   MasterFramesRepository,
-  ProjectsRepository,
   CounterDelta,
   EnqueueJobInput,
   JobStatus,

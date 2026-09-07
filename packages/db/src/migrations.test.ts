@@ -31,9 +31,6 @@ const DD003_TABLES = [
   'equipment_profiles',
   'master_frames',
   'master_frame_subs',
-  'processing_projects',
-  'project_inputs',
-  'processed_images',
   'scan_jobs',
   'thumbnails',
   'settings',
@@ -187,25 +184,6 @@ describe('fixture round-trip through the repositories', () => {
       frameId: frame.id,
     });
 
-    const project = repos.projects.insert({
-      targetId: target.id,
-      name: 'M31 LRGB',
-      versionLabel: 'v1',
-      status: 'in_progress',
-      software: 'PixInsight',
-      notes: 'Waiting on Ha data',
-    });
-    const frameInput = repos.projects.insertInput({
-      projectId: project.id,
-      inputType: 'frame',
-      frameId: frame.id,
-    });
-    const masterInput = repos.projects.insertInput({
-      projectId: project.id,
-      inputType: 'master_frame',
-      masterFrameId: masterFrame.id,
-    });
-
     // Every id is a UUIDv7 stamped by the repository layer.
     for (const row of [watchFolder, file, target, filter, equipmentProfile, session, frame]) {
       expect(isUuid(row.id)).toBe(true);
@@ -223,21 +201,12 @@ describe('fixture round-trip through the repositories', () => {
     expect(db.repos.frames.getById(frame.id)).toEqual(frame);
     expect(db.repos.masterFrames.getById(masterFrame.id)).toEqual(masterFrame);
     expect(db.repos.masterFrames.listSubs(masterFrame.id)).toEqual([sub]);
-    expect(db.repos.projects.getById(project.id)).toEqual(project);
-    expect(db.repos.projects.listInputs(project.id)).toEqual(
-      expect.arrayContaining([frameInput, masterInput]),
-    );
-    expect(db.repos.projects.listInputs(project.id)).toHaveLength(2);
 
     expect(frame.fileId).toBe(file.id);
     expect(frame.targetId).toBe(target.id);
     expect(frame.filterId).toBe(filter.id);
     expect(frame.sessionId).toBe(session.id);
     expect(frame.equipmentProfileId).toBe(equipmentProfile.id);
-    expect(frameInput.frameId).toBe(frame.id);
-    expect(frameInput.masterFrameId).toBeNull();
-    expect(masterInput.masterFrameId).toBe(masterFrame.id);
-    expect(masterInput.frameId).toBeNull();
   });
 
   it('update() re-stamps updated_at and leaves unspecified columns untouched', () => {
@@ -315,37 +284,6 @@ describe('constraint enforcement (foreign_keys=ON)', () => {
     expect((caught as { code?: string }).code).toBe('SQLITE_CONSTRAINT_UNIQUE');
     // The first frame is still the one on record — no silent overwrite.
     expect(repos.frames.list().filter((f) => f.fileId === file.id)).toHaveLength(1);
-  });
-
-  it('rejects project_inputs with both frame_id and master_frame_id set, and with neither', () => {
-    const { repos } = db;
-    const watchFolder = repos.watchFolders.insert({ path: '/Volumes/AstroSSD' });
-    const file = repos.files.insert({ watchFolderId: watchFolder.id, ...fileFixture('y.fits') });
-    const frame = repos.frames.insert({
-      fileId: file.id,
-      frameType: 'light',
-      frameTypeSource: 'header',
-      headersJson: '{}',
-    });
-    const masterFile = repos.files.insert({
-      watchFolderId: watchFolder.id,
-      ...fileFixture('master.fits'),
-    });
-    const master = repos.masterFrames.insert({ fileId: masterFile.id, masterType: 'flat' });
-    const project = repos.projects.insert({ name: 'CHECK test' });
-
-    expect(() =>
-      repos.projects.insertInput({
-        projectId: project.id,
-        inputType: 'frame',
-        frameId: frame.id,
-        masterFrameId: master.id,
-      }),
-    ).toThrow(/CHECK constraint failed/);
-
-    expect(() => repos.projects.insertInput({ projectId: project.id, inputType: 'frame' })).toThrow(
-      /CHECK constraint failed/,
-    );
   });
 
   it('sets duplicate_of_id to NULL (never cascades) when the canonical file row is deleted', () => {
@@ -535,3 +473,105 @@ describe('migration 0002 (scan_jobs queue columns) against a pre-existing P0-04 
     }
   });
 });
+
+describe('migration 0006 (drop processing-project tables) against a pre-0006 install', () => {
+  /**
+   * Build a migrations folder holding every migration up to and including
+   * `maxIdx`, byte-identical to the committed files so their hashes match, and
+   * with the real journal `when` values — drizzle decides "already applied" by
+   * comparing folderMillis against the latest applied row, not by hash, so a
+   * fabricated `when` would make the full run re-apply 0000's CREATE TABLEs.
+   */
+  function buildPartialMigrationsFolder(dir: string, maxIdx: number): string {
+    const partialFolder = join(dir, `migrations-through-${maxIdx}`);
+    mkdirSync(join(partialFolder, 'meta'), { recursive: true });
+    const fullFolder = resolveMigrationsFolder();
+    const realJournal = JSON.parse(
+      readFileSync(join(fullFolder, 'meta', '_journal.json'), 'utf8'),
+    ) as { entries: Array<{ idx: number; when: number; tag: string }> };
+    const entries = realJournal.entries.filter((entry) => entry.idx <= maxIdx);
+    for (const entry of entries) {
+      copyFileSync(join(fullFolder, `${entry.tag}.sql`), join(partialFolder, `${entry.tag}.sql`));
+    }
+    writeFileSync(
+      join(partialFolder, 'meta', '_journal.json'),
+      JSON.stringify({
+        version: '7',
+        dialect: 'sqlite',
+        entries: entries.map((entry) => ({ ...entry, breakpoints: true, version: '6' })),
+      }),
+    );
+    return partialFolder;
+  }
+
+  it('drops the tables and cleans their orphaned FTS rows on an install that has project data', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'astrotracker-0006-migration-'));
+    const filePath = join(dir, 'legacy.db');
+    try {
+      // 1. Bring a fresh file to the exact pre-0006 schema.
+      const legacy = new Database(filePath);
+      legacy.pragma('foreign_keys = ON');
+      migrate(drizzle(legacy), { migrationsFolder: buildPartialMigrationsFolder(dir, 5) });
+
+      // 2. Seed a project. Its FTS row is written by the 0001 trigger, which
+      // is exactly what DROP TABLE alone would orphan (DROP TABLE does not
+      // fire AFTER DELETE).
+      const projectId = uuidv7();
+      const now = Date.now();
+      legacy
+        .prepare(
+          `INSERT INTO processing_projects (id, created_at, updated_at, name, notes)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(projectId, now, now, 'M31 LRGB', 'Andromeda panel 3');
+      expect(
+        legacy.prepare(`SELECT count(*) AS n FROM search_fts WHERE entity_type = 'project'`).get(),
+      ).toEqual({ n: 1 });
+      legacy.close();
+
+      // 3. Run the full migration set, which now includes 0006.
+      const db = openDatabase({ filePath });
+      try {
+        const tables = withRawConnectionAt(filePath, (raw) =>
+          raw
+            .prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`)
+            .all()
+            .map((row) => (row as { name: string }).name),
+        );
+        expect(tables).not.toContain('processing_projects');
+        expect(tables).not.toContain('project_inputs');
+        expect(tables).not.toContain('processed_images');
+
+        // The FTS index must not keep a hit pointing at a table that no
+        // longer exists — a search for 'andromeda' would otherwise return an
+        // unresolvable 'project' row forever.
+        const orphans = withRawConnectionAt(filePath, (raw) =>
+          raw.prepare(`SELECT count(*) AS n FROM search_fts WHERE entity_type = 'project'`).get(),
+        );
+        expect(orphans).toEqual({ n: 0 });
+
+        // The rest of the catalog still works after the drop.
+        const watchFolder = db.repos.watchFolders.insert({ path: '/Volumes/AstroSSD' });
+        expect(isUuid(watchFolder.id)).toBe(true);
+        expect(db.repos.search.query('androm*')).toHaveLength(0);
+      } finally {
+        db.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 20000);
+});
+
+/** `withRawConnection`, but against an explicit path rather than the suite's. */
+function withRawConnectionAt<T>(
+  filePath: string,
+  fn: (raw: InstanceType<typeof Database>) => T,
+): T {
+  const raw = new Database(filePath, { readonly: true });
+  try {
+    return fn(raw);
+  } finally {
+    raw.close();
+  }
+}

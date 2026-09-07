@@ -35,7 +35,7 @@ function ftsRowsFor(entityId: string): Array<{ title: string; body: string }> {
 }
 
 describe('trigger-maintained FTS5 search (no application-level FTS writes)', () => {
-  it('indexes targets, aliases, sessions, and projects on insert', () => {
+  it('indexes targets, aliases, and sessions on insert', () => {
     const { repos } = db;
     const target = repos.targets.insert({
       canonicalName: 'M 31',
@@ -50,16 +50,10 @@ describe('trigger-maintained FTS5 search (no application-level FTS writes)', () 
       sessionDate: '2026-01-15',
       notes: 'Imaged Andromeda through thin cloud',
     });
-    const project = repos.projects.insert({
-      name: 'Widefield mosaic',
-      notes: 'Andromeda panel 3 of 4',
-    });
-
     const prefixHits = repos.search.query('androm*');
     const byId = new Map(prefixHits.map((hit) => [hit.entityId, hit]));
     expect(byId.get(target.id)?.entityType).toBe('target');
     expect(byId.get(session.id)?.entityType).toBe('session');
-    expect(byId.get(project.id)?.entityType).toBe('project');
 
     const aliasHits = repos.search.query('ngc');
     expect(aliasHits.map((hit) => hit.entityId)).toContain(alias.id);
