@@ -17,3 +17,10 @@ packages/desktop/release/
 # Playwright default output directories (P0-08)
 packages/desktop/playwright-report/
 packages/desktop/test-results/
+
+# macOS / cloud-sync duplicate artifacts ("coder 2.md", "config 2.json").
+# Five stale copies of the .claude/agents/ prompts were sitting untracked and
+# unignored: `git add -A` would have committed them, and a harness globbing
+# .claude/agents/*.md could load the stale copy instead of the symlinked
+# current one.
+* [0-9].*
