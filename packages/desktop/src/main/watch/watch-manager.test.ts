@@ -7,7 +7,7 @@ import {
   type EnqueueScanResult,
 } from './watch-manager.js';
 import type { WatcherFactory, WatcherLike } from './types.js';
-import type { WatchStatusEvent } from '../../ipc/contract.js';
+import type { WatchActivityEvent, WatchStatusEvent } from '../../ipc/contract.js';
 
 type Listener = (arg: never) => void;
 
@@ -71,6 +71,7 @@ interface Harness {
   watchersByRoot: Map<string, FakeWatcher[]>;
   enqueueScan: ReturnType<typeof vi.fn>;
   statusEvents: WatchStatusEvent[];
+  activityEvents: WatchActivityEvent[];
   fireJobEvent: (event: JobProgressEvent) => void;
   debounceMs: number;
   fallbackRescanIntervalMs: number;
@@ -101,6 +102,7 @@ function makeHarness(
     return { jobId: `job-${nextJobId}` };
   }) satisfies (input: EnqueueScanInput) => EnqueueScanResult);
   const statusEvents: WatchStatusEvent[] = [];
+  const activityEvents: WatchActivityEvent[] = [];
   let jobListener: ((event: JobProgressEvent) => void) | undefined;
 
   const manager = createWatchManager({
@@ -115,6 +117,7 @@ function makeHarness(
       };
     },
     onStatusChange: (event) => statusEvents.push(event),
+    onActivity: (event) => activityEvents.push(event),
     extensions: ['fits', 'xisf'],
   });
 
@@ -124,6 +127,7 @@ function makeHarness(
     watchersByRoot,
     enqueueScan,
     statusEvents,
+    activityEvents,
     fireJobEvent: (event) => jobListener?.(event),
     debounceMs,
     fallbackRescanIntervalMs,
@@ -550,5 +554,112 @@ describe('mode transitions stamp updatedAt with new Date()', () => {
     watcher.emit('error', Object.assign(new Error('x'), { code: 'EMFILE' }));
 
     expect(h.statusEvents.at(-1)?.updatedAt).toBe('2026-07-22T10:05:00.000Z');
+  });
+});
+
+describe('activity events (debug-panel instrumentation)', () => {
+  it('emits a fs-event activity with the event kind and path for add/change/unlink', () => {
+    const h = makeHarness();
+    h.manager.start([{ id: 'wf-1', rootPath: '/mnt/astro', enabled: true }]);
+    completeLastScan(h, 'wf-1');
+    h.activityEvents.length = 0;
+
+    const watcher = latestWatcher(h, '/mnt/astro');
+    watcher.emit('add', '/mnt/astro/a.fits');
+
+    const fsEvents = h.activityEvents.filter((event) => event.kind === 'fs-event');
+    expect(fsEvents).toHaveLength(1);
+    expect(fsEvents[0]).toMatchObject({
+      watchFolderId: 'wf-1',
+      kind: 'fs-event',
+      detail: 'add: /mnt/astro/a.fits',
+    });
+  });
+
+  it('emits a debounce-scheduled activity every time the timer is (re)armed', () => {
+    const h = makeHarness();
+    h.manager.start([{ id: 'wf-1', rootPath: '/mnt/astro', enabled: true }]);
+    completeLastScan(h, 'wf-1');
+    h.activityEvents.length = 0;
+
+    const watcher = latestWatcher(h, '/mnt/astro');
+    watcher.emit('add', '/mnt/astro/a.fits');
+    watcher.emit('change', '/mnt/astro/a.fits');
+
+    const scheduled = h.activityEvents.filter((event) => event.kind === 'debounce-scheduled');
+    expect(scheduled).toHaveLength(2);
+    expect(scheduled[0]?.detail).toContain(`${h.debounceMs}ms`);
+  });
+
+  it('emits a scan-requested activity with the job id when a debounce fires cleanly', () => {
+    const h = makeHarness();
+    h.manager.start([{ id: 'wf-1', rootPath: '/mnt/astro', enabled: true }]);
+    completeLastScan(h, 'wf-1');
+    h.activityEvents.length = 0;
+    h.enqueueScan.mockClear();
+
+    const watcher = latestWatcher(h, '/mnt/astro');
+    watcher.emit('add', '/mnt/astro/a.fits');
+    vi.advanceTimersByTime(h.debounceMs);
+
+    const jobId = (h.enqueueScan.mock.results[0]?.value as EnqueueScanResult).jobId;
+    const requested = h.activityEvents.filter((event) => event.kind === 'scan-requested');
+    expect(requested).toHaveLength(1);
+    expect(requested[0]?.detail).toBe(`scan requested (debounce) — job ${jobId}`);
+  });
+
+  it('emits a scan-deferred activity (not scan-requested) when a debounce fires while a scan is already in flight', () => {
+    const h = makeHarness();
+    h.manager.start([{ id: 'wf-1', rootPath: '/mnt/astro', enabled: true }]);
+    const firstJobId = (h.enqueueScan.mock.results[0]?.value as EnqueueScanResult).jobId;
+    h.activityEvents.length = 0;
+
+    const watcher = latestWatcher(h, '/mnt/astro');
+    watcher.emit('add', '/mnt/astro/a.fits');
+    vi.advanceTimersByTime(h.debounceMs);
+
+    const deferred = h.activityEvents.filter((event) => event.kind === 'scan-deferred');
+    expect(deferred).toHaveLength(1);
+    expect(deferred[0]?.detail).toBe(
+      `scan deferred (debounce) — job ${firstJobId} still in flight`,
+    );
+    expect(h.activityEvents.some((event) => event.kind === 'scan-requested')).toBe(false);
+  });
+
+  it('emits a watcher-error activity for a fallback-triggering error', () => {
+    const h = makeHarness();
+    h.manager.start([{ id: 'wf-1', rootPath: '/mnt/astro', enabled: true }]);
+    h.activityEvents.length = 0;
+
+    const watcher = latestWatcher(h, '/mnt/astro');
+    watcher.emit('error', Object.assign(new Error('boom'), { code: 'EMFILE' }));
+
+    const errors = h.activityEvents.filter((event) => event.kind === 'watcher-error');
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.detail).toBe('watcher error (EMFILE) — falling back to periodic rescan');
+  });
+
+  it('emits a watcher-error activity for a non-fallback error (e.g. ENOENT)', () => {
+    const h = makeHarness();
+    h.manager.start([{ id: 'wf-1', rootPath: '/mnt/astro', enabled: true }]);
+    h.activityEvents.length = 0;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const watcher = latestWatcher(h, '/mnt/astro');
+    watcher.emit('error', Object.assign(new Error('vanished'), { code: 'ENOENT' }));
+
+    const errors = h.activityEvents.filter((event) => event.kind === 'watcher-error');
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.detail).toBe('watcher error (ENOENT) — ignored, no fallback');
+    vi.restoreAllMocks();
+  });
+
+  it('stamps every activity event with a UTC ISO timestamp from the current (fake) system time', () => {
+    vi.setSystemTime(new Date('2026-07-22T10:00:00.000Z'));
+    const h = makeHarness();
+    h.manager.start([{ id: 'wf-1', rootPath: '/mnt/astro', enabled: true }]);
+
+    const attachActivity = h.activityEvents.find((event) => event.kind === 'scan-requested');
+    expect(attachActivity?.timestamp).toBe('2026-07-22T10:00:00.000Z');
   });
 });

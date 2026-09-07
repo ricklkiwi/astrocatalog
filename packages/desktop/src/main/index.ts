@@ -178,6 +178,13 @@ void app.whenReady().then(() => {
         event,
       );
     },
+    onActivity: (event) => {
+      broadcastIpcEvent(
+        () => BrowserWindow.getAllWindows().map((window) => window.webContents),
+        'watch.activity',
+        event,
+      );
+    },
     extensions: SUPPORTED_EXTENSIONS,
   });
 
