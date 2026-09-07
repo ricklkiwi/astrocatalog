@@ -17,14 +17,14 @@ Each task in `task-breakdown.md` is scoped to be a single GitHub issue completab
 | Phase | Deliverable                 | Theme                                                                                | Task IDs        | Est. issues |
 | ----- | --------------------------- | ------------------------------------------------------------------------------------ | --------------- | ----------- |
 | 0     | Repo & platform foundations | Monorepo, CI, Electron shell, DB layer, fixtures                                     | P0-01 … P0-08   | 8           |
-| 1     | MVP v1.0                    | Scanning, targets, sessions, calibration, retrieval/handoff, stats, packaging        | P1-01 … P1-36   | 36          |
+| 1     | MVP v1.0                    | Scanning, targets, sessions, calibration, retrieval/handoff, stats, packaging        | P1-01 … P1-37   | 37          |
 | 1.x   | v1.x                        | Advanced calibration and processing workflow after useful v1.0 archive/retrieval MVP | P1x-01 … P1x-03 | 3           |
 | 2     | v2.0                        | Cloud service, auth, metadata sync, Tonight's Sky, recommendations, weather          | P2-01 … P2-14   | 14          |
 | 3     | v3.0                        | Community benchmarks, shared lists, club projects, AstroBin, public stats            | P3-01 … P3-08   | 8           |
 | 4     | v4.0                        | Capture-software hooks, auto-import, quality scoring, mosaics, maintenance log       | P4-01 … P4-09   | 9           |
 | 5     | v5.0                        | ML suggestions, predictive completion, planning calendar, quality trends             | P5-01 … P5-06   | 6           |
 
-Total: **84 issues**. Phase 1 is the critical path to beta; a closed beta (PRD §9: 50 users) should start after milestone M4 below.
+Total: **85 issues**. Phase 1 is the critical path to beta; a closed beta (PRD §9: 50 users) should start after milestone M4 below.
 
 ## 3. Phase 1 milestones (MVP)
 

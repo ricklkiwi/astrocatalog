@@ -30,6 +30,9 @@ See `docs/agents/USAGE.md` for how to actually invoke these agents (and compleme
 ## Workflow
 
 - One issue per PR; branch name `<issue-id>-short-slug` (e.g. `p1-01-fits-parser`).
+- **The breakdown wins over the issue text.** `planning/task-breakdown.md` is authoritative. If
+  the GitHub issue's title or body disagrees with it, stop and fix the tracker first — do not
+  implement the issue text. `pnpm issues:verify` checks the whole tracker against the breakdown.
 - Conventional commits; squash merge.
 - Complete the issue's acceptance criteria checklist in the PR description, with evidence (test names, benchmark output).
 - If your issue has `Depends on:` entries that aren't merged yet, pick a different issue.

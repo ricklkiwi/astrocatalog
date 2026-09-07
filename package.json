@@ -14,6 +14,7 @@
     "typecheck": "pnpm -r build",
     "lint": "pnpm run lint:root && pnpm -r lint",
     "lint:root": "eslint eslint.config.mjs vitest.config.ts && prettier --check .",
+    "issues:verify": "node scripts/verify-issue-sync.mjs",
     "pretest": "pnpm rebuild -r better-sqlite3",
     "test": "vitest run",
     "package": "pnpm --filter @astrotracker/desktop package",
