@@ -89,30 +89,23 @@ export interface JobQueueOrchestrator {
 export interface CreateJobQueueOrchestratorOptions {
   scanJobs: ScanJobsRepository;
   /**
-   * Files repository for `'scan'`-job Stage-1 upserts (P1-06). Optional so the
-   * P0-05 demo-only wiring (and any caller that never enqueues scans) still
-   * constructs an orchestrator; when absent, `'scan'` discovery batches are
-   * ignored. Production (`main/index.ts`) must supply it for scans to persist.
+   * Files repository for `'scan'`-job Stage-1 upserts (P1-06) and Stage-5a
+   * hash results (P1-08).
    */
-  files?: FilesRepository;
+  files: FilesRepository;
   /**
-   * Frames repository for `'scan'`-job Stage-2/3 upserts (P1-07). Optional for
-   * the same reason as `files`: demo-only wiring and pure Stage-1 callers omit
-   * it. When present (production, and P1-07 tests), a successfully parsed
-   * new/changed file gets its `frames` row written via `upsertByFileId`; when
-   * absent, parse results are ignored (files/parse-errors still persist).
+   * Frames repository for `'scan'`-job Stage-2/3 upserts (P1-07): a
+   * successfully parsed new/changed file gets its `frames` row written via
+   * `upsertByFileId`.
    */
-  frames?: FramesRepository;
+  frames: FramesRepository;
   /**
-   * Watch-folders repository, needed only to resolve a `'hash'` job's
-   * candidate files to absolute paths (`path.join(watchFolder.path,
+   * Watch-folders repository, needed to resolve a `'hash'` job's candidate
+   * files to absolute paths (`path.join(watchFolder.path,
    * file.relativePath)`) — `files` rows store only `relativePath` +
-   * `watchFolderId` (P1-08). Optional, same reasoning as `files`/`frames`: when
-   * absent, `'hash'` jobs simply resolve zero candidates (`dispatchJobFor` can't
-   * build absolute paths), so they complete as no-ops — mirroring how `'scan'`
-   * payloads are unaffected when `files` is absent.
+   * `watchFolderId` (P1-08).
    */
-  watchFolders?: WatchFoldersRepository;
+  watchFolders: WatchFoldersRepository;
   /**
    * Runs `fn` inside a single DB transaction, used to batch each discovered
    * file group's upserts atomically (DD-002 single-writer). Optional — when
@@ -240,7 +233,7 @@ export function createJobQueueOrchestrator({
     if (job.jobType === 'hash') {
       return dispatchHashJob(base);
     }
-    if (job.jobType === 'scan' && files !== undefined) {
+    if (job.jobType === 'scan') {
       return dispatchScanJob(job, base, files);
     }
     return base;
@@ -284,23 +277,21 @@ export function createJobQueueOrchestrator({
    * Rebuild a `'hash'` job's payload fresh at dispatch time (P1-08): pull up to
    * {@link HASH_BATCH_LIMIT} unhashed files and resolve each to its absolute
    * path via its watch folder. Always yields a valid `HashJobPayload` (an empty
-   * `files` list when `files`/`watchFolders` aren't wired or nothing is
-   * unhashed), so the worker never sees a malformed payload.
+   * `files` list when nothing is unhashed), so the worker never sees a
+   * malformed payload.
    */
   function dispatchHashJob(base: DispatchJob): DispatchJob {
     const candidates: HashCandidate[] = [];
-    if (files !== undefined && watchFolders !== undefined) {
-      for (const file of files.listUnhashed(HASH_BATCH_LIMIT)) {
-        const watchFolder = watchFolders.getById(file.watchFolderId);
-        if (watchFolder === undefined) {
-          continue;
-        }
-        candidates.push({
-          fileId: file.id,
-          absolutePath: path.join(watchFolder.path, file.relativePath),
-          sizeBytes: file.sizeBytes,
-        });
+    for (const file of files.listUnhashed(HASH_BATCH_LIMIT)) {
+      const watchFolder = watchFolders.getById(file.watchFolderId);
+      if (watchFolder === undefined) {
+        continue;
       }
+      candidates.push({
+        fileId: file.id,
+        absolutePath: path.join(watchFolder.path, file.relativePath),
+        sizeBytes: file.sizeBytes,
+      });
     }
     const payload: HashJobPayload = { files: candidates };
     return { ...base, payload };
@@ -361,7 +352,7 @@ export function createJobQueueOrchestrator({
    * counters are bumped once after it commits.
    */
   function processDiscoveredBatch(jobId: string, discovered: DiscoveredFile[]): void {
-    if (files === undefined || discovered.length === 0) {
+    if (discovered.length === 0) {
       return;
     }
     const job = scanJobs.getById(jobId);
@@ -374,7 +365,6 @@ export function createJobQueueOrchestrator({
     }
     const seenAt = job.startedAt;
     const filesRepo = files;
-    const framesRepo = frames;
     let seen = 0;
     let added = 0;
     let updated = 0;
@@ -438,9 +428,7 @@ export function createJobQueueOrchestrator({
           errored += 1;
         } else if (file.parsed !== undefined) {
           // New/changed file that parsed: write its frame + clear any prior error.
-          if (framesRepo !== undefined) {
-            framesRepo.upsertByFileId(toFrameRow(fileId, file.parsed));
-          }
+          frames.upsertByFileId(toFrameRow(fileId, file.parsed));
           filesRepo.recordParseError(fileId, null);
         }
         // else: unchanged/skipped — leave frames + parse_error untouched.
@@ -464,9 +452,6 @@ export function createJobQueueOrchestrator({
    * callers (onDone) pump right after.
    */
   function enqueueHashIfBacklog(): void {
-    if (files === undefined || watchFolders === undefined) {
-      return;
-    }
     if (files.listUnhashed(1).length === 0) {
       return;
     }
@@ -497,14 +482,13 @@ export function createJobQueueOrchestrator({
       // is retried on the next hash pass (we don't overload `parse_error`,
       // which is documented as Stage-2-specific). Batched in one transaction
       // for write throughput (DD-002 single-writer).
-      if (files === undefined || results.length === 0) {
+      if (results.length === 0) {
         return;
       }
-      const filesRepo = files;
       transaction(() => {
         for (const result of results) {
           if ('sha256' in result) {
-            filesRepo.recordHash(result.fileId, result.sha256);
+            files.recordHash(result.fileId, result.sha256);
           }
         }
       });
@@ -522,7 +506,7 @@ export function createJobQueueOrchestrator({
         // while stale rows (older startedAt) don't. Restoring them later is
         // free: a subsequent successful rescan re-upserts and `wasRestored`
         // flips them back to `'present'`.
-        if (completed.jobType === 'scan' && files !== undefined && completed.startedAt !== null) {
+        if (completed.jobType === 'scan' && completed.startedAt !== null) {
           const watchFolderId = watchFolderIdOf(completed);
           if (watchFolderId !== undefined) {
             files.markMissingNotSeenSince(watchFolderId, completed.startedAt);

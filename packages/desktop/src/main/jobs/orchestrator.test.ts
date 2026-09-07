@@ -82,6 +82,8 @@ function createHarness(filePath?: string): Harness {
   const orchestrator = createJobQueueOrchestrator({
     scanJobs: db.repos.scanJobs,
     files: filesRepo,
+    frames: db.repos.frames,
+    watchFolders: db.repos.watchFolders,
     transaction: (fn) => db.transaction(() => fn()),
     createPool(callbacks: WorkerPoolCallbacks) {
       pool = createWorkerPool(1, callbacks);
