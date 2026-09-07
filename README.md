@@ -25,13 +25,13 @@ Electron + React + TypeScript, SQLite (better-sqlite3 + Drizzle), pnpm monorepo.
 
 pnpm workspace with four packages plus a `fixtures/` directory:
 
-| Package                     | Role                                                                                                      | May depend on                            |
-| --------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `packages/core`             | Pure domain logic — parsers, target resolution, session detection, calibration matching, integration math | nothing (zero runtime dependencies)      |
-| `packages/db`               | Drizzle schema, migrations, repositories (from P0-04)                                                     | `@astrotracker/core`                     |
-| `packages/desktop`          | Electron main process, preload, workers (from P0-03)                                                      | `@astrotracker/core`, `@astrotracker/db` |
-| `packages/desktop/renderer` | React UI — its own workspace member                                                                       | nothing (IPC only)                       |
-| `fixtures/`                 | Real-world FITS/XISF/RAW header samples + manifests (populated in P0-06)                                  | —                                        |
+| Package                     | Role                                                                                                      | May depend on                                         |
+| --------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `packages/core`             | Pure domain logic — parsers, target resolution, session detection, calibration matching, integration math | pure runtime libraries only; no Electron or Node `fs` |
+| `packages/db`               | Drizzle schema, migrations, repositories (from P0-04)                                                     | `@astrotracker/core`                                  |
+| `packages/desktop`          | Electron main process, preload, workers (from P0-03)                                                      | `@astrotracker/core`, `@astrotracker/db`              |
+| `packages/desktop/renderer` | React UI — its own workspace member                                                                       | nothing (IPC only)                                    |
+| `fixtures/`                 | Real-world FITS/XISF/RAW header samples + manifests (populated in P0-06)                                  | —                                                     |
 
 Allowed dependency direction: `core` ← `db` ← `desktop`. The renderer is deliberately
 independent — it declares no _value_-level dependency on `core`, `db`, or `desktop`, and
@@ -49,11 +49,12 @@ boundary — only types, which never ship in the bundle. A root ESLint rule scop
 `@astrotracker/desktop` fails `pnpm -r lint`, even though a type-only import of the same
 specifier passes.
 
-**`core` must stay pure:** no Electron dependency and no `fs` imports — parsers accept
-Buffers/streams. This is enforced mechanically, not by convention: `packages/core/package.json`
-has an empty `dependencies` field, and the root ESLint config applies a `no-restricted-imports`
-rule to `packages/core/src/**` that fails `pnpm -r lint` on any `electron`, `fs`, `node:fs`, or
-`node:fs/promises` import.
+**`core` must stay pure:** pure runtime libraries are allowed where they earn their place (P1-03
+added `exifr` for RAW EXIF), but `core` must not couple to Electron or to Node filesystem APIs —
+parsers accept Buffers, streams, or bounded read callbacks rather than opening files themselves.
+This is enforced mechanically, not by convention: the root ESLint config applies a
+`no-restricted-imports` rule to `packages/core/src/**` that fails `pnpm -r lint` on any `electron`,
+`fs`, `node:fs`, `fs/promises`, or `node:fs/promises` import.
 
 ### Commands
 
