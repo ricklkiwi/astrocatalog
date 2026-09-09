@@ -1,6 +1,6 @@
 # Spec: [P1-05] Capture-software profile table
 
-**Slug:** p1-05-capture-software-profiles **Issue:** #13 **Plan:** docs/plans/p1-05-capture-software-profiles.md **Date:** 2026-07-20
+**Slug:** p1-05-capture-software-profiles **Issue:** #13 **Plan:** docs/archive/tasks/p1-05-capture-software-profiles/plan.md **Date:** 2026-07-20
 **Governing DDs:** DD-004 (scanning pipeline — "Header parsing specifics": capture-software quirks handled by a data-driven **software profile table in `packages/core`**, unit-tested against fixtures, community-extensible), DD-002 (layering — `packages/core` pure TypeScript, no Electron, no fs side effects in domain logic), DD-003 (schema — consulted only to confirm no `frames` column exists for detected software identity; no schema change is proposed)
 
 ## Scope
@@ -184,4 +184,4 @@ No changes to `fixtures/` (every fixture needed already exists from P0-06), `pac
 - **XISF and RAW frames returning `null` is the correct v1 outcome, not a missing feature.** XISF software fingerprinting is currently _impossible_ (no software-id FITSKeyword in either fixture; native `<Property>` elements not preserved into `headers`) — the plan's Open Question #1, needing a product/research call, not a Reviewer decision. RAW frames have no coherent capture-software concept (camera-firmware-written). Both are asserted as correct `null` outcomes with explanatory comments.
 - **Whether detected software identity is ever persisted/surfaced** (e.g. an Equipment screen) is the plan's Open Question #2 — DD-003 has no column and this issue's AC does not require persistence. Flagged as a possible future DD-003 revision, not blocking.
 
-Spec written: docs/specs/p1-05-capture-software-profiles.md
+Spec written: docs/archive/tasks/p1-05-capture-software-profiles/spec.md
