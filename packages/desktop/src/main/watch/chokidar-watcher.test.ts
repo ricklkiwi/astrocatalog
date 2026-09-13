@@ -120,10 +120,24 @@ describe('createIgnoredPredicate', () => {
  *     loss) is proven by `pnpm --filter @astrotracker/desktop e2e`'s
  *     `watch-mode.spec.ts`, which has passed reliably on Windows CI twice
  *     in a row.
- * Keep this block running in full on macOS/Linux — only Windows CI's shared
- * worker pool has shown this unreliability.
+ * macOS CI has since shown the same unreliability, so it is skipped there too
+ * — but only on CI. Two failures on runners, on branches that touch none of
+ * this code: first at ~5.00s against Vitest's old default timeout, then, once
+ * #107 gave the in-test guard room to actually fire, at 10014ms reporting
+ * "timed out waiting for add event". So the add event genuinely never arrived
+ * in ten seconds; this is not a timeout budget that can be raised. The same
+ * two-layer coverage above applies, and `e2e (macos-latest)` runs the real
+ * watcher through the packaged app on every PR.
+ *
+ * Deliberately CI-only for macOS, unlike the unconditional Windows skip: macOS
+ * is the primary development platform here, where this test runs reliably in
+ * ~2s and is worth keeping as local signal. There is no Windows dev machine to
+ * lose coverage on.
  */
-describe.skipIf(process.platform === 'win32')('createChokidarWatcher — ready()', () => {
+const isCi = Boolean(process.env.CI);
+const skipRealWatcher = process.platform === 'win32' || (isCi && process.platform === 'darwin');
+
+describe.skipIf(skipRealWatcher)('createChokidarWatcher — ready()', () => {
   let dir: string | undefined;
   let watcher: ReturnType<typeof createChokidarWatcher> | undefined;
 
