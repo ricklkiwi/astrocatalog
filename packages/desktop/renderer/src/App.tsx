@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { DebugPanel } from './DebugPanel';
 import { ipc } from './ipc';
 import { JobDemo } from './JobDemo';
 import { WatchFolders } from './WatchFolders';
@@ -46,6 +47,7 @@ export function App() {
       </dl>
       <JobDemo />
       <WatchFolders />
+      <DebugPanel />
     </main>
   );
 }

@@ -27,7 +27,7 @@ export const IPC_CHANNELS = [
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
 
 /** Every main→renderer event channel in the contract, as runtime data (preload whitelist source). */
-export const IPC_EVENT_CHANNELS = ['jobs.progress', 'watch.status'] as const;
+export const IPC_EVENT_CHANNELS = ['jobs.progress', 'watch.status', 'watch.activity'] as const;
 
 export type IpcEventChannel = (typeof IPC_EVENT_CHANNELS)[number];
 
@@ -109,6 +109,28 @@ export interface WatchStatusEvent {
   updatedAt: string;
 }
 
+/**
+ * Debug-panel instrumentation (P1-09 follow-up): the internal
+ * `WatchManager` machinery that runs *before* a mode transition or a
+ * `jobs.progress` event exists — a raw fs change was seen, the debounce
+ * timer was (re)armed, a scan was requested or deferred, or the watcher
+ * reported an error. `WatchStatusEvent` only reports the coarse
+ * watching/fallback/off state; this reports the moment-to-moment activity
+ * that explains *why* it changed.
+ */
+export type WatchActivityKind =
+  'fs-event' | 'debounce-scheduled' | 'scan-requested' | 'scan-deferred' | 'watcher-error';
+
+/** Main → renderer push event for one line of live-watch debug activity. */
+export interface WatchActivityEvent {
+  watchFolderId: string;
+  kind: WatchActivityKind;
+  /** Human-readable one-line detail, e.g. `"add: lights/IMG_0001.fits"`. */
+  detail: string;
+  /** UTC ISO-8601 timestamp. */
+  timestamp: string;
+}
+
 export interface SetLiveWatchInput {
   id: string;
   enabled: boolean;
@@ -181,6 +203,7 @@ export type IpcOutput<C extends IpcChannel> = IpcContract[C]['output'];
 export interface IpcEventContract extends Record<IpcEventChannel, { payload: unknown }> {
   'jobs.progress': { payload: JobProgressEvent };
   'watch.status': { payload: WatchStatusEvent };
+  'watch.activity': { payload: WatchActivityEvent };
 }
 
 export type IpcEventPayload<C extends IpcEventChannel> = IpcEventContract[C]['payload'];

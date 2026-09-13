@@ -19,7 +19,12 @@
  * place that talks to the database.
  */
 import type { JobProgressEvent } from '../jobs/orchestrator.js';
-import type { WatchMode, WatchStatusEvent } from '../../ipc/contract.js';
+import type {
+  WatchActivityEvent,
+  WatchActivityKind,
+  WatchMode,
+  WatchStatusEvent,
+} from '../../ipc/contract.js';
 import type { WatcherFactory, WatcherLike } from './types.js';
 
 /** Terminal `scan_jobs.status` values (DD-003 `infra.ts` CHECK constraint). */
@@ -61,6 +66,13 @@ export interface CreateWatchManagerOptions {
   onJobEvent(listener: (event: JobProgressEvent) => void): () => void;
   /** Invoked on every mode transition, `updatedAt` stamped with `new Date()` at call time. */
   onStatusChange(event: WatchStatusEvent): void;
+  /**
+   * Debug-panel instrumentation: invoked for every raw fs event, debounce
+   * (re)arm, scan request/deferral, and watcher error — the moment-to-moment
+   * activity `onStatusChange`'s coarser mode transitions don't capture.
+   * `timestamp` stamped with `new Date()` at call time, same as `onStatusChange`.
+   */
+  onActivity(event: WatchActivityEvent): void;
   /** Lowercase extensions, no leading dot — defaults to every file type the scanner supports. Overridable for tests. */
   extensions: readonly string[];
 }
@@ -117,6 +129,13 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
     options.onStatusChange({ watchFolderId: id, mode, message, updatedAt: nowIso() });
   }
 
+  function emitActivity(id: string, kind: WatchActivityKind, detail: string): void {
+    options.onActivity({ watchFolderId: id, kind, detail, timestamp: nowIso() });
+  }
+
+  /** Why `requestScan` was called — folded into the emitted activity's detail text. */
+  type ScanReason = 'attach' | 'debounce' | 'fallback-tick' | 'deferred-retry';
+
   /**
    * The single in-flight-guarded entry point every scan trigger (debounce
    * fire, catch-up-on-attach, fallback tick, deferred-after-terminal) routes
@@ -124,13 +143,18 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
    * at a time; a firing while one is already in flight just requests a
    * deferred rerun instead of dropping or duplicating it.
    */
-  function requestScan(id: string): void {
+  function requestScan(id: string, reason: ScanReason): void {
     const state = folders.get(id);
     if (state === undefined) {
       return;
     }
     if (state.inFlightJobId !== null) {
       state.pendingRescan = true;
+      emitActivity(
+        id,
+        'scan-deferred',
+        `scan deferred (${reason}) — job ${state.inFlightJobId} still in flight`,
+      );
       return;
     }
     const { jobId } = enqueueScan({
@@ -141,6 +165,7 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
     });
     state.inFlightJobId = jobId;
     state.pendingRescan = false;
+    emitActivity(id, 'scan-requested', `scan requested (${reason}) — job ${jobId}`);
   }
 
   function scheduleDebounce(id: string): void {
@@ -153,8 +178,13 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
     }
     state.debounceTimer = setTimeout(() => {
       state.debounceTimer = null;
-      requestScan(id);
+      requestScan(id, 'debounce');
     }, debounceMs);
+    emitActivity(
+      id,
+      'debounce-scheduled',
+      `debounce reset — scanning in ${debounceMs}ms unless more changes arrive`,
+    );
   }
 
   function clearFolderTimers(state: FolderState): void {
@@ -175,8 +205,14 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
       // only, no mode transition, no fallback — matches the plan's Edge
       // Cases "disconnected/missing watch-folder root" handling.
       console.error(`[watch] folder ${id}: watcher error (no fallback)`, error);
+      emitActivity(
+        id,
+        'watcher-error',
+        `watcher error${code !== undefined ? ` (${code})` : ''} — ignored, no fallback`,
+      );
       return;
     }
+    emitActivity(id, 'watcher-error', `watcher error (${code}) — falling back to periodic rescan`);
     enterFallback(id, `Live watch disabled after a ${code} error; periodic rescanning instead.`);
   }
 
@@ -203,9 +239,13 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
     }
     clearFolderTimers(state);
     const watcher = createWatcher(state.rootPath, { skipPatterns: state.skipPatterns });
-    watcher.on('add', () => scheduleDebounce(id));
-    watcher.on('change', () => scheduleDebounce(id));
-    watcher.on('unlink', () => scheduleDebounce(id));
+    function onFsEvent(event: 'add' | 'change' | 'unlink', path: string): void {
+      emitActivity(id, 'fs-event', `${event}: ${path}`);
+      scheduleDebounce(id);
+    }
+    watcher.on('add', (path) => onFsEvent('add', path));
+    watcher.on('change', (path) => onFsEvent('change', path));
+    watcher.on('unlink', (path) => onFsEvent('unlink', path));
     watcher.on('error', (error) => handleWatcherError(id, error));
     state.watcher = watcher;
     state.mode = 'watching';
@@ -213,7 +253,7 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
     // ignoreInitial: true means chokidar reports nothing for pre-existing
     // tree contents at attach time — fire one immediate catch-up scan
     // (Edge Cases: "app restarted / live-watch just toggled on").
-    requestScan(id);
+    requestScan(id, 'attach');
     return watcher.ready();
   }
 
@@ -228,7 +268,10 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
     }
     clearFolderTimers(state);
     state.mode = 'fallback';
-    state.fallbackTimer = setInterval(() => requestScan(id), fallbackRescanIntervalMs);
+    state.fallbackTimer = setInterval(
+      () => requestScan(id, 'fallback-tick'),
+      fallbackRescanIntervalMs,
+    );
     emitStatus(id, 'fallback', message);
   }
 
@@ -263,7 +306,7 @@ export function createWatchManager(options: CreateWatchManagerOptions): WatchMan
       state.inFlightJobId = null;
       if (state.pendingRescan) {
         state.pendingRescan = false;
-        requestScan(id);
+        requestScan(id, 'deferred-retry');
       }
       break;
     }

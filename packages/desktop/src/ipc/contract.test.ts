@@ -107,7 +107,7 @@ describe('jobs handlers', () => {
       'watchFolders.setLiveWatch',
       'files.listByWatchFolder',
     ]);
-    expect(IPC_EVENT_CHANNELS).toEqual(['jobs.progress', 'watch.status']);
+    expect(IPC_EVENT_CHANNELS).toEqual(['jobs.progress', 'watch.status', 'watch.activity']);
   });
 
   it('delegates enqueue/cancel/list to injected job dependencies', async () => {
