@@ -9,9 +9,15 @@ Metadata-only SQLite catalog. Files are referenced by path; image data never ent
 
 ## Schema rollout
 
-P0 creates only the foundation catalog spine: watch folders, physical files, parsed frames, scan jobs, settings, schema migrations, and the indexes needed for those repositories. Feature-owned tables are added by the first vertical slice that uses them, with a Drizzle migration and round-trip migration test in that same issue.
+**Intent:** P0 creates only the foundation catalog spine: watch folders, physical files, parsed frames, scan jobs, settings, schema migrations, and the indexes needed for those repositories. Feature-owned tables are added by the first vertical slice that uses them, with a Drizzle migration and round-trip migration test in that same issue.
 
 This keeps early schema work tied to proven behavior instead of front-loading the entire v1 domain model before parsers, target resolution, session detection, and calibration matching have been validated.
+
+**What actually happened (amended 2026-09-07, see ADR-004):** P0-04 created the entire v1 domain model in migration `0000` — all sixteen tables — rather than the spine alone. The deviation was not noticed at review time and no DD revision was proposed, contrary to the "DDs are law" working agreement.
+
+The remaining feature tables are **kept**. They are now load-bearing for slices already in flight, they carry no user data problem (columns are nullable and unused until their slice lands), and unwinding them would churn migrations for no behavioral gain. Feature slices that were told to "add the X migration" therefore **alter** the existing table where their acceptance criteria need columns it lacks, and add only indexes and constraints.
+
+The one exception was the processing-project group (`processing_projects`, `project_inputs`, `processed_images`), dropped in migration `0006`. Unlike the rest, its feature moved out of v1.0 entirely (to P1x-01), and the shape that shipped contradicted the "separate join tables" design point below — so there was nothing to preserve and a wrong precedent to remove.
 
 ## Planned tables by feature area
 
@@ -105,7 +111,7 @@ schema_migrations(version, applied_at)
 - **Missing vs deleted:** files on disconnected drives are marked `missing`, never auto-deleted — statistics remain stable when external drives are offline. Rows are removed only by explicit user action.
 - **Lazy hashing:** SHA-256 computed in background after metadata scan (hashing is I/O-heavy); duplicate detection is therefore eventually-consistent.
 - **Sync-ready timestamps:** all logical entities that may sync in Phase 2 carry `created_at` and `updated_at` from v1. User-visible deletes are explicit tombstones in a later sync migration; v1 does not hard-delete catalog rows except through explicit local cleanup actions.
-- **Project inputs:** frame inputs and master-frame inputs use separate join tables instead of a polymorphic foreign key, preserving referential integrity and simple query plans.
+- **Project inputs:** frame inputs and master-frame inputs use separate join tables (`project_frame_inputs`, `project_master_frame_inputs`) instead of a polymorphic foreign key, preserving referential integrity and simple query plans. Migration `0000` violated this with a single polymorphic `project_inputs` table discriminated by a CHECK; its UNIQUE natural key was inert, because SQLite treats NULLs as distinct. Dropped in `0006`; P1x-01 creates the intended pair.
 - **Timezone source:** `watch_folders.timezone` stores an IANA timezone (user-confirmable) for astronomical-day grouping. `sessions.timezone` captures the timezone used at detection time so historical grouping remains stable if settings change.
 - **DB location:** app data dir (`%APPDATA%/AstroTracker` / `~/Library/Application Support/AstroTracker`), WAL mode, single writer (worker), `PRAGMA busy_timeout`.
 - **Free-tier limit (10,000 files)** enforced in application layer, not schema.

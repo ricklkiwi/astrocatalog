@@ -8,6 +8,5 @@ export { equipmentProfiles } from './equipment.js';
 export { files, watchFolders } from './files.js';
 export { filters, frames } from './frames.js';
 export { scanJobs, settings, thumbnails } from './infra.js';
-export { processedImages, processingProjects, projectInputs } from './projects.js';
 export { sessions } from './sessions.js';
 export { targetAliases, targets } from './targets.js';

@@ -13,7 +13,6 @@ const REPO_NAMES = [
   'sessions',
   'equipmentProfiles',
   'masterFrames',
-  'projects',
   'scanJobs',
   'settings',
   'search',
