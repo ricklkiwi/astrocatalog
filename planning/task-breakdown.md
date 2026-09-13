@@ -503,10 +503,16 @@ Settings page consolidating: watch folders, tolerances, session gap, timezone/si
 **Refs:** PRD §8.4
 **Depends on:** P1-27, P1-28
 Run full benchmark suite against PRD targets on reference Win + mac hardware, including the realistic I/O benchmark pack; profile and fix the top bottlenecks; document results and degraded-mode behavior.
+
+**Scan concurrency is the known candidate bottleneck.** Benchmarks against a real 38,770-file / 836 GB corpus on an external USB HDD established three things. Two are already implemented and should not be re-litigated: header-only reads avoid ~99.97% of I/O (DD-004), and a sequential depth-first walk beats scattered access by 2.6x (188/sec vs 71/sec) — `scan-job.ts` already walks one directory at a time via a LIFO stack. The third is not: per-file I/O inside the walk is strictly sequential (`await stat` / `await open` inline, no fan-out), where ~8-way concurrency per physical drive is the measured sweet spot. Concurrency beyond that does not pay — cold random reads scaled only 1.34x from concurrency 1 to 32 — because one drive has one effective I/O channel. The larger remaining win is parallelism **across** drives: scanning watch folders that live on different physical volumes concurrently. That needs real volume identity; `main/drive-label.ts` returns a best-effort human-readable label for the UI and is explicitly not wired into db/IPC, so it cannot serve as a scheduling key.
+
+Note this is optimization, not defect repair: the measured worst case (cold, scattered access — a worse pattern than what ships) reaches ~2.3 min for 10,000 files, inside the PRD §8.4 five-minute budget. Re-benchmark before assuming these figures still hold.
+
 **Acceptance criteria:**
 
 - 10k-file scan < 5 min; 100k library load < 3 s; target dashboard < 1 s; thumbnails ≥ 50/s — all evidenced in a committed benchmark report with p50/p95, cold/warm cache runs, and storage assumptions
 - CI baselines updated
+- Scan concurrency decision recorded with evidence: either bounded per-drive concurrency (with the chosen bound justified by measurement on this hardware) or a documented decision to stay sequential because the budget is met without it
 - Slow external drive/network share behavior documented, including watcher fallback, throttling, and user-facing degraded-mode messaging
 
 ### P1-34: CI package artifact workflow
