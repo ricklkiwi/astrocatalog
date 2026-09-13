@@ -28,17 +28,22 @@ all of Phase 1 depend on this landing first).
 - `.prettierrc.json`, `.prettierignore` (root) — new
 - `.editorconfig` (root) — new
 - `.gitignore` — modified; add `*.tsbuildinfo`, `coverage/`, package-level `dist/` already covered
-- `packages/core/package.json`, `tsconfig.json`, `src/index.ts`, `src/index.test.ts` — new
-- `packages/db/package.json`, `tsconfig.json`, `src/index.ts`, `src/index.test.ts` — new
+- `packages/core/package.json`, `tsconfig.json`, `vitest.config.ts`, `src/index.ts`,
+  `src/index.test.ts` — new
+- `packages/db/package.json`, `tsconfig.json`, `vitest.config.ts`, `src/index.ts`,
+  `src/index.test.ts` — new
   (workspace dependency on `core`)
-- `packages/desktop/package.json`, `tsconfig.json`, `src/index.ts`, `src/index.test.ts` — new
+- `packages/desktop/package.json`, `tsconfig.json`, `vitest.config.ts`, `src/index.ts`,
+  `src/index.test.ts` — new
   (workspace dependency on `core` and `db`)
-- `packages/desktop/renderer/package.json`, `tsconfig.json`, `src/index.ts`,
+- `packages/desktop/renderer/package.json`, `tsconfig.json`, `vitest.config.ts`, `src/index.ts`,
   `src/index.test.ts` — new (separate workspace member, own dependency set)
 - `fixtures/README.md` — new; explains purpose and points to P0-06, no fixture data yet
 - `README.md` (root) — modified; add "Package layout & layering rules" section per DD-002
-- `vitest.workspace.ts` (root) — new; lets `pnpm -r test` and a future root `pnpm test` resolve
-  per-package Vitest configs consistently
+- `vitest.config.ts` (root) — new; uses Vitest's current `test.projects` API so a root test run
+  resolves all four package projects, while package-local configs keep `pnpm -r test` isolated
+- `pnpm-lock.yaml` — generated after all workspace manifests are complete and committed so clean
+  and future frozen installs resolve the exact P0-01 dependency graph
 
 ## Implementation Steps
 
@@ -54,12 +59,14 @@ exact pnpm version and an `engines.node` range), `tsconfig.base.json`, `eslint.c
 
 ### Step 2 — `packages/core` scaffold (pure domain package)
 
-**Outcome:** A buildable, lintable, testable TypeScript package with zero runtime dependencies
-and no dependency on `electron` or Node's `fs`; this is the package DD-002 rule 1 governs, so
-its scaffold is the one that proves the "purity" constraint is mechanically enforced, not just
-documented.
-**Files:** `packages/core/package.json` (empty `dependencies`, only shared dev tooling via
-workspace root), `packages/core/tsconfig.json` (extends base), `packages/core/src/index.ts`
+**Outcome:** A buildable, lintable, testable TypeScript package with no runtime dependency on
+`electron` or Node's `fs` and no file-system side effects; this is the package DD-002 rule 1
+governs, so its scaffold proves that purity constraint is mechanically enforced, not just
+documented. Its `dependencies` field is empty because P0-01 contains no domain logic, not
+because pure runtime libraries are permanently forbidden from `core`.
+**Files:** `packages/core/package.json` (empty P0-01 `dependencies`, only shared dev tooling via
+workspace root), `packages/core/tsconfig.json` (extends base),
+`packages/core/vitest.config.ts` (package-local test scope), `packages/core/src/index.ts`
 (placeholder export, e.g. a `coreVersion` constant), `packages/core/src/index.test.ts`
 (placeholder Vitest test).
 **Depends on:** Step 1
@@ -70,7 +77,7 @@ workspace root), `packages/core/tsconfig.json` (extends base), `packages/core/sr
 `workspace:*` protocol, establishing the intended dependency direction (`db` → `core`, never
 the reverse) ahead of the real Drizzle schema work in P0-04.
 **Files:** `packages/db/package.json` (workspace dependency on `core`), `packages/db/tsconfig.json`,
-`packages/db/src/index.ts`, `packages/db/src/index.test.ts`.
+`packages/db/vitest.config.ts`, `packages/db/src/index.ts`, `packages/db/src/index.test.ts`.
 **Depends on:** Step 2
 
 ### Step 4 — `packages/desktop` scaffold (main process shell)
@@ -80,18 +87,22 @@ process, depending on `core` and `db` via `workspace:*`. No Electron dependency 
 (that begins in P0-03) — this step only proves the package exists at the right place in the
 graph with the right build/lint/test wiring.
 **Files:** `packages/desktop/package.json`, `packages/desktop/tsconfig.json`,
-`packages/desktop/src/index.ts`, `packages/desktop/src/index.test.ts`.
+`packages/desktop/vitest.config.ts`, `packages/desktop/src/index.ts`,
+`packages/desktop/src/index.test.ts`.
 **Depends on:** Step 3
 
 ### Step 5 — `packages/desktop/renderer` scaffold (nested workspace member)
 
 **Outcome:** A separate pnpm workspace package nested under `desktop/`, so renderer-only
-tooling (React/Vite, added in P0-03) never bleeds into the main-process package's dependency
-tree and vice versa. Builds, lints, and tests independently of its parent `desktop` package.
+tooling (React/Vite, added in P0-03) is isolated from main-process runtime dependencies. It
+builds, lints, and tests independently of its parent `desktop` package. P0-01 adds no workspace
+dependency from the renderer because the typed IPC contract does not exist yet; P0-03 may add
+a type-only `desktop` devDependency for that shared contract, while runtime/value imports from
+main-process code remain forbidden.
 **Files:** `packages/desktop/renderer/package.json`, `packages/desktop/renderer/tsconfig.json`,
-`packages/desktop/renderer/src/index.ts`, `packages/desktop/renderer/src/index.test.ts`.
-**Depends on:** Step 1 (does not depend on `core`/`db`/`desktop` — the renderer only ever talks
-to main via IPC, added in P0-03, so no workspace dependency edge is created here)
+`packages/desktop/renderer/vitest.config.ts`, `packages/desktop/renderer/src/index.ts`,
+`packages/desktop/renderer/src/index.test.ts`.
+**Depends on:** Step 1
 
 ### Step 6 — `fixtures/` placeholder directory
 
@@ -101,14 +112,20 @@ P0-06 has a home to populate without also needing to create the directory.
 **Files:** `fixtures/README.md`.
 **Depends on:** none
 
-### Step 7 — Root scripts and cross-package verification
+### Step 7 — Test projects, lockfile, root scripts, and cross-package verification
 
-**Outcome:** `pnpm install && pnpm -r build && pnpm -r lint && pnpm -r test` all succeed from a
-clean checkout, run in dependency order, and the root `README.md` documents the package
-boundaries and layering rules from DD-002 (which package may depend on which, and why
-`core` must stay pure).
-**Files:** root `README.md` (new section), `vitest.workspace.ts`, minor root `package.json`
-convenience scripts (`"build": "pnpm -r build"`, `"lint": "pnpm -r lint"`, `"test": "pnpm -r test"`).
+**Outcome:** The root `vitest.config.ts` uses `test.projects` for all four packages, and each
+package has a local Vitest config so recursive package tests do not accidentally inherit the
+root multi-project configuration. After all package manifests are complete, `pnpm install`
+generates the final `pnpm-lock.yaml`; then
+`pnpm install && pnpm -r build && pnpm -r lint && pnpm -r test` succeeds from a clean checkout
+in dependency order. The root `README.md` documents the DD-002 boundaries, including that
+`core` forbids Electron/fs coupling rather than all pure runtime libraries and that renderer
+access to main is runtime-isolated while shared IPC types may cross as type-only imports once
+P0-03 adds the contract.
+**Files:** root `README.md` (new section), root `vitest.config.ts`, the four package-local
+`vitest.config.ts` files, `pnpm-lock.yaml`, and minor root `package.json` convenience scripts
+(`"build": "pnpm -r build"`, `"lint": "pnpm -r lint"`, `"test": "vitest run"`).
 **Depends on:** Steps 1–6
 
 ## Edge Cases
@@ -116,14 +133,19 @@ convenience scripts (`"build": "pnpm -r build"`, `"lint": "pnpm -r lint"`, `"tes
 - A future contributor adds `import fs from 'node:fs'` (or `electron`) inside
   `packages/core/src/**` — the ESLint override from Step 1 must fail lint, not just fail at
   runtime/build, so `pnpm -r lint` is the enforcement point, not a manual code-review rule.
-- `packages/desktop/renderer` accidentally adds a `workspace:*` dependency on `desktop` (or
-  vice versa) — this would let renderer code import main-process modules directly, violating
-  DD-002's "renderer never touches fs/db directly" rule before IPC even exists. The scaffold
-  should not wire this dependency edge, and the README's layering section should call out that
-  renderer→desktop is not a permitted direct import path once IPC lands in P0-03.
-- Running `pnpm -r build` before `pnpm install` (no `node_modules`, no lockfile) — first-run
-  clean-checkout case; must be the actual command exercised when verifying this issue's
-  acceptance criteria, not `pnpm build` from inside a package.
+- `packages/desktop/renderer` gains a runtime/value import from `desktop` — that would permit
+  renderer code to load main-process modules and violate DD-002. A future type-only
+  `workspace:*` devDependency for the single-source IPC contract is permitted because those
+  imports are erased at build time; README wording must distinguish these two cases.
+- A package-local `vitest run` walks up to the root multi-project config and runs the wrong
+  project set (or no tests under its package-relative `--dir`) — each workspace package has a
+  local `vitest.config.ts`, while the root config alone owns the aggregate `test.projects` list.
+- Running `pnpm -r build` before `pnpm install` on a clean checkout with no `node_modules` — the
+  committed lockfile does not replace installation. The final verification must exercise the
+  root command sequence, not `pnpm build` manually inside each package.
+- `pnpm-lock.yaml` is generated before all four package manifests and workspace dependency
+  edges are final — regenerate it after Steps 1–6 so every importer is captured before the
+  clean-checkout verification.
 - Node/pnpm version mismatch between a contributor's machine and the pinned
   `packageManager`/`engines` fields — pnpm should refuse or warn rather than silently using a
   different version, so version drift is caught locally instead of surfacing later in CI (P0-02).
@@ -139,8 +161,9 @@ convenience scripts (`"build": "pnpm -r build"`, `"lint": "pnpm -r lint"`, `"tes
 - [x] Non-destructive: no code path writes/moves/renames/deletes user image files — N/A, no
       file-system logic is introduced in this issue
 - [x] Layering: new domain logic lives in packages/core, pure (no Electron, no fs side effects) —
-      enforced by empty `dependencies` in `packages/core/package.json` plus the ESLint
-      no-restricted-imports rule from Step 1
+      the P0-01 manifest is empty because this issue adds no domain logic; the durable boundary
+      is enforced by the ESLint no-restricted-imports rule from Step 1, without prohibiting
+      future pure runtime libraries required by DD-001
 - [x] DB: new tables/columns use UUIDv7 PKs + updated_at, added via a Drizzle migration — N/A,
       no schema work in this issue (starts at P0-04)
 - [x] Timestamps stored UTC — N/A, no timestamp-bearing data in this issue
