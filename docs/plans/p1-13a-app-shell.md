@@ -93,7 +93,7 @@ Concretely, the token layer expresses this with no TypeScript-level branching at
 fallback `--filter-unknown`) are declared once at the base `.app-root` rule (used by both dark and
 light — no light-specific override), **and re-declared with dimmed/red-shifted values inside a
 third block, `.app-root[data-theme='red-night-vision']`**. `shared/display.ts`'s `FILTER_COLORS`
-map (Step 6) holds `var(--filter-…)` reference strings, never resolved hex — so the *same*
+map (Step 6) holds `var(--filter-…)` reference strings, never resolved hex — so the _same_
 reference automatically picks up the red-night-vision value whenever that theme is active. The
 theme swap stays a pure token swap and no component ever needs an `if (theme === …)` branch to get
 this right, which is exactly what keeps "no component-level colour literals" mechanically true
@@ -103,9 +103,9 @@ even for this maintainer-added behaviour.
 
 `formatIntegrationTime()` and `FILTER_COLORS` are renderer-side (`renderer/src/shared/display.ts`),
 not `packages/core`. DD-002's module layout does reserve `packages/core/catalog` for "integration
-math," but that's the *computation* of total integration seconds from frame/session data (a
+math," but that's the _computation_ of total integration seconds from frame/session data (a
 separate, not-yet-built P1 issue — no such logic exists yet in `packages/core` as of this plan,
-confirmed by search). This issue's formatter is the *presentation* of an already-computed number
+confirmed by search). This issue's formatter is the _presentation_ of an already-computed number
 as `HHh MMm`, and the filter-colour map is inescapably a CSS/UI concern (its values are `var(--…)`
 references into this renderer's own token layer). Keeping both in one renderer module matches the
 acceptance criterion's "exported from one module" and doesn't preempt or conflict with whatever
@@ -294,9 +294,10 @@ a later one) hardcodes a colour outside the token layer.
 ### Step 6 — Shared display helpers
 
 **Outcome:** `shared/display.ts` exports:
+
 - `formatIntegrationTime(totalSeconds: number): string` → zero-padded `"HHh MMm"` (e.g.
   `"01h 01m"`, `"120h 05m"` — hours are never truncated past 2 digits, only ever
-  zero-*padded* to a minimum of 2). Applies `Math.floor` to the input first (defensive against
+  zero-_padded_ to a minimum of 2). Applies `Math.floor` to the input first (defensive against
   summed floating-point exposure seconds), then floor-divides into whole minutes — any
   sub-minute remainder is dropped, never rounded up, so displayed integration time never
   overstates what has actually completed. Throws `RangeError` on a negative input — there is no
@@ -308,14 +309,14 @@ a later one) hardcodes a colour outside the token layer.
   red-night-vision override block is what changes what they resolve to.
 - `getFilterColor(rawBand: string): string` — returns `FILTER_COLORS[rawBand]` when `rawBand` is
   one of the 7 keys, else `'var(--filter-unknown)'`.
-`display.test.ts` covers: `0 → "00h 00m"`, `59 → "00h 00m"` (sub-minute dropped), `60 → "00h
+  `display.test.ts` covers: `0 → "00h 00m"`, `59 → "00h 00m"` (sub-minute dropped), `60 → "00h
 01m"`, `3599 → "00h 59m"`, `3600 → "01h 00m"`, `3661 → "01h 01m"`, `36000 → "10h 00m"`,
-`360000 → "100h 00m"` (3-digit hours), a fractional input (`90.9 → "00h 01m"`), a negative input
-throws; and for filter colours, all 7 keys present and each value matches `/^var\(--filter-/`,
-plus `getFilterColor('UVIR')` and `getFilterColor('none')` both returning the fallback token.
-**Files:** `packages/desktop/renderer/src/shared/display.ts`,
-`packages/desktop/renderer/src/shared/display.test.ts`
-**Depends on:** Step 3 (references the same token names)
+  `360000 → "100h 00m"` (3-digit hours), a fractional input (`90.9 → "00h 01m"`), a negative input
+  throws; and for filter colours, all 7 keys present and each value matches `/^var\(--filter-/`,
+  plus `getFilterColor('UVIR')` and `getFilterColor('none')` both returning the fallback token.
+  **Files:** `packages/desktop/renderer/src/shared/display.ts`,
+  `packages/desktop/renderer/src/shared/display.test.ts`
+  **Depends on:** Step 3 (references the same token names)
 
 ### Step 7 — Nav metadata + placeholder page primitive
 
@@ -405,6 +406,7 @@ step first: expand the panel before querying its content, since it now starts co
 ### Step 12 — Wire routing in `App.tsx` and rewrite `App.test.tsx`
 
 **Outcome:** `App.tsx` becomes:
+
 ```
 <ThemeProvider>
   <HashRouter>
@@ -423,6 +425,7 @@ step first: expand the panel before querying its content, since it now starts co
   </HashRouter>
 </ThemeProvider>
 ```
+
 (paths mirror `NAV_ITEMS` from Step 7). Visiting `/` (or any unrecognized hash) lands on
 Dashboard. `App.test.tsx` is rewritten as a shell-level smoke test: renders `<App/>` with a
 mocked bridge, asserts the Dashboard placeholder is shown by default, clicking a `Sidebar` link
