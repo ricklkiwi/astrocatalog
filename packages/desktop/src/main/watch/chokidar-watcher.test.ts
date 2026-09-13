@@ -167,7 +167,10 @@ describe.skipIf(process.platform === 'win32')('createChokidarWatcher — ready()
     });
 
     expect(added.some((p) => p === target)).toBe(true);
-  });
+    // Timeout exceeds the 10s in-test guard above so that guard is what fails,
+    // naming the missing add event. Vitest's 5s default pre-empted it, so a slow
+    // macOS runner reported an opaque timeout at ~5.00s instead.
+  }, 15_000);
 
   it('resolves ready() exactly once even if called/awaited from multiple places', async () => {
     dir = mkdtempSync(path.join(tmpdir(), 'astro-p1-09-chokidar-ready-'));
