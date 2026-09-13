@@ -51,6 +51,7 @@ function createHarness(): Harness {
     scanJobs: db.repos.scanJobs,
     files: db.repos.files,
     frames: db.repos.frames,
+    watchFolders: db.repos.watchFolders,
     transaction: (fn) => db.transaction(() => fn()),
     createPool(callbacks: WorkerPoolCallbacks) {
       pool = createWorkerPool(1, callbacks);
