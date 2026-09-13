@@ -259,11 +259,29 @@ Repository queries: per-target totals, per-target-per-filter, per-session, per-e
 - Correctness tests against hand-computed fixture sums, incl. mixed filters and missing files
 - 100k-frame synthetic DB: per-target rollup query < 100 ms (benchmark)
 
+### P1-13a: App shell, navigation, and theme tokens
+
+**Labels:** phase:1, pkg:desktop, type:feat
+**Refs:** DD-002, DD-008
+**Depends on:** P0-03
+The renderer is still the P0-03 version screen plus debug widgets, but DD-008 specifies a six-page sidebar app with three themes and all colors via CSS custom properties. Every UI slice from P1-14 on needs that shell to exist. Build it once, before them, rather than letting eight pages each invent their own layout and colors and then retrofitting theming in P1-32.
+
+Sidebar navigation and routing for the DD-008 pages (Dashboard, Targets, Sessions, Calibration, Review queue, Settings) with placeholder page bodies; app layout primitives (page header, content area, global scan-progress indicator slot); the CSS custom property token layer with dark default, light, and red night-vision themes; and the shared display helpers DD-008 mandates — `HHh MMm` integration formatting and the canonical per-filter colors (L=white, R/G/B, Ha=deep red, OIII=teal, SII=orange-red).
+
+Deliberately numbered `P1-13a` rather than renumbering P1-14 onward. The tracker has already drifted once from a renumbering that was never propagated to GitHub, and issue IDs are cited from merged PR descriptions and commit messages, so a second shift would invalidate them.
+
+**Acceptance criteria:**
+
+- Every DD-008 nav destination routes and renders a placeholder; the active item is visually indicated and keyboard reachable
+- All three themes apply app-wide purely by swapping custom property values, with no component-level color literals (snapshot test per theme)
+- Integration-time formatter and filter-color map are exported from one module with unit tests, and are the only source either value comes from
+- E2E smoke test navigates between all six pages on the packaged app
+
 ### P1-14: Targets page — grid, table, search & filters
 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-008; PRD §6.2
-**Depends on:** P1-11, P1-12, P1-13
+**Depends on:** P1-11, P1-12, P1-13, P1-13a
 Targets page per DD-008: card grid + table toggle, virtualized; search (FTS) and filters (filter band, equipment, date range, integration range, status); status badges; sort by name/integration/last-imaged.
 **Acceptance criteria:**
 
@@ -471,7 +489,7 @@ First-run wizard per DD-008 (welcome → watch folder → live scan preview → 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-008; PRD §11
 **Depends on:** P1-22
-Settings page consolidating: watch folders, tolerances, session gap, timezone/site, theme (dark default / light / red night-vision), language of file-count limit. Implement 10,000-file free-tier soft limit (counting indexed image files) with clear upgrade messaging — enforcement flag off in beta builds.
+Settings page consolidating: watch folders, tolerances, session gap, timezone/site, theme (dark default / light / red night-vision — the token layer itself is built in P1-13a; this slice adds the user-facing switch and persistence), language of file-count limit. Implement 10,000-file free-tier soft limit (counting indexed image files) with clear upgrade messaging — enforcement flag off in beta builds.
 **Acceptance criteria:**
 
 - All three themes applied app-wide via CSS custom properties (snapshot tests)
@@ -908,6 +926,37 @@ Long-run soak test (simulated month of nightly auto-imports), quality-engine per
 **Acceptance criteria:**
 
 - Soak: no leaks/db bloat over simulated 30 nights × 500 frames; v4.0.0 tagged
+
+### P4-10: SER header parser and planetary capture support
+
+**Labels:** phase:4, pkg:core, type:feat
+**Refs:** DD-004; PRD §8.1
+**Depends on:** P0-06
+PRD §8.1 listed SER as a medium-priority v1 format, but no Phase 1 task delivered it and the discovery allowlist never included it — planetary and lucky-imaging users are out of scope for v1.0 (PRD §8.1 scope note). Add a header-only SER parser in `packages/core/ser`: validate the 178-byte header, extract FileID, ColorID, image geometry, frame count, observer/instrument/telescope strings, and the UTC timestamps, mapping onto the same `FrameMetadata` type the FITS/XISF/RAW parsers produce. Add `ser` to `SUPPORTED_EXTENSIONS`.
+
+SER files are whole-video captures rather than single frames, so decide and document how one file maps onto the catalog (one `frames` row per file, with frame count and duration recorded) before wiring it into the pipeline.
+
+**Acceptance criteria:**
+
+- SER fixtures parse to manifest expectations, covering mono and colour (ColorID) variants and both timestamp conventions
+- Never reads beyond the header region (mock-reader byte-count test), matching the FITS/XISF parsers
+- Truncated/malformed SER produces a structured error, never throws or hangs
+- Integration-time aggregation treats a SER capture coherently, documented in the user guide
+
+### P4-11: TIFF and PNG/JPG metadata adapter
+
+**Labels:** phase:4, pkg:core, type:feat
+**Refs:** DD-004; PRD §8.1
+**Depends on:** P0-06
+PRD §8.1 listed TIFF (medium) and PNG/JPG (low, finals only) as v1 formats that no Phase 1 task delivered. Extend the existing `exifr`-based RAW adapter to cover TIFF/PNG/JPG so processed intermediates and finals sitting in watch folders can be indexed rather than ignored. Add the extensions to `SUPPORTED_EXTENSIONS`.
+
+These are almost always outputs, not subs, so they must never inflate integration-time statistics — the classifier needs to mark them as non-light regardless of any inherited header.
+
+**Acceptance criteria:**
+
+- TIFF/PNG/JPG fixtures parse; capture time normalized to UTC using the EXIF offset when present
+- Indexed finals are excluded from light-frame statistics and integration totals (regression test against a seeded library)
+- Files with no usable EXIF index as `unknown` frame type with a parse note, never as an error that aborts the batch
 
 ---
 

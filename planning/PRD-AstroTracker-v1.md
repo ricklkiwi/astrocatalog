@@ -271,16 +271,27 @@ AstroTracker is a **desktop-first application with online integration**:
 
 ### 8.1 File Format Support
 
-| Format    | Extensions        | Metadata Source | Priority          |
-| --------- | ----------------- | --------------- | ----------------- |
-| FITS      | .fits, .fit, .fts | FITS headers    | Critical          |
-| XISF      | .xisf             | XML properties  | Critical          |
-| Canon RAW | .cr2, .cr3        | EXIF            | High              |
-| Nikon RAW | .nef              | EXIF            | High              |
-| Sony RAW  | .arw              | EXIF            | High              |
-| TIFF      | .tif, .tiff       | EXIF/TIFF tags  | Medium            |
-| SER       | .ser              | SER header      | Medium            |
-| PNG/JPG   | .png, .jpg        | EXIF            | Low (finals only) |
+| Format    | Extensions        | Metadata Source | Priority          | Shipped in |
+| --------- | ----------------- | --------------- | ----------------- | ---------- |
+| FITS      | .fits, .fit, .fts | FITS headers    | Critical          | v1.0       |
+| XISF      | .xisf             | XML properties  | Critical          | v1.0       |
+| Canon RAW | .cr2, .cr3        | EXIF            | High              | v1.0       |
+| Nikon RAW | .nef              | EXIF            | High              | v1.0       |
+| Sony RAW  | .arw              | EXIF            | High              | v1.0       |
+| Adobe DNG | .dng              | EXIF            | High              | v1.0       |
+| TIFF      | .tif, .tiff       | EXIF/TIFF tags  | Medium            | post-v1.0  |
+| SER       | .ser              | SER header      | Medium            | post-v1.0  |
+| PNG/JPG   | .png, .jpg        | EXIF            | Low (finals only) | post-v1.0  |
+
+**v1.0 scope note (amended 2026-09-07):** the discovery walker's extension allowlist
+(`packages/core/src/scanning/supported-extensions.ts`) covers only the formats marked v1.0 above,
+which is what P1-01…P1-03 actually delivered. TIFF, SER, and PNG/JPG were listed here as v1
+targets but no Phase 1 task ever delivered them, so they are now explicitly post-v1.0 and tracked
+as P4-10 (SER) and P4-11 (TIFF/PNG/JPG). SER in particular serves planetary and lucky-imaging
+users, who are therefore out of scope for v1.0 rather than silently unsupported.
+
+Note that P1-24 links a final TIFF/PNG/JPG to a target **by path**, chosen with a file picker. It
+does not require these formats to be scanned or parsed, so it is unaffected by this deferral.
 
 ### 8.2 Key FITS Keywords to Extract
 
