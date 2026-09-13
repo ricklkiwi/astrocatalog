@@ -1,0 +1,39 @@
+# Issue/breakdown drift guard.
+#
+# CLAUDE.md makes planning/task-breakdown.md authoritative for every issue, but
+# nothing enforced it: the breakdown was revised to cut and insert scope while
+# the tracker was not regenerated, so task IDs silently pointed at the wrong
+# work and two tasks had no issue at all.
+#
+# Deliberately NOT part of ci.yml's required `ci-ok` aggregate. This checks the
+# tracker, not the code, so a stale issue title must never block an unrelated
+# code PR from merging (same reasoning e2e.yml documents for its own suite).
+# It runs weekly and on demand, and reports by failing the run.
+name: Issue sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Mondays 08:00 UTC — start of week, before any agent picks up an issue.
+    - cron: '0 8 * * 1'
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      # No pnpm install: the script has zero dependencies (node stdlib + gh,
+      # which is preinstalled on GitHub runners).
+      - name: Verify issues match task-breakdown.md
+        run: node scripts/verify-issue-sync.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

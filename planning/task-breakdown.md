@@ -522,7 +522,7 @@ User documentation (getting started, folder scanning, file retrieval/handoff, ca
 - Docs published (repo /docs or site); every MVP feature covered
 - v1.0.0 tagged; release checklist committed for repeatability
 
-### P1-35: PixInsight project (.xosm) parser — provenance & astrometric solution
+### P1-37: PixInsight project (.xosm) parser — provenance & astrometric solution
 
 **Labels:** phase:1, pkg:core, type:feat
 **Refs:** DD-002, DD-004; PRD §6.5

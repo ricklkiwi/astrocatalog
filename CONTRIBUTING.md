@@ -8,6 +8,10 @@ disagree, treat that as a bug and fix it.
 ## Pull-request workflow
 
 - **One issue per PR.** Pick an issue whose `Depends on:` entries are all merged.
+- **`planning/task-breakdown.md` is authoritative** (`CLAUDE.md`). If an issue's title or body
+  disagrees with the breakdown, fix the tracker before writing code — never implement the
+  issue text over the breakdown. Run `pnpm issues:verify` to check the whole tracker at once.
+  When you change scope in the breakdown, update the affected issues in the same change.
 - **Branch naming:** `<issue-id>-short-slug`, e.g. `p1-01-fits-parser`.
 - **Conventional commits**, scoped to the task ID where applicable, e.g.
   `feat(p1-01): parse FITS 80-char cards`.
@@ -57,8 +61,15 @@ build/typecheck → lint → test across an `ubuntu-latest` / `windows-latest` /
 matrix, runs the benchmark regression gate on `ubuntu-latest`, plus a final aggregate job named
 **`ci-ok`** that fails unless every matrix leg and the benchmark job succeeded.
 
-`.github/workflows/package.yml` is a manual-dispatch (`workflow_dispatch`) packaging stub
-on Windows + macOS; P0-03 fills in the electron-builder steps.
+`.github/workflows/package.yml` is still a manual-dispatch (`workflow_dispatch`) packaging
+stub on Windows + macOS. P0-03 proved local packaging and native-module loading only and did
+not wire this workflow up; that is tracked as P1-34.
+
+`.github/workflows/issue-sync.yml` runs `pnpm issues:verify` weekly and on demand. It checks
+that every task in `planning/task-breakdown.md` has a matching open issue and that no issue
+claims a task ID the breakdown does not define. It is **not part of the `ci-ok` required
+check** — it validates the tracker, not the code, so a stale issue title must never block an
+unrelated code PR.
 
 `.github/workflows/e2e.yml` (P0-08) runs `pnpm e2e` — Playwright against the
 `electron-builder --dir` unpacked packaged app — on a `windows-latest` / `macos-latest`
