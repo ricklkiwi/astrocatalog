@@ -151,3 +151,105 @@ describe('trigger-maintained FTS5 search (no application-level FTS writes)', () 
     expect(ftsRowsFor(alias.id)).toHaveLength(0);
   });
 });
+
+/**
+ * `search_fts MATCH ?` is parameterized, but FTS5 parses the bound value as
+ * its own query language — so before sanitizing, ordinary typing in the
+ * Targets search box (an unbalanced quote, a trailing `AND`, a colon) reached
+ * a second parser and surfaced as `SQLITE_ERROR: fts5: syntax error` instead
+ * of an empty result set.
+ */
+describe('search.query tolerates arbitrary user input (#52)', () => {
+  const hostile = [
+    'M31"',
+    '"unterminated',
+    'M31 AND',
+    'AND',
+    'OR',
+    'NOT',
+    'M31 NOT',
+    '-M31',
+    '^M31',
+    'title:M31',
+    '(M31',
+    'M31)',
+    '(M31 OR M32',
+    'NEAR(M31 M32',
+    'M31 NEAR/',
+    '*',
+    '**',
+    'M31 *',
+    '""',
+    '\\',
+    '%',
+    '{M31}',
+    'M31 : M32',
+  ];
+
+  it('never throws on syntactically hostile input', () => {
+    const { repos } = db;
+    repos.targets.insert({ canonicalName: 'M 31', displayName: 'Andromeda Galaxy' });
+
+    for (const input of hostile) {
+      expect(() => repos.search.query(input), `input: ${JSON.stringify(input)}`).not.toThrow();
+    }
+  });
+
+  it('returns no hits for input with nothing searchable in it, rather than every row', () => {
+    const { repos } = db;
+    repos.targets.insert({ canonicalName: 'M 31', displayName: 'Andromeda Galaxy' });
+
+    expect(repos.search.query('')).toHaveLength(0);
+    expect(repos.search.query('   ')).toHaveLength(0);
+    expect(repos.search.query('!!!')).toHaveLength(0);
+    expect(repos.search.query('*')).toHaveLength(0);
+  });
+
+  it('still finds a target when operator-ish characters surround a real term', () => {
+    const { repos } = db;
+    const target = repos.targets.insert({
+      canonicalName: 'M 31',
+      displayName: 'Andromeda Galaxy',
+    });
+
+    // A user mid-way through typing a quoted phrase must still get results.
+    expect(repos.search.query('"andromeda').map((h) => h.entityId)).toContain(target.id);
+    expect(repos.search.query('-andromeda').map((h) => h.entityId)).toContain(target.id);
+    expect(repos.search.query('^andromeda').map((h) => h.entityId)).toContain(target.id);
+    expect(repos.search.query('(andromeda)').map((h) => h.entityId)).toContain(target.id);
+  });
+
+  it('searches a bare operator word as a literal term rather than as syntax', () => {
+    const { repos } = db;
+    const target = repos.targets.insert({
+      canonicalName: 'M 31',
+      displayName: 'Andromeda Galaxy',
+    });
+
+    // `andromeda AND` is two AND-ed terms, and no indexed text contains the
+    // word "AND" — so this is legitimately empty, not an error. Dropping
+    // operator-looking words instead would silently mangle a real search for
+    // a target whose name contains them.
+    expect(repos.search.query('andromeda AND')).toHaveLength(0);
+
+    // The flip side: an operator word is findable when it really is in the text.
+    const andTarget = repos.targets.insert({
+      canonicalName: 'Sh2-155',
+      displayName: 'Cave and Wizard region',
+    });
+    expect(repos.search.query('cave and wizard').map((h) => h.entityId)).toEqual([andTarget.id]);
+    expect(repos.search.query('andromeda').map((h) => h.entityId)).toEqual([target.id]);
+  });
+
+  it('treats multi-word input as AND, not OR', () => {
+    const { repos } = db;
+    const andromeda = repos.targets.insert({
+      canonicalName: 'M 31',
+      displayName: 'Andromeda Galaxy',
+    });
+    repos.targets.insert({ canonicalName: 'M 42', displayName: 'Orion Nebula' });
+
+    const hits = repos.search.query('andromeda galaxy');
+    expect(hits.map((h) => h.entityId)).toEqual([andromeda.id]);
+  });
+});
