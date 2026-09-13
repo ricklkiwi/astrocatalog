@@ -55,7 +55,17 @@ The skills and the five-agent pipeline share one issue tracker. They divide as f
 - **The breakdown wins over the issue text.** `planning/task-breakdown.md` is authoritative. If
   the GitHub issue's title or body disagrees with it, stop and fix the tracker first — do not
   implement the issue text. `pnpm issues:verify` checks the whole tracker against the breakdown.
-- Conventional commits; squash merge.
+- Conventional commits; **squash merge** — one PR becomes one commit on `main`. Read this rule
+  before merging; do not infer the strategy from what recent commits look like.
+  - **Narrow exception — stacked branches.** When branches are stacked (branch B contains
+    branch A's commit and must land after it), squashing A rewrites its commit, so B then
+    carries a commit whose changes are already on `main` under a different hash, and every
+    later branch needs a rebase to stay clean. For a stacked chain, merge each branch with a
+    merge commit (`gh pr merge --merge`) so hashes are preserved, or rebase each branch onto
+    `main` after the previous one lands. Single-issue PRs — nearly all of them — squash.
+  - PRs #93–#107 used merge commits for the nine-branch remediation chain and were not
+    reverted to squashes, so `main`'s history changes shape there. That is a known
+    inconsistency, not a new convention.
 - Complete the issue's acceptance criteria checklist in the PR description, with evidence (test names, benchmark output).
 - If your issue has `Depends on:` entries that aren't merged yet, pick a different issue.
 - CI (lint, typecheck, unit tests on ubuntu/windows/macos) must be green. CI runs

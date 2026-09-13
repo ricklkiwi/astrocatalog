@@ -15,7 +15,11 @@ disagree, treat that as a bug and fix it.
 - **Branch naming:** `<issue-id>-short-slug`, e.g. `p1-01-fits-parser`.
 - **Conventional commits**, scoped to the task ID where applicable, e.g.
   `feat(p1-01): parse FITS 80-char cards`.
-- **Squash merge** — one PR becomes one commit on `main`.
+- **Squash merge** — one PR becomes one commit on `main`. The exception is a stacked chain
+  (branch B contains branch A's commit and lands after it): squashing A rewrites its commit, so
+  B ends up carrying changes already on `main` under a different hash. Merge a stacked chain with
+  merge commits to preserve hashes, or rebase each branch after the previous one lands. See
+  `CLAUDE.md` for the full rule.
 - **Acceptance criteria in the PR description:** complete the issue's acceptance-criteria
   checklist with evidence (test names, benchmark output, CI run links).
 - CI must be green (see below) before merge.
