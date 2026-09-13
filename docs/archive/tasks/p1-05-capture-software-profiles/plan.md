@@ -568,4 +568,4 @@ build && pnpm -r lint && pnpm -r test` green.
    schema has no column for it and this issue's acceptance criteria don't require persistence.
    Not blocking this issue — flagged as a possible future DD-003 revision if product wants it.
 
-Plan written: docs/plans/p1-05-capture-software-profiles.md — 4 steps
+Plan written: docs/archive/tasks/p1-05-capture-software-profiles/plan.md — 4 steps

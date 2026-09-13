@@ -35,6 +35,11 @@ symlinks to the files above, so Claude Code discovers all five automatically as 
   descriptions from `docs/agents/*.agent.md`. If any description looks stale, the symlink is
   broken or was never created; see the plan doc's verification checklist.
 
+> **Start Claude Code from this directory.** Subagents are discovered from `<cwd>/.claude/agents/`
+> at launch. This repo is checked out at `AstrophotographyTracker/repo/`, so a session started in
+> the parent `AstrophotographyTracker/` sees no project agents at all — `/agents` will list only
+> the built-ins and plugin agents, with no error to tell you why.
+
 ## Invoking Them In A Different Harness
 
 There is no equivalent of Claude Code's fixed `.claude/agents/` subagent loader in every harness.
@@ -48,29 +53,64 @@ If the harness you're using doesn't auto-discover subagents:
 4. Since there may be no orchestrator-style delegation tool, run the pipeline by hand in the fixed
    order (planner → spec-writer → coder → reviewer), passing each stage's output file
    (`docs/plans/<slug>.md`, then `docs/specs/<slug>.md`) to the next.
-5. The `tools:` frontmatter line in each `.agent.md` is Claude Code syntax and won't mean anything
-   to another harness — read the prose body instead for what the role is and isn't allowed to
-   touch (e.g. reviewer edits tests but never application source).
+5. The `model:`, `effort:`, `color:`, and `tools:` frontmatter lines are Claude Code syntax and
+   won't mean anything to another harness — read the prose body instead for what the role is and
+   isn't allowed to touch (e.g. reviewer edits tests but never application source). `tools:` is a
+   comma-separated string, not a YAML array; see `docs/adr/ADR-003-...md`.
 
 ## Claude Code Skills That Complement These Agents
 
-Skills are global/user-level Claude Code capabilities, not part of this repo — but several map
-directly onto this pipeline and are worth reaching for alongside the project agents:
+Skills are global/user-level Claude Code capabilities, not part of this repo. Several map onto
+this pipeline and are worth reaching for alongside the project agents. The Matt Pocock skills read
+their repo-specific configuration from `docs/agents/issue-tracker.md`, `docs/agents/domain.md`, and
+`docs/agents/triage-labels.md` — see `CLAUDE.md`'s `## Agent skills` section.
+
+**Layering onto a pipeline task:**
 
 - **`/code-review`** — an independent second opinion on a diff; use after the `coder` agent
   finishes, in addition to (not instead of) the `reviewer` agent, since the reviewer checks
   spec/test conformance while `/code-review` checks correctness/simplification more generally.
-- **`/verify`** — exercises a change end-to-end rather than just running tests; useful after
-  `coder` for anything with runtime behavior (IPC, scanning pipeline, DB layer).
+- **`/review`** — reviews changes since a fixed point (commit, branch, tag, or merge-base) along
+  two axes: Standards (does it follow the repo's documented standards?) and Spec (does it match
+  what the originating issue asked for?). This deliberately overlaps the `reviewer` agent — see
+  the boundary note below.
 - **`/tdd`** — if you're picking up a `coder` task and want to work red-green-refactor instead of
   writing the implementation in one pass.
+- **`/diagnose`** — a disciplined reproduce → minimise → hypothesise → instrument → fix loop.
+  Better than ad-hoc debugging when the `coder` or `reviewer` hits a failure with no obvious cause.
 - **`/security-review`** — worth running before opening a PR for anything touching file
   handling, given the repo's non-destructive-guarantee hard rule in `CLAUDE.md`.
-- **`/review`** — for reviewing an already-open GitHub PR (as opposed to `/code-review`, which
-  reviews the current uncommitted diff).
 
-None of these replace the five project agents — they're general-purpose checks you can layer on
-top of any stage, most often after `coder` and before the `reviewer` agent or a PR.
+**Working on the backlog rather than a task:**
+
+- **`/triage`** — moves issues through the triage state machine using the labels in
+  `docs/agents/triage-labels.md`.
+- **`/qa`** — conversational bug reporting that files GitHub issues as you go.
+- **`/to-issues`** / **`/to-prd`** — turn a plan or the current context into issues or a PRD.
+- **`/request-refactor-plan`** — plans a refactor as a series of small, safe commits.
+- **`/improve-codebase-architecture`** — finds deepening opportunities, reading the DDs and
+  `docs/adr/` as configured in `docs/agents/domain.md`.
+- **`/grill-with-docs`** — stress-tests a plan against the repo's domain language and recorded
+  decisions, updating ADRs inline as they crystallise.
+
+### Boundary: `/review` and the `reviewer` agent
+
+They overlap, and they are not substitutes.
+
+The **`reviewer` agent is the blocking gate.** It runs inside the pipeline against
+`docs/specs/<slug>.md`, may write test files, runs the full suite and benchmarks, and returns
+PASS/FAIL — its Critical and Major findings stop the PR. Step 5 cannot be skipped or delegated to
+a skill.
+
+**`/review` is an out-of-pipeline second opinion.** It reviews since an arbitrary point, has no
+blocking authority, and doesn't run the invariant deep-check the `reviewer` performs on every task
+(non-destructive guarantee, layering, migrations, data preservation). Reach for it on work that
+never went through the pipeline, or as an extra pass before handing to the `reviewer` — never
+instead of it.
+
+None of these skills replace the five project agents — they're general-purpose checks you can layer
+on top of any stage. See `docs/adr/ADR-005-pipeline-and-skills-boundary.md` for how the two systems
+divide responsibility for issues and labels.
 
 ## Task Document Archiving
 
@@ -84,6 +124,12 @@ Do not keep completed task docs in the active folders just for reference. Refere
 
 - Edit agent behavior only in `docs/agents/<name>.agent.md`. Never edit under `.claude/agents/`
   directly — see `docs/adr/ADR-002-claude-agents-symlink-redirect.md`.
+- `.claude/agents/` must contain exactly five symlinks and nothing else. Claude Code loads every
+  `*.md` in that directory and keys agents by frontmatter `name:`, so a stray copy (macOS/iCloud
+  `coder 2.md`, an editor backup) silently registers a second agent under the same name and may
+  win over the symlink. Verify with `ls -la .claude/agents/`.
+- Model/effort/tools live in frontmatter, and changing one means updating the live table in
+  `docs/agents/MODEL_SELECTION.md` — see `docs/adr/ADR-003-agent-frontmatter-is-the-routing-mechanism.md`.
 - If you change model routing, orchestration order, or what a role is allowed to touch, update
   the relevant ADR in `docs/adr/` in the same change (`ADR-001` for routing, `ADR-002` for the
   symlink mechanism itself).
