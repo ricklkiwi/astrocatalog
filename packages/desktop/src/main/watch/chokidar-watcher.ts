@@ -70,17 +70,39 @@ function extensionOf(basename: string): string | null {
 }
 
 /**
- * True when any path segment is hidden (dot-prefixed) or matches a
- * baked-in/caller-supplied skip name — mirrors `scan-job.ts`'s per-dirent
- * skip check, applied across the whole path so a directly-constructed nested
- * path (as in a unit test, or a chokidar event for a file several levels
- * under a skipped directory) is still recognized.
+ * True when any path segment *below `rootPath`* is hidden (dot-prefixed) or
+ * matches a baked-in/caller-supplied skip name — mirrors `scan-job.ts`'s
+ * per-dirent skip check, which only ever tests names it discovered by walking
+ * under the root.
+ *
+ * Root-relative is load-bearing, not a detail. Testing the whole absolute path
+ * meant a watch folder the user legitimately chose, like `~/.astro/lights`,
+ * had a dot-prefixed *ancestor* and so ignored its own root and every event
+ * under it: chokidar installed a watch that could never fire, while
+ * `scan-job.ts` walked the identical tree happily. `enterWatching` still
+ * reported mode `watching` and the catch-up-on-attach scan still ran, so the
+ * folder looked alive and silently missed every frame captured afterwards.
+ *
+ * A path outside `rootPath` (which chokidar should never report) is treated as
+ * skipped: `path.relative` escapes it with `..` segments, and something that is
+ * not under the root has no business entering the pipeline.
  */
-function isSkippedByName(filePath: string, skipNames: ReadonlySet<string>): boolean {
-  const segments = filePath.split(/[\\/]/);
+function isSkippedByName(
+  rootPath: string,
+  filePath: string,
+  skipNames: ReadonlySet<string>,
+): boolean {
+  const relative = path.relative(rootPath, filePath);
+  // The root itself: `path.relative(x, x)` is ''. Never skip the user's own
+  // watch folder — chokidar tests the root before installing its watch.
+  if (relative === '') {
+    return false;
+  }
+  const segments = relative.split(/[\\/]/);
   return segments.some(
     (segment) =>
-      segment !== '' && (segment.startsWith('.') || skipNames.has(segment.toLowerCase())),
+      segment !== '' &&
+      (segment === '..' || segment.startsWith('.') || skipNames.has(segment.toLowerCase())),
   );
 }
 
@@ -92,15 +114,20 @@ function isSkippedByName(filePath: string, skipNames: ReadonlySet<string>): bool
  * (no extension) is never ignored on that basis, so the walk still descends
  * into it (mirrors `scan-job.ts`'s directory-vs-file branching).
  *
+ * `rootPath` is required because the dotfile/skip-name test is root-relative:
+ * see {@link isSkippedByName} for why testing the absolute path silently
+ * disabled live watch for any folder with a dot-prefixed ancestor.
+ *
  * Exported standalone so it's unit-testable without constructing a real
  * chokidar watcher or touching the filesystem.
  */
 export function createIgnoredPredicate(
+  rootPath: string,
   skipPatterns: readonly string[] = [],
 ): (filePath: string) => boolean {
   const skipNames = new Set([...ALWAYS_SKIP, ...skipPatterns].map((name) => name.toLowerCase()));
   return (filePath: string): boolean => {
-    if (isSkippedByName(filePath, skipNames)) {
+    if (isSkippedByName(rootPath, filePath, skipNames)) {
       return true;
     }
     const ext = extensionOf(path.basename(filePath));
@@ -134,8 +161,13 @@ export const createChokidarWatcher: WatcherFactory = (
   rootPath: string,
   options: WatcherFactoryOptions,
 ): WatcherLike => {
-  const ignored = createIgnoredPredicate(options.skipPatterns ?? []);
-  const watcher = chokidarWatch(toWatchablePath(rootPath), {
+  // Build the predicate against the SAME canonicalized root handed to
+  // chokidar: it reports event paths by joining that exact root, so a
+  // predicate rooted at the raw `rootPath` would compute bogus `..` relatives
+  // on Windows 8.3 aliases (and on macOS `/var` -> `/private/var`).
+  const watchablePath = toWatchablePath(rootPath);
+  const ignored = createIgnoredPredicate(watchablePath, options.skipPatterns ?? []);
+  const watcher = chokidarWatch(watchablePath, {
     ignoreInitial: true,
     followSymlinks: false,
     awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 100 },

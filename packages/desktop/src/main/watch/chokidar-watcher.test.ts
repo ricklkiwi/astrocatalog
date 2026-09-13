@@ -8,36 +8,36 @@ import { createChokidarWatcher, createIgnoredPredicate } from './chokidar-watche
 
 describe('createIgnoredPredicate', () => {
   it('does not ignore a supported extension under a non-skipped directory', () => {
-    const ignored = createIgnoredPredicate();
+    const ignored = createIgnoredPredicate('/mnt/astro');
     expect(ignored('/mnt/astro/2026-01-15/Light_M31_L_300s_001.fits')).toBe(false);
     expect(ignored('/mnt/astro/2026-01-15/Light_M31_L_300s_002.CR2')).toBe(false);
   });
 
   it('does not ignore a plain directory path (no extension)', () => {
-    const ignored = createIgnoredPredicate();
+    const ignored = createIgnoredPredicate('/mnt/astro');
     expect(ignored('/mnt/astro/2026-01-15')).toBe(false);
   });
 
   it('ignores a dotfile anywhere in the path', () => {
-    const ignored = createIgnoredPredicate();
+    const ignored = createIgnoredPredicate('/mnt/astro');
     expect(ignored('/mnt/astro/.DS_Store')).toBe(true);
     expect(ignored('/mnt/astro/.git/config')).toBe(true);
   });
 
   it('ignores a node_modules entry', () => {
-    const ignored = createIgnoredPredicate();
+    const ignored = createIgnoredPredicate('/mnt/astro');
     expect(ignored('/mnt/astro/node_modules')).toBe(true);
     expect(ignored('/mnt/astro/node_modules/pkg/index.js')).toBe(true);
   });
 
   it('ignores an unsupported extension', () => {
-    const ignored = createIgnoredPredicate();
+    const ignored = createIgnoredPredicate('/mnt/astro');
     expect(ignored('/mnt/astro/notes.txt')).toBe(true);
     expect(ignored('/mnt/astro/readme.md')).toBe(true);
   });
 
   it('ignores a path matching a configured skipPattern', () => {
-    const ignored = createIgnoredPredicate(['@eaDir', '$RECYCLE.BIN']);
+    const ignored = createIgnoredPredicate('/mnt/astro', ['@eaDir', '$RECYCLE.BIN']);
     expect(ignored('/mnt/astro/@eaDir/thumb.fits')).toBe(true);
     expect(ignored('/mnt/astro/$RECYCLE.BIN/light.fits')).toBe(true);
     // Case-insensitive, matching scan-job.ts's basename comparison.
@@ -45,9 +45,38 @@ describe('createIgnoredPredicate', () => {
   });
 
   it('does not ignore a file just because its directory name resembles a skip pattern substring', () => {
-    const ignored = createIgnoredPredicate(['@eaDir']);
+    const ignored = createIgnoredPredicate('/mnt/astro', ['@eaDir']);
     // "@eaDirectory" is not an exact segment match for "@eaDir".
     expect(ignored('/mnt/astro/@eaDirectory/light.fits')).toBe(false);
+  });
+
+  // Regression: the skip test used to split the whole absolute path, so a
+  // watch root with a dot-prefixed *ancestor* ignored itself and every event
+  // under it. chokidar then installed a watch that could never fire, while
+  // scan-job.ts walked the same tree happily — live watch silently indexed
+  // nothing while still reporting mode 'watching'.
+  it('does not ignore a watch root whose ancestor directory is dot-prefixed', () => {
+    const ignored = createIgnoredPredicate('/Users/me/.astro/lights');
+    expect(ignored('/Users/me/.astro/lights')).toBe(false);
+    expect(ignored('/Users/me/.astro/lights/2026-01-15')).toBe(false);
+    expect(ignored('/Users/me/.astro/lights/2026-01-15/Light_M31_L_300s.fits')).toBe(false);
+  });
+
+  it('still ignores a dot-prefixed directory below the root, matching scan-job.ts', () => {
+    const ignored = createIgnoredPredicate('/Users/me/.astro/lights');
+    expect(ignored('/Users/me/.astro/lights/.git/config')).toBe(true);
+    expect(ignored('/Users/me/.astro/lights/.DS_Store')).toBe(true);
+  });
+
+  it('does not ignore the watch root itself even when the root basename is dot-prefixed', () => {
+    const ignored = createIgnoredPredicate('/Users/me/.astro');
+    expect(ignored('/Users/me/.astro')).toBe(false);
+    expect(ignored('/Users/me/.astro/light.fits')).toBe(false);
+  });
+
+  it('ignores a path outside the watch root', () => {
+    const ignored = createIgnoredPredicate('/mnt/astro');
+    expect(ignored('/mnt/other/light.fits')).toBe(true);
   });
 });
 
