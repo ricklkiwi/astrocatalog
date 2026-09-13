@@ -20,6 +20,30 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openDatabase, type AstroDatabase } from './index.js';
 import { resolveMigrationsFolder } from './migrate.js';
 
+/**
+ * Tables that exist for infrastructure rather than DD-003 domain data, and so
+ * are excluded before the domain table set is compared for equality.
+ */
+const INFRA_TABLES = [
+  '__drizzle_migrations', // drizzle-kit migration bookkeeping
+  'search_fts', // FTS5 virtual table backing search
+];
+
+/**
+ * FTS5 materialises its own shadow tables alongside the virtual table. They are
+ * an implementation detail of `search_fts`, not schema this repo declares.
+ */
+function isFtsShadowTable(name: string): boolean {
+  return /^search_fts_(data|idx|content|docsize|config)$/.test(name);
+}
+
+/** One row of `PRAGMA table_info(...)`. */
+interface TableColumn {
+  name: string;
+  type: string;
+  pk: number;
+}
+
 const DD003_TABLES = [
   'watch_folders',
   'files',
@@ -85,18 +109,59 @@ function fileFixture(relativePath: string) {
 }
 
 describe('migration from empty database', () => {
-  it('creates every DD-003 v1 table', () => {
+  it('creates exactly the DD-003 v1 tables — no more, no less', () => {
     const tables = withRawConnection((raw) =>
       raw
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
         .all()
         .map((row) => (row as { name: string }).name),
     );
+
+    expect(tables, 'missing the FTS5 search table').toContain('search_fts');
+    expect(tables, 'missing drizzle migration bookkeeping').toContain('__drizzle_migrations');
+
+    const domainTables = tables
+      .filter((name) => !INFRA_TABLES.includes(name) && !isFtsShadowTable(name))
+      .sort();
+
+    // Asserted as set equality, not containment: an unsanctioned table must fail
+    // here the day it appears. Containment only catches omissions, and every
+    // schema defect this project has had was an addition (ADR-004: P0-04 shipped
+    // all sixteen v1 tables up front, including a polymorphic project_inputs
+    // DD-003 had explicitly rejected — the old toContain assertion passed).
+    expect(domainTables).toEqual([...DD003_TABLES].sort());
+  });
+
+  it('gives every DD-003 table a TEXT primary key and created_at/updated_at', () => {
+    const columnsByTable = withRawConnection((raw) =>
+      Object.fromEntries(
+        DD003_TABLES.map((table) => [
+          table,
+          raw.prepare(`PRAGMA table_info(${table})`).all() as TableColumn[],
+        ]),
+      ),
+    );
+
     for (const table of DD003_TABLES) {
-      expect(tables, `missing table ${table}`).toContain(table);
+      const columns = columnsByTable[table] ?? [];
+      const names = columns.map((column) => column.name);
+
+      // CLAUDE.md hard rule, from DD-003: required for Phase 2 sync. Previously
+      // only spot-checked on individual tables via round-trip, so a new table
+      // without them would have shipped silently.
+      expect(names, `${table} is missing created_at`).toContain('created_at');
+      expect(names, `${table} is missing updated_at`).toContain('updated_at');
+
+      const primaryKey = columns.filter((column) => column.pk > 0);
+      expect(primaryKey, `${table} has no primary key`).toHaveLength(1);
+      expect(primaryKey[0]?.type, `${table}'s primary key must be TEXT`).toBe('TEXT');
+
+      // `settings` is keyed by its setting name rather than a surrogate UUIDv7;
+      // every other table uses `id`.
+      expect(primaryKey[0]?.name, `unexpected primary key column on ${table}`).toBe(
+        table === 'settings' ? 'key' : 'id',
+      );
     }
-    expect(tables).toContain('search_fts');
-    expect(tables).toContain('__drizzle_migrations');
   });
 
   it('creates the five DD-003 aggregation/lookup indexes', () => {
