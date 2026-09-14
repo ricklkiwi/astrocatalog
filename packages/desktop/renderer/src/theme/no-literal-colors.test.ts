@@ -50,6 +50,26 @@ const KNOWN_BAD: Array<{ name: string; source: string; filename: string }> = [
     source: "<div style={{ backgroundColor: 'red' }} />",
     filename: 'Example.tsx',
   },
+  {
+    name: 'oklch() — CSS Color 4 function, not the classic rgb/hsl four',
+    source: 'color: oklch(0.7 0.1 200);',
+    filename: 'Example.module.css',
+  },
+  {
+    name: 'lab() — CSS Color 4 function',
+    source: 'color: lab(50% 40 59);',
+    filename: 'Example.module.css',
+  },
+  {
+    name: 'hwb() — CSS Color 4 function',
+    source: 'background: hwb(194 0% 0%);',
+    filename: 'Example.module.css',
+  },
+  {
+    name: 'last declaration in a rule with no trailing semicolon (legal CSS)',
+    source: '.foo { background: red }',
+    filename: 'Example.module.css',
+  },
 ];
 
 const KNOWN_GOOD: Array<{ name: string; source: string; filename: string }> = [

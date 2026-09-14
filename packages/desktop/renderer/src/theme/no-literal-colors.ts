@@ -258,7 +258,15 @@ function hasLiteralColorToken(rawValue: string): boolean {
   if (/#[0-9a-fA-F]{3,8}\b/.test(withoutVarCalls)) {
     return true;
   }
-  if (/\b(rgb|rgba|hsl|hsla)\s*\(/i.test(withoutVarCalls)) {
+  // Every CSS colour-function notation, not a denylist of only the
+  // classic four: the modern CSS Color 4/5 functions (oklch/oklab/lab/lch/
+  // hwb/color/color-mix/light-dark) are just as resolved-colour a literal
+  // as rgb()/hsl() and must not verify escapes through them.
+  if (
+    /\b(rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark)\s*\(/i.test(
+      withoutVarCalls,
+    )
+  ) {
     return true;
   }
 
@@ -284,7 +292,11 @@ function hasLiteralColorToken(rawValue: string): boolean {
 function findCssViolations(source: string, filename: string): Violation[] {
   const violations: Violation[] = [];
   const withoutComments = stripCssComments(source);
-  const declarationPattern = /([a-zA-Z-]+)\s*:\s*([^;{}]+);/g;
+  // Terminates on `;`, on the block's closing `}` (the last declaration in
+  // a rule has no trailing semicolon — legal CSS, and Prettier normally adds
+  // one back, but the detector must not depend on that formatting pass to
+  // see the declaration), or end of file.
+  const declarationPattern = /([a-zA-Z-]+)\s*:\s*([^;{}]+)(?:[;}]|$)/g;
   let match: RegExpExecArray | null;
   while ((match = declarationPattern.exec(withoutComments)) !== null) {
     const [, rawProperty, rawValue] = match;
