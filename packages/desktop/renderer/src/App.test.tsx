@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -159,7 +159,53 @@ describe('App', () => {
 
     expect(source).toMatch(/from ['"]react-router['"]/);
     expect(source).toContain('HashRouter');
-    expect(source).not.toContain('BrowserRouter');
-    expect(source).not.toContain('MemoryRouter');
+  });
+
+  it('NAV-11: BrowserRouter/MemoryRouter appear in no non-test file under renderer/src', () => {
+    // The criterion covers every non-test file under renderer/src, not only
+    // App.tsx — reading just App.tsx would miss a future component that
+    // imports MemoryRouter/BrowserRouter directly for its own routing.
+    // MemoryRouter is still permitted inside *.test.tsx files for isolated
+    // component rendering (Sidebar.test.tsx, AppShell.test.tsx, this file's
+    // own THM-4 helper) — this walk only inspects shipped source.
+    const nonTestFiles = collectFiles(
+      THIS_DIR,
+      (file) =>
+        (file.endsWith('.ts') || file.endsWith('.tsx')) &&
+        !file.endsWith('.test.ts') &&
+        !file.endsWith('.test.tsx'),
+    );
+    expect(nonTestFiles.length).toBeGreaterThan(0);
+
+    for (const file of nonTestFiles) {
+      const source = readFileSync(file, 'utf8');
+      expect(source, `${path.relative(THIS_DIR, file)} must not import BrowserRouter`).not.toMatch(
+        /\bBrowserRouter\b/,
+      );
+      expect(source, `${path.relative(THIS_DIR, file)} must not import MemoryRouter`).not.toMatch(
+        /\bMemoryRouter\b/,
+      );
+    }
   });
 });
+
+function collectFiles(
+  dir: string,
+  keep: (fullPath: string) => boolean,
+  acc: string[] = [],
+): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === '__snapshots__') {
+        continue;
+      }
+      collectFiles(fullPath, keep, acc);
+      continue;
+    }
+    if (keep(fullPath)) {
+      acc.push(fullPath);
+    }
+  }
+  return acc;
+}
