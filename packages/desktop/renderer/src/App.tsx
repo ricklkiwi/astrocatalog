@@ -1,53 +1,41 @@
-import { useQuery } from '@tanstack/react-query';
+import { HashRouter, Navigate, Route, Routes } from 'react-router';
 
-import { DebugPanel } from './DebugPanel';
-import { ipc } from './ipc';
-import { JobDemo } from './JobDemo';
-import { WatchFolders } from './WatchFolders';
+import { AppShell } from './app/AppShell';
+import { CalibrationPage } from './pages/CalibrationPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { ReviewQueuePage } from './pages/ReviewQueuePage';
+import { SessionsPage } from './pages/SessionsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { TargetsPage } from './pages/TargetsPage';
+import { ThemeProvider } from './theme/ThemeProvider';
 
 /**
- * The P0-03 renderer is a single version screen: it fetches `app.version`
- * over the typed IPC bridge (TanStack Query per DD-002) and renders every
- * field — the visible proof of the renderer → preload → main round trip.
+ * `ThemeProvider` wraps `HashRouter` (never the reverse) so a theme change
+ * never remounts the router or loses route/scroll state. `HashRouter` is
+ * required because the packaged app is served over `file://`: a
+ * push-state-based history would rewrite the URL to a path that doesn't
+ * exist on disk, breaking on reload — `HashRouter` keeps the document part
+ * of the URL constant so a reload (dev or packaged) restores the same page
+ * from the hash. Paths mirror `app/routes.ts`'s `NAV_ITEMS`. Visiting `/`
+ * (or any unrecognised hash) lands on Dashboard.
  */
 export function App() {
-  const { data, error, isPending } = useQuery({
-    queryKey: ['app.version'],
-    queryFn: () => ipc.invoke('app.version'),
-  });
-
-  if (isPending) {
-    return <p>Loading version info…</p>;
-  }
-  if (error) {
-    return <p role="alert">Failed to load version info: {String(error)}</p>;
-  }
-
-  const rows: Array<[label: string, value: string]> = [
-    ['App', data.appVersion],
-    ['Electron', data.electronVersion],
-    ['Chrome', data.chromeVersion],
-    ['Node', data.nodeVersion],
-    ['Platform', data.platform],
-    ['SQLite', data.sqliteVersion],
-    ['sharp', data.sharpVersion],
-  ];
-
   return (
-    <main>
-      <h1>AstroTracker</h1>
-      <p>Versions reported by the main process over typed IPC:</p>
-      <dl>
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-      <JobDemo />
-      <WatchFolders />
-      <DebugPanel />
-    </main>
+    <ThemeProvider>
+      <HashRouter>
+        <Routes>
+          <Route path="/" element={<AppShell />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="targets" element={<TargetsPage />} />
+            <Route path="sessions" element={<SessionsPage />} />
+            <Route path="calibration" element={<CalibrationPage />} />
+            <Route path="review-queue" element={<ReviewQueuePage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        </Routes>
+      </HashRouter>
+    </ThemeProvider>
   );
 }

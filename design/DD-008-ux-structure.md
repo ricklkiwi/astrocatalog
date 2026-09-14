@@ -21,7 +21,13 @@ Phase 2 adds **Tonight** (recommendations + altitude charts) between Dashboard a
 ## Conventions
 
 - **Dark theme default** (astronomers) with optional **red night-vision mode**; light theme available. All colors via CSS custom properties.
-- Integration time always displayed `HHh MMm`; per-filter bars use consistent filter colors (L=white, R/G/B, Ha=deep red, OIII=teal, SII=orange-red).
+- Integration time always displayed `HHh MMm`; per-filter bars use consistent filter colors in
+  dark and light themes (L=white, R/G/B, Ha=deep red, OIII=teal, SII=orange-red). Red
+  night-vision mode overrides these with a dimmed, red-shifted treatment of the same seven
+  bands — preserving rod/dark adaptation outweighs strict colour consistency in that mode;
+  bands stay distinguishable from each other by relative brightness/saturation rather than hue.
+  The override is expressed entirely through the theme's CSS custom properties, like every
+  other red-night-vision colour, never as a per-component exception.
 - Long operations (scans) surface as a global progress indicator with per-stage counts; UI never blocks.
 - Virtualized lists everywhere file counts are unbounded (100k-file target).
 - Every destructive or file-touching action requires explicit confirmation (non-destructive principle); "remove from catalog" never deletes from disk and says so.

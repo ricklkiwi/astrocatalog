@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ThemeProvider > matches a committed DOM snapshot for the dark theme 1`] = `"<div class="app-root" data-theme="dark"><p>Dashboard</p></div>"`;
+
+exports[`ThemeProvider > matches a committed DOM snapshot for the light theme 1`] = `"<div class="app-root" data-theme="light"><p>Dashboard</p></div>"`;
+
+exports[`ThemeProvider > matches a committed DOM snapshot for the red-night-vision theme 1`] = `"<div class="app-root" data-theme="red-night-vision"><p>Dashboard</p></div>"`;

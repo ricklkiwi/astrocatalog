@@ -1,0 +1,91 @@
+/**
+ * DD-008 theme token layer. Every rule is scoped to `.app-root` (the single
+ * element `ThemeProvider` renders), never `:root`/`html`/`body` — CSS custom
+ * properties inherit down through the DOM from wherever they're declared, so
+ * scoping here still makes every token app-wide, while keeping the theme
+ * mechanically testable in isolation (a test can render `.app-root` in
+ * jsdom without touching global document state).
+ *
+ * Dark is the literal default: `.app-root` on its own (no `data-theme`
+ * attribute, or `data-theme="dark"`) already is the dark theme — no override
+ * block is needed for it.
+ *
+ * Filter tokens (`--filter-*`) are declared once here, shared identically by
+ * dark and light (no light-specific override) per DD-008's "per-filter bars
+ * use consistent filter colors in dark and light themes". Red night-vision
+ * mode re-declares every one of them in its own block below with a dimmed,
+ * red-shifted value — the DD-008 amendment this issue makes (see
+ * design/DD-008-ux-structure.md). No component or TypeScript module needs to
+ * know this override exists: `shared/display.ts`'s `FILTER_COLORS` map holds
+ * `var(--filter-…)` references, so the same reference automatically resolves
+ * to whichever value is active — the theme swap stays a pure token swap.
+ */
+.app-root {
+  /* Chrome tokens — dark (default) */
+  --color-bg: #0b0e14;
+  --color-bg-elevated: #131720;
+  --color-text: #e6e8ec;
+  --color-text-muted: #9aa3af;
+  --color-border: #262b36;
+  --color-accent: #4f8cff;
+  --color-focus-ring: #7fb2ff;
+  --color-nav-active-bg: #1c2534;
+  --color-nav-active-text: #ffffff;
+  --color-danger: #ff5c5c;
+  --color-success: #3ddc84;
+  --color-warning: #f5b942;
+
+  /* Filter tokens — shared by dark and light (DD-008: L=white, R/G/B,
+     Ha=deep red, OIII=teal, SII=orange-red) */
+  --filter-l: #ffffff;
+  --filter-r: #ff4d4d;
+  --filter-g: #4dff88;
+  --filter-b: #4d94ff;
+  --filter-ha: #8b0000;
+  --filter-oiii: #14b8a6;
+  --filter-sii: #ff7043;
+  --filter-unknown: #9aa3af;
+}
+
+.app-root[data-theme='light'] {
+  --color-bg: #ffffff;
+  --color-bg-elevated: #f5f6f8;
+  --color-text: #14161a;
+  --color-text-muted: #5b6472;
+  --color-border: #d8dce2;
+  --color-accent: #2f6fed;
+  --color-focus-ring: #2f6fed;
+  --color-nav-active-bg: #e4ecff;
+  --color-nav-active-text: #14161a;
+  --color-danger: #d1352c;
+  --color-success: #1f9d55;
+  --color-warning: #b3790a;
+}
+
+.app-root[data-theme='red-night-vision'] {
+  /* Chrome — biased toward reds/near-black to preserve rod/dark adaptation. */
+  --color-bg: #0a0000;
+  --color-bg-elevated: #170303;
+  --color-text: #ff3b30;
+  --color-text-muted: #8a1f1a;
+  --color-border: #3a0808;
+  --color-accent: #ff5040;
+  --color-focus-ring: #ff7a66;
+  --color-nav-active-bg: #2a0606;
+  --color-nav-active-text: #ff6a5c;
+  --color-danger: #ff2d1e;
+  --color-success: #b33b1e;
+  --color-warning: #cc4b1f;
+
+  /* Filter override (DD-008 amendment): dimmed, red-shifted treatment of the
+     same seven bands — distinguishable from each other by relative
+     brightness/saturation rather than hue, never a per-component exception. */
+  --filter-l: #ff8a80;
+  --filter-r: #ff5b52;
+  --filter-g: #cc4038;
+  --filter-b: #992e28;
+  --filter-ha: #66211d;
+  --filter-oiii: #b3453d;
+  --filter-sii: #e0574a;
+  --filter-unknown: #7a2a24;
+}
