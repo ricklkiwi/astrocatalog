@@ -111,6 +111,12 @@ function createWindow(): void {
   const window = new BrowserWindow({
     width: 960,
     height: 640,
+    // P1-13a: the DD-008 sidebar shell needs a floor on usable space — a
+    // user shrinking the window below this can no longer collapse the
+    // sidebar/content into an unusable state. Both values stay below the
+    // 960x640 defaults above so the window never opens already clamped.
+    minWidth: 720,
+    minHeight: 480,
     show: false,
     webPreferences: {
       preload: path.join(import.meta.dirname, '../preload/index.cjs'),
