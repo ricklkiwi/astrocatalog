@@ -78,6 +78,31 @@ describe('App', () => {
     expect(appRoot?.contains(nav)).toBe(true);
   });
 
+  it('THM-6: App.tsx nests HashRouter INSIDE ThemeProvider, never the reverse', () => {
+    // The DOM `.contains()` assertion above cannot tell the two nesting
+    // orders apart: `HashRouter` renders no DOM element of its own, so
+    // `<HashRouter><ThemeProvider>…` still leaves `<nav>` inside
+    // `.app-root` and passes it. Verified by mutation — swapping the two
+    // components in App.tsx left the whole renderer suite green. The
+    // element order in the source is what actually decides whether a theme
+    // change can remount the router, so assert that directly (same
+    // source-text technique as NAV-4/NAV-11 above).
+    const appTsxPath = path.join(THIS_DIR, 'App.tsx');
+    const source = readFileSync(appTsxPath, 'utf8').replace(/\r\n/g, '\n');
+
+    const themeOpen = source.indexOf('<ThemeProvider>');
+    const routerOpen = source.indexOf('<HashRouter>');
+    const routerClose = source.indexOf('</HashRouter>');
+    const themeClose = source.indexOf('</ThemeProvider>');
+
+    expect(themeOpen).toBeGreaterThan(-1);
+    expect(routerOpen).toBeGreaterThan(-1);
+    expect(routerClose).toBeGreaterThan(-1);
+    expect(themeClose).toBeGreaterThan(-1);
+    expect(themeOpen).toBeLessThan(routerOpen);
+    expect(routerClose).toBeLessThan(themeClose);
+  });
+
   it('clicking a Sidebar link navigates and moves aria-current to the clicked link', async () => {
     const { container } = renderApp();
     await screen.findByRole('heading', { name: 'Dashboard' });

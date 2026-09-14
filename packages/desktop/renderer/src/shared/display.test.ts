@@ -95,27 +95,52 @@ describe('FILTER_COLORS / getFilterColor', () => {
   });
 });
 
-function collectSourceFiles(dir: string, acc: string[] = []): string[] {
+function collectFiles(
+  dir: string,
+  keep: (fullPath: string) => boolean,
+  acc: string[] = [],
+): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      collectSourceFiles(fullPath, acc);
+      if (entry.name === '__snapshots__') {
+        continue;
+      }
+      collectFiles(fullPath, keep, acc);
       continue;
     }
-    if (fullPath.endsWith('.ts') || fullPath.endsWith('.tsx')) {
+    if (keep(fullPath)) {
       acc.push(fullPath);
     }
   }
   return acc;
 }
 
+function collectSourceFiles(dir: string): string[] {
+  return collectFiles(dir, (file) => file.endsWith('.ts') || file.endsWith('.tsx'));
+}
+
 describe('single-source guards', () => {
   const files = collectSourceFiles(RENDERER_SRC_ROOT);
   const displayTsPath = path.join(RENDERER_SRC_ROOT, 'shared', 'display.ts');
   const displayTestPath = path.join(RENDERER_SRC_ROOT, 'shared', 'display.test.ts');
+  const tokensCssPath = path.join(RENDERER_SRC_ROOT, 'theme', 'tokens.css');
 
   it('DSP-8: "var(--filter-" appears in exactly one non-test file: shared/display.ts', () => {
-    const matching = files.filter((file) => {
+    // `.css`/`.module.css` are walked too, not only `.ts`/`.tsx`: a
+    // component stylesheet writing `color: var(--filter-ha)` directly is
+    // exactly the "component inlining a filter var" DSP-8 exists to catch,
+    // and `no-literal-colors` cannot see it (a `var()` reference is a legal
+    // value there). `tokens.css` is excluded by full path — it is the token
+    // layer itself, and names the reference form in its own doc comment.
+    const candidates = collectFiles(
+      RENDERER_SRC_ROOT,
+      (file) =>
+        file.endsWith('.ts') ||
+        file.endsWith('.tsx') ||
+        (file.endsWith('.css') && file !== tokensCssPath),
+    );
+    const matching = candidates.filter((file) => {
       if (file.endsWith('.test.ts') || file.endsWith('.test.tsx')) {
         return false;
       }
