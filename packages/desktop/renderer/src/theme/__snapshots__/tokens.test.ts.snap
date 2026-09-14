@@ -1,0 +1,76 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`theme tokens > TOK-7: each resolved theme map matches a committed snapshot > dark 1`] = `
+{
+  "--color-accent": "#4f8cff",
+  "--color-bg": "#0b0e14",
+  "--color-bg-elevated": "#131720",
+  "--color-border": "#262b36",
+  "--color-danger": "#ff5c5c",
+  "--color-focus-ring": "#7fb2ff",
+  "--color-nav-active-bg": "#1c2534",
+  "--color-nav-active-text": "#ffffff",
+  "--color-success": "#3ddc84",
+  "--color-text": "#e6e8ec",
+  "--color-text-muted": "#9aa3af",
+  "--color-warning": "#f5b942",
+  "--filter-b": "#4d94ff",
+  "--filter-g": "#4dff88",
+  "--filter-ha": "#8b0000",
+  "--filter-l": "#ffffff",
+  "--filter-oiii": "#14b8a6",
+  "--filter-r": "#ff4d4d",
+  "--filter-sii": "#ff7043",
+  "--filter-unknown": "#9aa3af",
+}
+`;
+
+exports[`theme tokens > TOK-7: each resolved theme map matches a committed snapshot > light 1`] = `
+{
+  "--color-accent": "#2f6fed",
+  "--color-bg": "#ffffff",
+  "--color-bg-elevated": "#f5f6f8",
+  "--color-border": "#d8dce2",
+  "--color-danger": "#d1352c",
+  "--color-focus-ring": "#2f6fed",
+  "--color-nav-active-bg": "#e4ecff",
+  "--color-nav-active-text": "#14161a",
+  "--color-success": "#1f9d55",
+  "--color-text": "#14161a",
+  "--color-text-muted": "#5b6472",
+  "--color-warning": "#b3790a",
+  "--filter-b": "#4d94ff",
+  "--filter-g": "#4dff88",
+  "--filter-ha": "#8b0000",
+  "--filter-l": "#ffffff",
+  "--filter-oiii": "#14b8a6",
+  "--filter-r": "#ff4d4d",
+  "--filter-sii": "#ff7043",
+  "--filter-unknown": "#9aa3af",
+}
+`;
+
+exports[`theme tokens > TOK-7: each resolved theme map matches a committed snapshot > red-night-vision 1`] = `
+{
+  "--color-accent": "#ff5040",
+  "--color-bg": "#0a0000",
+  "--color-bg-elevated": "#170303",
+  "--color-border": "#3a0808",
+  "--color-danger": "#ff2d1e",
+  "--color-focus-ring": "#ff7a66",
+  "--color-nav-active-bg": "#2a0606",
+  "--color-nav-active-text": "#ff6a5c",
+  "--color-success": "#b33b1e",
+  "--color-text": "#ff3b30",
+  "--color-text-muted": "#8a1f1a",
+  "--color-warning": "#cc4b1f",
+  "--filter-b": "#992e28",
+  "--filter-g": "#cc4038",
+  "--filter-ha": "#66211d",
+  "--filter-l": "#ff8a80",
+  "--filter-oiii": "#b3453d",
+  "--filter-r": "#ff5b52",
+  "--filter-sii": "#e0574a",
+  "--filter-unknown": "#7a2a24",
+}
+`;
