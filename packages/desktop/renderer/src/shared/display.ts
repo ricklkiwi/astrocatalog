@@ -8,12 +8,11 @@
  *
  * `FILTER_COLORS` holds `var(--filter-…)` REFERENCES, never resolved hex —
  * it does not and must never branch on the active theme. `theme/tokens.css`
- * re-declares the same custom properties under
- * `.app-root[data-theme='red-night-vision']` with dimmed, red-shifted
- * values, so the same reference automatically resolves differently once
- * that theme is active. The theme swap stays a pure CSS token swap; no
- * TypeScript in this file (or anywhere else) needs to know that override
- * exists.
+ * re-declares the same custom properties under the night-vision theme's
+ * attribute block with dimmed, red-shifted values, so the same reference
+ * automatically resolves differently once that theme is active. The theme
+ * swap stays a pure CSS token swap; no TypeScript in this file (or anywhere
+ * else) needs to know that override exists.
  */
 
 /** DD-008's seven named filter bands. */
@@ -52,8 +51,8 @@ export function formatIntegrationTime(totalSeconds: number): string {
 
 /**
  * The canonical per-filter colour map (DD-008: L=white, R/G/B, Ha=deep red,
- * OIII=teal, SII=orange-red in dark/light; dimmed and red-shifted under
- * red-night-vision). Every value is a `var(--filter-…)` reference into
+ * OIII=teal, SII=orange-red in dark/light; dimmed and red-shifted under the
+ * night-vision theme). Every value is a `var(--filter-…)` reference into
  * `theme/tokens.css` — resolving the actual colour is the browser's job at
  * paint time, driven entirely by which theme's token block is active.
  */
