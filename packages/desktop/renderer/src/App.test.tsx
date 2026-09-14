@@ -67,6 +67,17 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeTruthy();
   });
 
+  it('THM-6: .app-root is a DOM ancestor of the router-rendered <nav> (ThemeProvider wraps HashRouter)', async () => {
+    const { container } = renderApp();
+    await screen.findByRole('heading', { name: 'Dashboard' });
+
+    const appRoot = container.querySelector('.app-root');
+    const nav = container.querySelector('nav');
+    expect(appRoot).not.toBeNull();
+    expect(nav).not.toBeNull();
+    expect(appRoot?.contains(nav)).toBe(true);
+  });
+
   it('clicking a Sidebar link navigates and moves aria-current to the clicked link', async () => {
     const { container } = renderApp();
     await screen.findByRole('heading', { name: 'Dashboard' });
