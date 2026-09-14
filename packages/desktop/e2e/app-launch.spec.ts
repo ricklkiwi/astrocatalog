@@ -5,6 +5,12 @@
  * sharp versions, proving the native modules were rebuilt against the
  * correct Electron ABI inside the asar-unpacked artifact (the class of bug
  * P0-03's plain-Node unit smoke cannot catch).
+ *
+ * P1-13a: the version info now lives behind DevPanel's collapsed toggle
+ * (relocated from the old single-screen renderer), so this spec opens it
+ * before asserting the version text/values. The "AstroTracker" heading
+ * assertion now targets the DD-008 shell's brand mark — same text, new
+ * location, no wording change needed.
  */
 import type { AppVersionInfo, AstroTrackerBridge } from '../src/ipc/contract.js';
 import { expect, test } from './fixtures.js';
@@ -26,6 +32,10 @@ test('packaged app boots with one titled window and a live IPC round trip', asyn
   // Wait through renderer hydration and its first IPC-backed render. This is
   // intentionally web-first: no fixed sleep or one-shot DOM read on cold CI.
   await expect(page.getByRole('heading', { name: 'AstroTracker' })).toBeVisible();
+
+  // The version info now lives behind DevPanel's collapsed-by-default
+  // toggle (P1-13a) — expand it before asserting the native-module proof.
+  await page.getByRole('button', { name: 'Show developer tools' }).click();
   await expect(
     page.getByText('Versions reported by the main process over typed IPC:'),
   ).toBeVisible();
