@@ -27,3 +27,4 @@ The orchestrator archives task docs after reviewer PASS and before opening the P
 | backlog-44-scoped-names         | #44   | TBD | [plan](backlog-44-scoped-names/plan.md)         | [spec](backlog-44-scoped-names/spec.md)         | 2026-07-05 |
 | p1-09-live-watch-mode           | #17   | #78 | [plan](p1-09-live-watch-mode/plan.md)           | [spec](p1-09-live-watch-mode/spec.md)           | 2026-07-22 |
 | p1-05-capture-software-profiles | #13   | #70 | [plan](p1-05-capture-software-profiles/plan.md) | [spec](p1-05-capture-software-profiles/spec.md) | 2026-07-21 |
+| p1-13a-app-shell                | #92   | TBD | [plan](p1-13a-app-shell/plan.md)                | [spec](p1-13a-app-shell/spec.md)                | 2026-09-13 |

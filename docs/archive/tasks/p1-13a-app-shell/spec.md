@@ -1,6 +1,6 @@
 # Spec: [P1-13a] App shell, navigation, and theme tokens
 
-**Slug:** p1-13a-app-shell **Issue:** #92 **Plan:** docs/plans/p1-13a-app-shell.md **Date:** 2026-09-13
+**Slug:** p1-13a-app-shell **Issue:** #92 **Plan:** docs/archive/tasks/p1-13a-app-shell/plan.md **Date:** 2026-09-13
 **Governing DDs:** DD-008 (UX structure & UI conventions — page set, theme behaviour, `HHh MMm`
 formatting, filter colours; **amended by this issue**, see DOC-1), DD-002 (renderer layering, typed
 IPC only)
@@ -539,5 +539,5 @@ and paste the evidence in the PR description. The Reviewer checks that each muta
    (which compare snapshots to each other), but the Reviewer should not expect real class names in
    the committed snapshots.
 
-Spec written: docs/specs/p1-13a-app-shell.md — 96 criteria (80 mechanically enforced, 16
+Spec written: docs/archive/tasks/p1-13a-app-shell/spec.md — 96 criteria (80 mechanically enforced, 16
 reviewer-judgement) plus 9 mutation-evidence items

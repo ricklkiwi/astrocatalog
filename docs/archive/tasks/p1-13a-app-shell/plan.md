@@ -556,4 +556,4 @@ are folded into the steps/notes above:
 3. **`DevPanel`'s permanence.** Resolved: it stays, but is explicitly marked temporary scaffolding
    in both this plan and a doc comment in the component itself — see Step 11.
 
-Plan written: docs/plans/p1-13a-app-shell.md — 15 steps
+Plan written: docs/archive/tasks/p1-13a-app-shell/plan.md — 15 steps
