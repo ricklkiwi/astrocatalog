@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router';
 
+import { DevPanel } from '../DevPanel';
 import { GlobalScanProgress } from './GlobalScanProgress';
 import { NAV_ITEMS } from './routes';
 import { Sidebar } from './Sidebar';
@@ -36,6 +37,7 @@ export function AppShell() {
         <div className={styles.content}>
           <Outlet />
         </div>
+        <DevPanel />
       </div>
     </div>
   );
