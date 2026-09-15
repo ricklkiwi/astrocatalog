@@ -10,3 +10,4 @@ export type {
 } from './types.js';
 export { astronomicalDayLabel, isValidIana, resolveTimezone } from './timezone.js';
 export { splitByGap } from './gap-splitting.js';
+export { detectSessions } from './detect-sessions.js';

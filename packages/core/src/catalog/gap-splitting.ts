@@ -15,21 +15,21 @@ const MS_PER_HOUR = 3_600_000;
  * Callers must only pass frames with a non-null `dateObsUtc`
  * (`detectSessions` filters these before bucketing).
  */
-export function splitByGap(frames: SessionInputFrame[], gapHours: number): SessionInputFrame[][] {
+export function splitByGap<T extends SessionInputFrame>(frames: T[], gapHours: number): T[][] {
   const sorted = [...frames].sort(
     (a, b) => (a.dateObsUtc as Date).getTime() - (b.dateObsUtc as Date).getTime(),
   );
 
   const thresholdMs = gapHours * MS_PER_HOUR;
-  const runs: SessionInputFrame[][] = [];
-  let currentRun: SessionInputFrame[] = [];
+  const runs: T[][] = [];
+  let currentRun: T[] = [];
 
   for (const frame of sorted) {
     if (currentRun.length === 0) {
       currentRun.push(frame);
       continue;
     }
-    const previous = currentRun[currentRun.length - 1] as SessionInputFrame;
+    const previous = currentRun[currentRun.length - 1] as T;
     const deltaMs = (frame.dateObsUtc as Date).getTime() - (previous.dateObsUtc as Date).getTime();
     if (deltaMs > thresholdMs) {
       runs.push(currentRun);
