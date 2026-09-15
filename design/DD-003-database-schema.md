@@ -51,6 +51,7 @@ frames(
   focal_length, aperture, pier_side, airmass, observer, site_name,
   bayer_pattern, fwhm, hfr, star_count,   -- quality (nullable)
   session_id → sessions,
+  session_assignment_locked, -- user merge/split lock, default false (P1-17)
   headers_json,              -- full raw header dump for forward-compat
   created_at, updated_at
 )
@@ -74,7 +75,8 @@ filters(id, raw_name, canonical_name, band_type, created_at, updated_at) -- 'L',
 sessions(
   id, session_date,          -- local astronomical date (noon-to-noon)
   started_at_utc, ended_at_utc,
-  timezone, equipment_profile_id, notes, weather_notes,
+  timezone, timezone_source, -- timezone_source: 'watch_folder'|'system_fallback' (P1-17)
+  equipment_profile_id, notes, weather_notes,
   created_at, updated_at
 )
 

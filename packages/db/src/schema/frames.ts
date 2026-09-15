@@ -66,6 +66,15 @@ export const frames = sqliteTable(
     hfr: real('hfr'),
     starCount: integer('star_count'),
     sessionId: text('session_id').references(() => sessions.id),
+    /**
+     * User-applied merge/split lock (P1-17, DD-006): when `true`,
+     * `detectSessions()` never reassigns this frame's `sessionId` on a
+     * rescan, regardless of what the astronomical-day/gap/equipment rules
+     * would independently compute.
+     */
+    sessionAssignmentLocked: integer('session_assignment_locked', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     /** Full raw header dump for forward-compat (DD-003 / DD-004). */
     headersJson: text('headers_json').notNull(),
   },

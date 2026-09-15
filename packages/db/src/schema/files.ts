@@ -22,6 +22,12 @@ export const watchFolders = sqliteTable(
     ...baseColumns(),
     path: text('path').notNull(),
     driveLabel: text('drive_label'),
+    /**
+     * IANA timezone for astronomical-day grouping (DD-003 "Timezone source",
+     * DD-006). Nullable/user-confirmable — an unset value falls back to the
+     * caller-resolved system timezone at session-detection time (P1-17).
+     */
+    timezone: text('timezone'),
     isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
     lastScanAt: integer('last_scan_at', { mode: 'timestamp_ms' }),
     /**
