@@ -79,6 +79,13 @@ export {
   type ParseFileResult,
   type ParsedFrame,
 } from './scanning/parse-file.js';
+export {
+  detectSessions,
+  type SessionAssignment,
+  type SessionDetectionConfig,
+  type SessionInputFrame,
+  type TimezoneSource,
+} from './catalog/index.js';
 
 export const coreVersion = '0.1.0';
 
