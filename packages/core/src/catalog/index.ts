@@ -9,3 +9,4 @@ export type {
   TimezoneSource,
 } from './types.js';
 export { astronomicalDayLabel, isValidIana, resolveTimezone } from './timezone.js';
+export { splitByGap } from './gap-splitting.js';
