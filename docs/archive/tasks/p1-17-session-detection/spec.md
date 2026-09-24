@@ -1,6 +1,6 @@
 # Spec: [P1-17] Session detection algorithm
 
-**Slug:** p1-17-session-detection **Issue:** #25 **Plan:** docs/plans/p1-17-session-detection.md **Date:** 2026-09-13
+**Slug:** p1-17-session-detection **Issue:** #25 **Plan:** docs/archive/tasks/p1-17-session-detection/plan.md **Date:** 2026-09-13
 **Governing DDs:** DD-006 (session detection rules), DD-003 (schema; amended in this PR — see DB-8/J-1), DD-002 (layering), ADR-004 (alter, never recreate), ADR-007 (falsifiability)
 
 ## Scope
@@ -25,10 +25,10 @@ Concrete instants and expected labels for every scenario are in **Test Hints**; 
 
 #### Astronomical-day windowing (DD-006 noon-to-noon)
 
-- [ ] **ALG-1** — Given a single-rig night whose frames run 20:00 local through 02:00 local across midnight (`America/Denver`, all consecutive gaps < 4 h), when detection runs, the result is exactly one assignment whose frame set equals the whole input and whose `sessionDate` is the evening-side date `'2026-07-05'` — **fails under:** `astronomicalDayLabel` in `packages/core/src/catalog/timezone.ts` labelling the instant itself rather than the instant minus 12 h (post-midnight frames then split into a second `'2026-07-06'` session).
-- [ ] **ALG-2** — Given a frame at exactly local 12:00:00.000, its `sessionDate` is that same calendar date (noon opens the new astronomical day) — **fails under:** changing the shift constant in `astronomicalDayLabel` from 12 h to 13 h.
-- [ ] **ALG-3** — Given a frame 1 ms before local noon (11:59:59.999), its `sessionDate` is the **previous** calendar date — **fails under:** changing the shift constant in `astronomicalDayLabel` from 12 h to 11 h.
-- [ ] **ALG-4** — Given two frames on either side of a DST spring-forward discontinuity in the same night (`America/Denver`, 2026-03-08), both carry `sessionDate` `'2026-03-07'` and land in one assignment — **fails under:** `astronomicalDayLabel` applying a fixed numeric UTC offset captured once for the zone instead of formatting the shifted instant in the IANA zone.
+- [ ] **ALG-1** — Given a single-rig night whose frames run 20:00 local through 02:00 local across midnight (`America/Denver`, all consecutive gaps < 4 h), when detection runs, the result is exactly one assignment whose frame set equals the whole input and whose `sessionDate` is the evening-side date `'2026-07-05'` — **fails under:** `astronomicalDayLabel` in `packages/core/src/catalog/timezone.ts` labelling the instant's local calendar date without stepping pre-noon frames back one day (post-midnight frames then split into a second `'2026-07-06'` session).
+- [ ] **ALG-2** — Given a frame at exactly local 12:00:00.000, its `sessionDate` is that same calendar date (noon opens the new astronomical day) — **fails under:** changing `NOON_HOUR` in `timezone.ts` from 12 to 13.
+- [ ] **ALG-3** — Given a frame 1 ms before local noon (11:59:59.999), its `sessionDate` is the **previous** calendar date — **fails under:** changing `NOON_HOUR` in `timezone.ts` from 12 to 11.
+- [ ] **ALG-4** — Given two frames on either side of a DST spring-forward discontinuity in the same night (`America/Denver`, 2026-03-08), both carry `sessionDate` `'2026-03-07'` and land in one assignment — **fails under:** `astronomicalDayLabel` applying a fixed numeric UTC offset captured once for the zone instead of reading the instant's local date and hour in the IANA zone. (The review-fix commit replaced the original shift-by-12-real-hours implementation, which was wrong on DST-transition days; ALG-4c–f in `timezone.test.ts` sit within an hour of local noon on both transition days so the named mutation can cross the boundary.)
 - [ ] **ALG-5** — Given a morning frame in a fractional-offset zone (`Asia/Kolkata`, UTC+05:30), its `sessionDate` is the previous evening's date — **fails under:** `astronomicalDayLabel` computing the label from whole-hour offset arithmetic rather than the zone-aware formatted date.
 
 #### Gap splitting (DD-006 "> 4 h", configurable)
@@ -100,11 +100,11 @@ Concrete instants and expected labels for every scenario are in **Test Hints**; 
 - [ ] **INV-3** — All persisted/emitted timestamps are UTC instants: an assignment's `startedAtUtc`/`endedAtUtc` are equal to member `dateObsUtc` values, never re-derived from the local `sessionDate` label — **fails under:** `detect-sessions.ts` computing `startedAtUtc` as `new Date(sessionDate)`.
 - [ ] **INV-4** — Manual session assignments survive a rescan: given a run's output applied back onto its input plus one newly scanned unlocked frame, every locked assignment's frame set is byte-identical to the previous run's — **fails under:** the locked/unlocked partition predicate in `detect-sessions.ts` ignoring `sessionAssignmentLocked`.
 - [ ] **INV-5** — The three altered tables still satisfy DD-003's UUIDv7-TEXT-PK + `created_at`/`updated_at` conformance after migration — **fails under:** the 0007 migration rebuilding `sessions` without its `updated_at` column.
-- [ ] **INV-6** — Long-running work through the worker queue: **N/A** — `detectSessions` is synchronous and pure; scheduling it is P1-19's concern.
+- [ ] **INV-6** — Long-running work through the worker queue: **N/A** — `detectSessions` is synchronous and pure; scheduling it is P1-18a's concern.
 
 ### Performance
 
-**N/A for this slice, deliberately.** No wiring exists to run detection against a real catalog, so there is no path to benchmark and no `pnpm bench` case is added (the plan's Invariant Checklist flags this; P1-19 benchmarks the detect-and-persist path against PRD §8.4). The algorithmic-complexity expectation is carried as a judgement item (J-4), not a timing assertion — a wall-clock threshold on synthetic data would be flaky and would not be evidence about the real budget. The Reviewer must not flag the absence of a benchmark.
+**N/A for this slice, deliberately.** No wiring exists to run detection against a real catalog, so there is no path to benchmark and no `pnpm bench` case is added (the plan's Invariant Checklist flags this; P1-18a benchmarks the detect-and-persist path against PRD §8.4). The algorithmic-complexity expectation is carried as a judgement item (J-4), not a timing assertion — a wall-clock threshold on synthetic data would be flaky and would not be evidence about the real budget. The Reviewer must not flag the absence of a benchmark.
 
 ### Tests
 
@@ -127,8 +127,8 @@ Concrete instants and expected labels for every scenario are in **Test Hints**; 
 
 The Reviewer must **not** flag any of the following as gaps:
 
-- Wiring `detectSessions()` into the scan pipeline, the job queue, or any IPC handler — P1-19.
-- Persisting `SessionAssignment[]` into `sessions`/`frames.session_id`, the insert/update reconciliation, and the `UPDATE`-not-replace discipline that keeps `notes`/`weather_notes` alive across a reused session id — P1-19.
+- Wiring `detectSessions()` into the scan pipeline, the job queue, or any IPC handler — P1-18a (#125; originally assigned to P1-19, moved by #126).
+- Persisting `SessionAssignment[]` into `sessions`/`frames.session_id`, the insert/update reconciliation, and the `UPDATE`-not-replace discipline that keeps `notes`/`weather_notes` alive across a reused session id — P1-18a.
 - **The "merge/split persists across a rescan" E2E test** — it requires persistence and UI that do not exist yet; it is carried by P1-19's own acceptance criteria. LOCK-1/LOCK-2/INV-4 prove the algorithmic half here.
 - The Sessions page, manual merge/split controls, and the session notes editor — P1-19/P1-23.
 - The UI that confirms a `system_fallback` timezone with the user — a later Settings issue; this slice only produces the flag.

@@ -458,4 +458,4 @@ FITS/XISF/RAW bytes) rather than the binary-fixture convention used by the parse
    equally plausible and has real UX consequences for P1-19's Sessions page. Flagging for human
    confirmation rather than deciding silently, per the task instructions.
 
-Plan written: docs/plans/p1-17-session-detection.md — 6 steps
+Plan written: docs/archive/tasks/p1-17-session-detection/plan.md — 6 steps
