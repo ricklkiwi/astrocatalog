@@ -69,8 +69,8 @@ export const xisfDefs: FixtureDef[] = [
         'elements (for FITS compatibility) and native XISF Property elements ' +
         '(Observation:Object:Name, Instrument:ExposureTime, ...), mirroring the N.I.N.A. ' +
         'mono narrowband light fixture. FITSKeyword string values (OBJECT, IMAGETYP, ' +
-        "FILTER, DATE-OBS, TELESCOP, INSTRUME) carry FITS single-quote syntax (e.g. " +
-        "\"'WO Gt 71'\"), matching real PixInsight XISF output (#129); Property values " +
+        'FILTER, DATE-OBS, TELESCOP, INSTRUME) carry FITS single-quote syntax (e.g. ' +
+        '"\'WO Gt 71\'"), matching real PixInsight XISF output (#129); Property values ' +
         'are never quoted.',
       provenance: {
         method: 'synthesized-to-conventions',
