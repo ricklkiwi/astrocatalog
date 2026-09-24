@@ -73,6 +73,15 @@ describe('parseXisfHeaderFromBuffer', () => {
       ['an unquoted numeric value is untouched', '100', '100'],
       ['an unquoted logical T value is untouched', 'T', 'T'],
       ['a single leading quote with no closing quote is untouched', "'WO Gt 71", "'WO Gt 71"],
+      // Starts and ends with a quote, but isn't one well-formed FITS
+      // literal: a premature unescaped closing quote leaves trailing
+      // content, so it's left unchanged (mirrors fits/parse.test.ts's
+      // decodeFitsStringLiteral row of the same name).
+      [
+        'trailing content after an early closing quote is untouched, even though raw itself ends in a quote',
+        "'ab'cd'",
+        "'ab'cd'",
+      ],
     ])('%s', (_name, rawValue, decoded) => {
       const result = parseXisfHeaderFromBuffer(
         buildXisf(IMAGE_XML(`<FITSKeyword name="TELESCOP" value="${rawValue}"/>`)),

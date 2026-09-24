@@ -116,6 +116,25 @@ describe('decodeFitsStringLiteral', () => {
     ['trailing text after the closing quote is untouched', "'ab'cd", "'ab'cd"],
     ['a value ending in a quote but not starting with one is untouched', "M 31'", "M 31'"],
     ['empty string is untouched', '', ''],
+    // First and last characters are both a quote (the raw[0]/raw[len-1]
+    // guard passes), but the interior isn't one well-formed FITS literal —
+    // pins the `quoted.end !== raw.length` branch: a premature unescaped
+    // closing quote leaves trailing content the guard alone can't see.
+    [
+      "trailing content after an early closing quote is untouched, even though raw itself ends in a quote",
+      "'ab'cd'",
+      "'ab'cd'",
+    ],
+    [
+      'two separate quoted segments (not one literal) are untouched',
+      "'a' 'b'",
+      "'a' 'b'",
+    ],
+    // Pins the `!quoted.ok` branch specifically: the guard passes (starts
+    // and ends with a quote), but the interior never finds an unescaped
+    // closing quote — the trailing `''` is consumed as an escaped literal
+    // quote, leaving the string unterminated.
+    ["an unterminated string despite a trailing doubled quote is untouched", "'abc''", "'abc''"],
   ])('%s: %j -> %j', (_name, input, expected) => {
     expect(decodeFitsStringLiteral(input)).toBe(expected);
   });
