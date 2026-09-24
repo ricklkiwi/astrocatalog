@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { parseXisfHeaderFromBuffer, PROLOGUE_BYTES, SIGNATURE } from './parse.js';
 import { toFrameMetadata } from './metadata.js';
 import type { XisfHeader, XisfProperty } from './types.js';
 
@@ -13,6 +14,16 @@ function headerWith(
   properties: Record<string, XisfProperty> = {},
 ): XisfHeader {
   return { keywords, properties, headerBytes: 256 };
+}
+
+/** Build real XISF prologue+XML bytes (mirrors parse.test.ts's builder) for a true end-to-end run. */
+function buildXisf(xml: string): Uint8Array {
+  const xmlBytes = new TextEncoder().encode(xml);
+  const bytes = new Uint8Array(PROLOGUE_BYTES + xmlBytes.length);
+  bytes.set(new TextEncoder().encode(SIGNATURE).subarray(0, 8), 0);
+  new DataView(bytes.buffer).setUint32(8, xmlBytes.length, true);
+  bytes.set(xmlBytes, PROLOGUE_BYTES);
+  return bytes;
 }
 
 describe('toFrameMetadata', () => {
@@ -118,5 +129,32 @@ describe('toFrameMetadata', () => {
     const metadata = toFrameMetadata(headerWith(keywords));
     expect(metadata.headers).toStrictEqual(keywords);
     expect(metadata.headers).not.toBe(keywords);
+  });
+
+  it('end-to-end (#129): a PixInsight-style header with FITS-quoted string values yields unquoted scalar fields and headers_json', () => {
+    const xml =
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<xisf version="1.0"><Image geometry="1:1:1">` +
+      `<FITSKeyword name="OBJECT" value="'FlatWizard'"/>` +
+      `<FITSKeyword name="IMAGETYP" value="'Master Flat'"/>` +
+      `<FITSKeyword name="FILTER" value="'NoFilter'"/>` +
+      `<FITSKeyword name="TELESCOP" value="'WO Gt 71'"/>` +
+      `<FITSKeyword name="INSTRUME" value="'ZWO ASI533MC Pro'"/>` +
+      `<FITSKeyword name="EXPTIME" value="1.0"/>` +
+      `</Image></xisf>`;
+    const parsed = parseXisfHeaderFromBuffer(buildXisf(xml));
+    expect(parsed.status).toBe('ok');
+    if (parsed.status !== 'ok') return;
+
+    const metadata = toFrameMetadata(parsed.header);
+    expect(metadata.telescope).toBe('WO Gt 71');
+    expect(metadata.instrument).toBe('ZWO ASI533MC Pro');
+    expect(metadata.object).toBe('FlatWizard');
+    expect(metadata.filter).toBe('NoFilter');
+    expect(metadata.imageType).toBe('Master Flat');
+    // headers_json (metadata.headers) carries the same decoded form — never
+    // PixInsight's raw quoted syntax (DD-004 "preserve everything", kept
+    // lossless *and* consistent with what the FITS path stores there).
+    expect(metadata.headers.TELESCOP).toBe('WO Gt 71');
   });
 });

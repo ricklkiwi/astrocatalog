@@ -9,6 +9,7 @@ import {
   BLOCK_BYTES,
   CARD_BYTES,
   MAX_HEADER_BLOCKS,
+  decodeFitsStringLiteral,
   parseFitsHeader,
   parseFitsHeaderFromBuffer,
 } from './parse.js';
@@ -93,6 +94,30 @@ describe('value parsing corners', () => {
   it('reports INVALID_CARD for garbage after a closed string value', () => {
     const result = parseFitsHeaderFromBuffer(headerOf(SIMPLE, "OBJECT  = 'M 31' trailing junk"));
     expect(result).toMatchObject({ status: 'error', error: { code: 'INVALID_CARD' } });
+  });
+});
+
+describe('decodeFitsStringLiteral', () => {
+  // Standalone-string decoding (#129), used by the XISF parser for
+  // FITSKeyword attribute values, which arrive whole rather than embedded in
+  // an 80-character card — so this exercises the same quoting rules as
+  // 'unescapes doubled quotes...' above, without a card/field wrapper.
+  it.each([
+    ['plain FITS string', "'WO Gt 71'", 'WO Gt 71'],
+    ['embedded doubled quote unescapes to one', "'Barnard''s Loop'", "Barnard's Loop"],
+    ['trailing padding is trimmed', "'Ha 3nm   '", 'Ha 3nm'],
+    ['leading blanks are preserved', "'  M 31'", '  M 31'],
+    ['lone empty-string quotes decode to empty string', "''", ''],
+    ['numeric token is untouched', '100', '100'],
+    ['logical T token is untouched', 'T', 'T'],
+    ['logical F token is untouched', 'F', 'F'],
+    ['unquoted text is untouched', 'LIGHT', 'LIGHT'],
+    ['a single leading quote with no closing quote is untouched', "'WO Gt 71", "'WO Gt 71"],
+    ['trailing text after the closing quote is untouched', "'ab'cd", "'ab'cd"],
+    ['a value ending in a quote but not starting with one is untouched', "M 31'", "M 31'"],
+    ['empty string is untouched', '', ''],
+  ])('%s: %j -> %j', (_name, input, expected) => {
+    expect(decodeFitsStringLiteral(input)).toBe(expected);
   });
 });
 

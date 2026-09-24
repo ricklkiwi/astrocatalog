@@ -59,6 +59,43 @@ describe('parseXisfHeaderFromBuffer', () => {
     expect(result.header.keywords.OBJECT).toBe('M 31');
   });
 
+  describe('FITSKeyword FITS-string decoding (#129)', () => {
+    // PixInsight writes FITSKeyword string values with FITS single-quote
+    // syntax intact (e.g. value="'WO Gt 71'"); the parser must decode that
+    // the same way the FITS parser decodes a quoted card value, while
+    // leaving non-string values and Property elements untouched.
+    it.each([
+      ['a plain quoted string is unwrapped', "'WO Gt 71'", 'WO Gt 71'],
+      ['an embedded doubled quote unescapes to one', "'Barnard''s Loop'", "Barnard's Loop"],
+      ['trailing padding is trimmed', "'Master Flat '", 'Master Flat'],
+      ['leading blanks are preserved', "'  FlatWizard'", '  FlatWizard'],
+      ['a lone empty-string pair decodes to empty string', "''", ''],
+      ['an unquoted numeric value is untouched', '100', '100'],
+      ['an unquoted logical T value is untouched', 'T', 'T'],
+      ['a single leading quote with no closing quote is untouched', "'WO Gt 71", "'WO Gt 71"],
+    ])('%s', (_name, rawValue, decoded) => {
+      const result = parseXisfHeaderFromBuffer(
+        buildXisf(IMAGE_XML(`<FITSKeyword name="TELESCOP" value="${rawValue}"/>`)),
+      );
+      expect(result.status).toBe('ok');
+      if (result.status !== 'ok') return;
+      expect(result.header.keywords.TELESCOP).toBe(decoded);
+    });
+
+    it('does not decode Property values, which are never FITS-quoted', () => {
+      const result = parseXisfHeaderFromBuffer(
+        buildXisf(
+          IMAGE_XML(
+            '<Property id="Instrument:Telescope:Name" type="String" value="&apos;WO Gt 71&apos;"/>',
+          ),
+        ),
+      );
+      expect(result.status).toBe('ok');
+      if (result.status !== 'ok') return;
+      expect(result.header.properties['Instrument:Telescope:Name']?.value).toBe("'WO Gt 71'");
+    });
+  });
+
   it('captures Property elements separately from FITSKeyword', () => {
     const result = parseXisfHeaderFromBuffer(
       buildXisf(IMAGE_XML('<Property id="Instrument:ExposureTime" type="Float32" value="300"/>')),
