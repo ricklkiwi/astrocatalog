@@ -4,6 +4,7 @@ export {
   CARD_BYTES,
   CARDS_PER_BLOCK,
   MAX_HEADER_BLOCKS,
+  decodeFitsStringLiteral,
   parseFitsHeader,
   parseFitsHeaderFromBuffer,
 } from './parse.js';

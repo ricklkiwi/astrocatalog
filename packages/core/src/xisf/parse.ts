@@ -13,8 +13,16 @@
  * Malformed input produces a structured {@link XisfParseError}; this module
  * never throws on file content and bounds the trusted header length, so it
  * never hangs (DD-004 error isolation).
+ *
+ * PixInsight writes `FITSKeyword` string values with FITS string quoting
+ * intact (e.g. `value="'WO Gt 71'"`, matching what an equivalent FITS
+ * `TELESCOP` card would carry) — this module decodes that quoting with
+ * {@link decodeFitsStringLiteral} so `header.keywords` holds the same
+ * unquoted strings the FITS parser produces (#129). `Property` values carry
+ * no FITS quoting and are stored exactly as written.
  */
 
+import { decodeFitsStringLiteral } from '../fits/parse.js';
 import type {
   XisfHeader,
   XisfParseError,
@@ -176,7 +184,7 @@ function scanXml(text: string): XmlScanResult {
 
     if (name === 'FITSKeyword') {
       const keyword = attrs.name;
-      if (keyword !== undefined) keywords[keyword] = attrs.value ?? '';
+      if (keyword !== undefined) keywords[keyword] = decodeFitsStringLiteral(attrs.value ?? '');
     } else if (name === 'Property') {
       const id = attrs.id;
       if (id !== undefined) properties[id] = { type: attrs.type ?? '', value: attrs.value ?? '' };

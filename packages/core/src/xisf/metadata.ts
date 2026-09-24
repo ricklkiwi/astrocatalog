@@ -4,8 +4,10 @@
  * values take priority (they mirror the FITS §8.2 keyword semantics
  * directly); native XISF Property elements fill in fields whose FITSKeyword
  * is absent, for writers that emit XISF-native metadata only. Every
- * FITSKeyword — normalized or not — is preserved verbatim in
- * {@link FrameMetadata.headers} (DD-004: store all in `headers_json`).
+ * FITSKeyword — normalized or not — is preserved in {@link FrameMetadata.headers}
+ * (DD-004: store all in `headers_json`), already FITS-string-decoded by the
+ * parser (#129) so headers_json holds the same unquoted representation the
+ * FITS path stores, never PixInsight's raw `'quoted'` form.
  */
 
 import { parseSexagesimal, type FrameMetadata } from '../fits/metadata.js';
