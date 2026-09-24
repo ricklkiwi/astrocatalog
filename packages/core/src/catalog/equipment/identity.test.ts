@@ -153,7 +153,7 @@ describe('equipmentIdentity — no-identity and camera-only guards', () => {
 
   // ID-16: matchKey is an unambiguous serialization — a naive delimiter join
   // would collide these pairs.
-  it.each([
+  const delimiterCollisionPairs: Array<[[string, string], [string, string]]> = [
     [
       ['A|B', 'C'],
       ['A', 'B|C'],
@@ -166,11 +166,15 @@ describe('equipmentIdentity — no-identity and camera-only guards', () => {
       ['A"]', 'C'],
       ['A', '"]C'],
     ],
-  ])('ID-16: %j and %j produce distinct matchKeys', ([t1, c1], [t2, c2]) => {
-    const a = equipmentIdentity(input(t1, c1, null));
-    const b = equipmentIdentity(input(t2, c2, null));
-    expect(a?.matchKey).not.toBe(b?.matchKey);
-  });
+  ];
+  it.each(delimiterCollisionPairs)(
+    'ID-16: %j and %j produce distinct matchKeys',
+    ([t1, c1], [t2, c2]) => {
+      const a = equipmentIdentity(input(t1, c1, null));
+      const b = equipmentIdentity(input(t2, c2, null));
+      expect(a?.matchKey).not.toBe(b?.matchKey);
+    },
+  );
 
   it('ID-16: the string "null" and the value null produce distinct matchKeys', () => {
     const a = equipmentIdentity(input('null', 'X', null));
