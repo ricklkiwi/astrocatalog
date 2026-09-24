@@ -22,18 +22,26 @@ export const xisfDefs: FixtureDef[] = [
         sampleFormat: 'UInt16',
         colorSpace: 'Gray',
         attachmentLocation: 'attachment:16416:32800000',
+        // OBJECT/IMAGETYP/FILTER/DATE-OBS/TELESCOP/INSTRUME are FITS strings, so
+        // PixInsight's real writer wraps them in FITS single-quote syntax
+        // (#129) — this fixture is the corpus's regression case for that.
+        // Numeric fields (EXPTIME, CCD-TEMP, GAIN, ...) are never quoted.
         fitsKeywords: [
-          { name: 'OBJECT', value: 'M 31', comment: 'Target name' },
-          { name: 'IMAGETYP', value: 'LIGHT', comment: 'Type of exposure' },
-          { name: 'FILTER', value: 'Ha 3nm', comment: 'Active filter name' },
+          { name: 'OBJECT', value: "'M 31'", comment: 'Target name' },
+          { name: 'IMAGETYP', value: "'LIGHT'", comment: 'Type of exposure' },
+          { name: 'FILTER', value: "'Ha 3nm'", comment: 'Active filter name' },
           { name: 'EXPTIME', value: '300', comment: '[s] Exposure duration' },
           {
             name: 'DATE-OBS',
-            value: '2026-01-15T03:22:10.123',
+            value: "'2026-01-15T03:22:10.123'",
             comment: 'Time of observation (UTC)',
           },
-          { name: 'TELESCOP', value: 'Sky-Watcher Esprit 100ED', comment: 'Telescope name' },
-          { name: 'INSTRUME', value: 'ZWO ASI2600MM Pro', comment: 'Imaging instrument name' },
+          { name: 'TELESCOP', value: "'WO Gt 71'", comment: 'Telescope name' },
+          {
+            name: 'INSTRUME',
+            value: "'ZWO ASI2600MM Pro'",
+            comment: 'Imaging instrument name',
+          },
           { name: 'CCD-TEMP', value: '-10.1', comment: '[degC] CCD temperature' },
           { name: 'GAIN', value: '100', comment: 'Sensor gain' },
           { name: 'OFFSET', value: '50', comment: 'Sensor gain offset' },
@@ -49,7 +57,7 @@ export const xisfDefs: FixtureDef[] = [
           { id: 'Observation:Time:Start', type: 'TimePoint', value: '2026-01-15T03:22:10.123' },
           { id: 'Instrument:ExposureTime', type: 'Float32', value: '300' },
           { id: 'Instrument:Filter:Name', type: 'String', value: 'Ha 3nm' },
-          { id: 'Instrument:Telescope:Name', type: 'String', value: 'Sky-Watcher Esprit 100ED' },
+          { id: 'Instrument:Telescope:Name', type: 'String', value: 'WO Gt 71' },
           { id: 'Instrument:Sensor:Temperature', type: 'Float32', value: '-10.1' },
         ],
       }),
@@ -60,7 +68,10 @@ export const xisfDefs: FixtureDef[] = [
         'PixInsight-style monolithic XISF unit: Image element carries both FITSKeyword ' +
         'elements (for FITS compatibility) and native XISF Property elements ' +
         '(Observation:Object:Name, Instrument:ExposureTime, ...), mirroring the N.I.N.A. ' +
-        'mono narrowband light fixture.',
+        'mono narrowband light fixture. FITSKeyword string values (OBJECT, IMAGETYP, ' +
+        'FILTER, DATE-OBS, TELESCOP, INSTRUME) carry FITS single-quote syntax (e.g. ' +
+        '"\'WO Gt 71\'"), matching real PixInsight XISF output (#129); Property values ' +
+        'are never quoted.',
       provenance: {
         method: 'synthesized-to-conventions',
         program: 'PixInsight',
@@ -77,7 +88,7 @@ export const xisfDefs: FixtureDef[] = [
           FILTER: 'Ha 3nm',
           EXPTIME: '300',
           'DATE-OBS': '2026-01-15T03:22:10.123',
-          TELESCOP: 'Sky-Watcher Esprit 100ED',
+          TELESCOP: 'WO Gt 71',
           INSTRUME: 'ZWO ASI2600MM Pro',
           'CCD-TEMP': '-10.1',
           GAIN: '100',
@@ -91,8 +102,11 @@ export const xisfDefs: FixtureDef[] = [
         },
         notes:
           'FITSKeyword values are XML attribute strings (unlike FITS typed cards); P1-02 ' +
-          'decides numeric coercion. Property elements carry the native XISF namespace ' +
-          '(Observation:*/Instrument:*) alongside the FITSKeyword compatibility set.',
+          'decides numeric coercion. `expected.keywords` is the post-decode value — the ' +
+          'committed .xisf file carries the FITS-quoted TELESCOP/OBJECT/etc. form on disk ' +
+          '(#129). Property elements carry the native XISF namespace ' +
+          '(Observation:*/Instrument:*) alongside the FITSKeyword compatibility set and ' +
+          'are never FITS-quoted.',
       },
     },
   },

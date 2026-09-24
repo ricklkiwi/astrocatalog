@@ -81,6 +81,31 @@ function parseQuoted(
   return { ok: false };
 }
 
+/**
+ * Decode a standalone FITS string literal — a value that arrived whole
+ * (not embedded in an 80-character card), such as a XISF `<FITSKeyword
+ * value="...">` attribute (P1-02/#129), which PixInsight writes with FITS
+ * string quoting intact (e.g. `'WO Gt 71'`).
+ *
+ * A value that begins **and** ends with a single quote is FITS string
+ * syntax (FITS 4.0 §4.2.1): strip the wrapping quotes, un-double embedded
+ * `''` → `'`, and trim trailing blanks only — FITS pads strings to a fixed
+ * width, but leading blanks are significant. This mirrors exactly how
+ * {@link parseValueField} below decodes a quoted card value
+ * (`quoted.content.trimEnd()`), so FITS and XISF string decoding share one
+ * set of rules.
+ *
+ * Anything else — unquoted text, numbers, `T`/`F`, or a value that starts
+ * with a quote but never closes it, or whose closing quote isn't the very
+ * last character — is not FITS string syntax and is returned unchanged.
+ */
+export function decodeFitsStringLiteral(raw: string): string {
+  if (raw.length < 2 || raw[0] !== "'" || raw[raw.length - 1] !== "'") return raw;
+  const quoted = parseQuoted(raw, 0);
+  if (!quoted.ok || quoted.end !== raw.length) return raw;
+  return quoted.content.trimEnd();
+}
+
 /** Parse the value field of a `KEYWORD = value / comment` card (bytes 11–80). */
 function parseValueField(field: string): ValueParse {
   let i = 0;
