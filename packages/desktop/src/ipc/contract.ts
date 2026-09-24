@@ -22,6 +22,11 @@ export const IPC_CHANNELS = [
   'watchFolders.remove',
   'watchFolders.setLiveWatch',
   'files.listByWatchFolder',
+  'equipment.list',
+  'equipment.suggestions',
+  'equipment.confirm',
+  'equipment.rename',
+  'equipment.merge',
 ] as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
@@ -177,6 +182,61 @@ export interface ListFilesByWatchFolderInput {
   watchFolderId: string;
 }
 
+// --- P1-18 equipment-profile channels (DD-003 `equipment_profiles`) -------
+// Kept as its own section so a concurrent branch's contract additions land
+// as a straightforward juxtaposition rather than an interleaved diff.
+
+/**
+ * IPC-facing view of an `equipment_profiles` row (mirrors
+ * `@astrotracker/db`'s `EquipmentProfile`, kept as a local, import-free type
+ * — the renderer never resolves `@astrotracker/db`).
+ */
+export interface EquipmentProfileRecord {
+  id: string;
+  name: string;
+  telescope: string | null;
+  camera: string | null;
+  focalLength: number | null;
+  aperture: number | null;
+  pixelSize: number | null;
+  isUserConfirmed: boolean;
+  matchKey: string | null;
+  mergedIntoId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** `EquipmentProfileRecord` plus its light-frame usage (`listLive()`'s shape). */
+export interface EquipmentProfileWithUsageRecord extends EquipmentProfileRecord {
+  lightExposureSeconds: number;
+  usageHours: number;
+  lightFrameCount: number;
+}
+
+/** Visible reason code for a merge suggestion (DD-006 "visible reasons"). */
+export type MergeSuggestionReason = 'canonical_name_match';
+
+/** IPC-facing view of a `suggestProfileMerges()` result. */
+export interface MergeSuggestionRecord {
+  profileIds: string[];
+  recommendedSurvivorId: string;
+  reason: MergeSuggestionReason;
+}
+
+export interface EquipmentConfirmInput {
+  id: string;
+}
+
+export interface EquipmentRenameInput {
+  id: string;
+  name: string;
+}
+
+export interface EquipmentMergeInput {
+  survivorId: string;
+  mergedIds: string[];
+}
+
 /**
  * Channel → { input, output } map. Keyed by IpcChannel so a channel cannot be
  * listed in IPC_CHANNELS without a contract entry (and vice versa).
@@ -195,6 +255,11 @@ export interface IpcContract extends Record<IpcChannel, { input: unknown; output
     input: ListFilesByWatchFolderInput;
     output: { files: FileRecord[] };
   };
+  'equipment.list': { input: void; output: { profiles: EquipmentProfileWithUsageRecord[] } };
+  'equipment.suggestions': { input: void; output: { suggestions: MergeSuggestionRecord[] } };
+  'equipment.confirm': { input: EquipmentConfirmInput; output: EquipmentProfileRecord };
+  'equipment.rename': { input: EquipmentRenameInput; output: EquipmentProfileRecord };
+  'equipment.merge': { input: EquipmentMergeInput; output: void };
 }
 
 export type IpcInput<C extends IpcChannel> = IpcContract[C]['input'];

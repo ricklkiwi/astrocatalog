@@ -275,6 +275,14 @@ void app.whenReady().then(() => {
         listByWatchFolder: (watchFolderId) =>
           database!.repos.files.list().filter((file) => file.watchFolderId === watchFolderId),
       },
+      equipment: {
+        list: () => database!.repos.equipmentProfiles.listLive(),
+        suggestions: () => database!.repos.equipmentProfiles.listMergeSuggestions(),
+        confirm: (id) => database!.repos.equipmentProfiles.confirm(id),
+        rename: (id, name) => database!.repos.equipmentProfiles.rename(id, name),
+        merge: (survivorId, mergedIds) =>
+          database!.repos.equipmentProfiles.merge(survivorId, mergedIds),
+      },
     }),
   );
 
