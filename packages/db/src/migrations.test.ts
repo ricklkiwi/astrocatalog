@@ -64,6 +64,7 @@ const DD003_INDEXES = [
   'frames_target_filter_type_idx',
   'frames_session_id_idx',
   'frames_date_obs_utc_idx',
+  'frames_equipment_profile_id_idx',
   'files_sha256_idx',
   'target_aliases_alias_normalized_idx',
 ];
@@ -888,6 +889,394 @@ describe('migration 0007 (timezone + session-assignment-lock columns) against a 
           headersJson: '{}',
         });
         expect(frame.sessionAssignmentLocked).toBe(false);
+      } finally {
+        freshDb.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('migration 0008 (equipment match_key/merged_into_id + frames index) against a pre-0008 install', () => {
+  /**
+   * Build a migrations folder holding every migration up to and including
+   * `maxIdx`, byte-identical to the committed files so their hashes match,
+   * mirroring the 0006/0007 describe blocks above (duplicated locally rather
+   * than hoisted, matching those blocks' own precedent of a self-contained
+   * describe block).
+   */
+  function buildPartialMigrationsFolder(dir: string, maxIdx: number): string {
+    const partialFolder = join(dir, `migrations-through-${maxIdx}`);
+    mkdirSync(join(partialFolder, 'meta'), { recursive: true });
+    const fullFolder = resolveMigrationsFolder();
+    const realJournal = JSON.parse(
+      readFileSync(join(fullFolder, 'meta', '_journal.json'), 'utf8'),
+    ) as { entries: Array<{ idx: number; when: number; tag: string }> };
+    const entries = realJournal.entries.filter((entry) => entry.idx <= maxIdx);
+    for (const entry of entries) {
+      copyFileSync(join(fullFolder, `${entry.tag}.sql`), join(partialFolder, `${entry.tag}.sql`));
+    }
+    writeFileSync(
+      join(partialFolder, 'meta', '_journal.json'),
+      JSON.stringify({
+        version: '7',
+        dialect: 'sqlite',
+        entries: entries.map((entry) => ({ ...entry, breakpoints: true, version: '6' })),
+      }),
+    );
+    return partialFolder;
+  }
+
+  const EXPECTED_EQUIPMENT_PROFILES_COLUMNS = [
+    'id',
+    'created_at',
+    'updated_at',
+    'name',
+    'telescope',
+    'camera',
+    'focal_length',
+    'aperture',
+    'pixel_size',
+    'is_user_confirmed',
+    'match_key',
+    'merged_into_id',
+  ];
+
+  // Pre-0008 column lists (unchanged by 0008 — asserted as a negative
+  // control alongside equipment_profiles's positive one, DB-8).
+  const EXPECTED_FRAMES_COLUMNS = [
+    'id',
+    'created_at',
+    'updated_at',
+    'file_id',
+    'frame_type',
+    'frame_type_source',
+    'object_raw',
+    'target_id',
+    'filter_raw',
+    'filter_id',
+    'exposure_seconds',
+    'date_obs_utc',
+    'telescope_raw',
+    'camera_raw',
+    'equipment_profile_id',
+    'ccd_temp',
+    'set_temp',
+    'gain',
+    'offset',
+    'binning_x',
+    'binning_y',
+    'width_px',
+    'height_px',
+    'ra_deg',
+    'dec_deg',
+    'focal_length',
+    'aperture',
+    'pier_side',
+    'airmass',
+    'observer',
+    'site_name',
+    'bayer_pattern',
+    'fwhm',
+    'hfr',
+    'star_count',
+    'session_id',
+    'session_assignment_locked',
+    'headers_json',
+  ];
+  const EXPECTED_SESSIONS_COLUMNS = [
+    'id',
+    'created_at',
+    'updated_at',
+    'session_date',
+    'started_at_utc',
+    'ended_at_utc',
+    'timezone',
+    'timezone_source',
+    'equipment_profile_id',
+    'notes',
+    'weather_notes',
+  ];
+  const EXPECTED_MASTER_FRAMES_COLUMNS = [
+    'id',
+    'created_at',
+    'updated_at',
+    'file_id',
+    'master_type',
+    'camera_raw',
+    'equipment_profile_id',
+    'filter_id',
+    'exposure_seconds',
+    'ccd_temp',
+    'gain',
+    'offset',
+    'binning_x',
+    'binning_y',
+    'created_date',
+    'sub_count',
+    'notes',
+  ];
+
+  it('adds match_key (partial-unique) and merged_into_id, and the frames index, preserving seeded rows', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'astrotracker-0008-migration-'));
+    const filePath = join(dir, 'legacy.db');
+    try {
+      // 1. Bring a fresh file to the exact pre-0008 schema.
+      const legacy = new Database(filePath);
+      legacy.pragma('foreign_keys = ON');
+      migrate(drizzle(legacy), { migrationsFolder: buildPartialMigrationsFolder(dir, 7) });
+
+      // 2. Seed one row per referencing table, using only pre-0008 columns:
+      // an equipment_profiles row, a watch_folders → files → frames chain
+      // referencing it, a sessions row referencing it, and a master_frames
+      // row (with its own files row) referencing it.
+      const now = Date.now();
+      const equipmentProfileId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO equipment_profiles
+             (id, created_at, updated_at, name, telescope, camera, focal_length, is_user_confirmed)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          equipmentProfileId,
+          now,
+          now,
+          'EdgeHD 8 + ASI2600MM',
+          'EdgeHD 8',
+          'ASI2600MM',
+          2032,
+          1,
+        );
+
+      const watchFolderId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO watch_folders (id, created_at, updated_at, path, is_active)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(watchFolderId, now, now, '/Volumes/AstroSSD', 1);
+
+      const fileId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO files
+             (id, created_at, updated_at, watch_folder_id, relative_path, filename,
+              extension, size_bytes, first_seen_at, last_seen_at, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          fileId,
+          now,
+          now,
+          watchFolderId,
+          'M31/Light_001.fits',
+          'Light_001.fits',
+          '.fits',
+          32_000_000,
+          now,
+          now,
+          'present',
+        );
+
+      const frameId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO frames
+             (id, created_at, updated_at, file_id, frame_type, frame_type_source,
+              equipment_profile_id, headers_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(frameId, now, now, fileId, 'light', 'header', equipmentProfileId, '{}');
+
+      const sessionId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO sessions (id, created_at, updated_at, session_date, equipment_profile_id)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(sessionId, now, now, '2026-01-15', equipmentProfileId);
+
+      const masterFileId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO files
+             (id, created_at, updated_at, watch_folder_id, relative_path, filename,
+              extension, size_bytes, first_seen_at, last_seen_at, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          masterFileId,
+          now,
+          now,
+          watchFolderId,
+          'calibration/MasterDark_300s.fits',
+          'MasterDark_300s.fits',
+          '.fits',
+          32_000_000,
+          now,
+          now,
+          'present',
+        );
+      const masterFrameId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO master_frames (id, created_at, updated_at, file_id, master_type, equipment_profile_id)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .run(masterFrameId, now, now, masterFileId, 'dark', equipmentProfileId);
+      legacy.close();
+
+      // 3. Apply the full migration set, which now includes 0008.
+      const db: AstroDatabase = openDatabase({ filePath });
+      try {
+        // DB-8: column-name sets, asserted by equality (#111).
+        const columnsByTable = withRawConnectionAt(filePath, (raw) => ({
+          equipment_profiles: (
+            raw.prepare('PRAGMA table_info(equipment_profiles)').all() as TableColumn[]
+          ).map((c) => c.name),
+          frames: (raw.prepare('PRAGMA table_info(frames)').all() as TableColumn[]).map(
+            (c) => c.name,
+          ),
+          sessions: (raw.prepare('PRAGMA table_info(sessions)').all() as TableColumn[]).map(
+            (c) => c.name,
+          ),
+          master_frames: (
+            raw.prepare('PRAGMA table_info(master_frames)').all() as TableColumn[]
+          ).map((c) => c.name),
+        }));
+        expect(columnsByTable.equipment_profiles.slice().sort()).toEqual(
+          [...EXPECTED_EQUIPMENT_PROFILES_COLUMNS].sort(),
+        );
+        expect(columnsByTable.frames.slice().sort()).toEqual([...EXPECTED_FRAMES_COLUMNS].sort());
+        expect(columnsByTable.sessions.slice().sort()).toEqual(
+          [...EXPECTED_SESSIONS_COLUMNS].sort(),
+        );
+        expect(columnsByTable.master_frames.slice().sort()).toEqual(
+          [...EXPECTED_MASTER_FRAMES_COLUMNS].sort(),
+        );
+
+        // DB-1/DB-2: the pre-existing row reads back null for both new columns.
+        const profileRow = withRawConnectionAt(filePath, (raw) =>
+          raw
+            .prepare('SELECT match_key, merged_into_id FROM equipment_profiles WHERE id = ?')
+            .get(equipmentProfileId),
+        );
+        expect(profileRow).toEqual({ match_key: null, merged_into_id: null });
+
+        // Every seeded row survived the migration untouched, FKs included.
+        expect(db.repos.equipmentProfiles.getById(equipmentProfileId)?.name).toBe(
+          'EdgeHD 8 + ASI2600MM',
+        );
+        expect(db.repos.frames.getById(frameId)?.equipmentProfileId).toBe(equipmentProfileId);
+        expect(db.repos.sessions.getById(sessionId)?.equipmentProfileId).toBe(equipmentProfileId);
+        expect(db.repos.masterFrames.getById(masterFrameId)?.equipmentProfileId).toBe(
+          equipmentProfileId,
+        );
+      } finally {
+        db.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 20000);
+
+  it('rejects two rows with the same non-null match_key, and accepts two rows with a null match_key (DB-4/DB-5)', () => {
+    const { repos } = db;
+    repos.equipmentProfiles.insert({
+      name: 'A',
+      telescope: 'EdgeHD 8',
+      camera: 'ASI2600MM',
+      matchKey: 'shared-key',
+      isUserConfirmed: false,
+    });
+
+    expect(() =>
+      repos.equipmentProfiles.insert({
+        name: 'B',
+        telescope: 'EdgeHD8',
+        camera: 'ASI2600MM',
+        matchKey: 'shared-key',
+        isUserConfirmed: false,
+      }),
+    ).toThrow(/UNIQUE constraint failed/);
+
+    // Two null match_keys are both accepted — the index is partial.
+    repos.equipmentProfiles.insert({ name: 'C', isUserConfirmed: false });
+    repos.equipmentProfiles.insert({ name: 'D', isUserConfirmed: false });
+    expect(repos.equipmentProfiles.list().filter((p) => p.matchKey === null)).toHaveLength(2);
+  });
+
+  it('is a partial index: PRAGMA index_list reports unique+partial, and sqlite_master carries the WHERE clause (DB-6)', () => {
+    const indexRow = withRawConnection((raw) =>
+      (
+        raw.prepare('PRAGMA index_list(equipment_profiles)').all() as Array<{
+          name: string;
+          unique: number;
+          partial: number;
+        }>
+      ).find((row) => row.name === 'equipment_profiles_match_key_uq'),
+    );
+    expect(indexRow).toBeDefined();
+    expect(indexRow?.unique).toBe(1);
+    expect(indexRow?.partial).toBe(1);
+
+    const sql = withRawConnection(
+      (raw) =>
+        (
+          raw
+            .prepare(`SELECT sql FROM sqlite_master WHERE name = 'equipment_profiles_match_key_uq'`)
+            .get() as { sql: string }
+        ).sql,
+    );
+    expect(sql).toMatch(/WHERE/i);
+    expect(sql).toMatch(/match_key/);
+    expect(sql).toMatch(/IS NOT NULL/i);
+  });
+
+  it('rejects merged_into_id pointing at a non-existent equipment_profiles row (DB-3, foreign_keys=ON)', () => {
+    const survivor = db.repos.equipmentProfiles.insert({ name: 'Survivor', isUserConfirmed: true });
+    expect(() =>
+      withRawConnection((raw) => {
+        raw
+          .prepare('UPDATE equipment_profiles SET merged_into_id = ? WHERE id = ?')
+          .run('01890000-0000-7000-8000-000000000000', survivor.id);
+      }),
+    ).toThrow(/FOREIGN KEY constraint failed/);
+  });
+
+  it('exposes matchKey/mergedIntoId through repos.equipmentProfiles on a fresh empty DB, and journal idx runs 0..8 (DB-10)', () => {
+    const journal = JSON.parse(
+      readFileSync(join(resolveMigrationsFolder(), 'meta', '_journal.json'), 'utf8'),
+    ) as { entries: Array<{ idx: number }> };
+    expect(journal.entries.map((e) => e.idx)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+
+    const dir = mkdtempSync(join(tmpdir(), 'astrotracker-0008-fresh-migration-'));
+    try {
+      const freshDb = openDatabase({ filePath: join(dir, 'fresh.db') });
+      try {
+        const profile = freshDb.repos.equipmentProfiles.insert({
+          name: 'Fresh Rig',
+          isUserConfirmed: false,
+        });
+        expect(profile.matchKey).toBeNull();
+        expect(profile.mergedIntoId).toBeNull();
+
+        // DB-11: round-trips both new fields, camelCase and typed.
+        const withKey = freshDb.repos.equipmentProfiles.insert({
+          name: 'Keyed Rig',
+          matchKey: 'gme28|asi533mc|336',
+          isUserConfirmed: false,
+        });
+        expect(withKey.matchKey).toBe('gme28|asi533mc|336');
+        const merged = freshDb.repos.equipmentProfiles.update(withKey.id, {
+          mergedIntoId: profile.id,
+        });
+        expect(merged?.mergedIntoId).toBe(profile.id);
+        const reread = freshDb.repos.equipmentProfiles.getById(withKey.id);
+        expect(reread?.matchKey).toBe('gme28|asi533mc|336');
+        expect(reread?.mergedIntoId).toBe(profile.id);
       } finally {
         freshDb.close();
       }
