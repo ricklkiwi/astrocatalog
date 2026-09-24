@@ -8,6 +8,15 @@
  * (DD-004: store all in `headers_json`), already FITS-string-decoded by the
  * parser (#129) so headers_json holds the same unquoted representation the
  * FITS path stores, never PixInsight's raw `'quoted'` form.
+ *
+ * Known, accepted limitation (#129): unlike the typed FITS card parser,
+ * {@link XisfHeader.keywords} carries no type tag, so a FITS-quoted string
+ * value that happens to look numeric or logical after decoding — e.g.
+ * `value="'100'"` or `value="'T'"` — is indistinguishable in `headers_json`
+ * from the bare (unquoted) FITS values `100` or `T`. PixInsight has no
+ * reason to FITS-quote a numeric/logical FITSKeyword, and the real capture
+ * corpus (Astrotracker_test_data) contains none, so this is accepted rather
+ * than fixed; revisit if a writer is found that does.
  */
 
 import { parseSexagesimal, type FrameMetadata } from '../fits/metadata.js';
