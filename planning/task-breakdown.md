@@ -402,11 +402,12 @@ Implement v1 `matchCalibration()` per DD-006: conservative hard filters by maste
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-006, DD-008; PRD §6.4
 **Depends on:** P1-19, P1-20, P1-21
-Gap report ("these lights lack matching darks/flats"), status chips on sessions and targets, tolerance settings UI (temp tolerance, staleness window, gap hours).
+Gap report ("these lights lack matching darks/flats"), status chips on sessions and targets, tolerance settings UI (temp tolerance, staleness window, gap hours). Persist manual calibration-suggestion overrides: P1-20 takes overrides as a pure input keyed by `(sessionId, signatureKey, masterType) → masterId`, and this slice adds the `calibration_overrides` table (with its DD-003 revision) and the UI that creates them (decision on #28).
 **Acceptance criteria:**
 
 - E2E: library with missing flats shows correct gaps; tightening temp tolerance updates statuses live
 - Status chips consistent between Sessions, Targets, and Calibration pages (shared selector test)
+- A manual suggestion override persists and is respected on re-match after a rescan (integration test)
 
 ### P1-23: Session notes and annotations
 
