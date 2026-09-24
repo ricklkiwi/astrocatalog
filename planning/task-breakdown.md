@@ -248,6 +248,22 @@ Introduce the target catalog storage/asset schema needed by DD-005, then build-t
 - Table-driven tests ≥ 30 raw variants incl. dualband filters
 - Merge operation reassigns frames and persists mapping (integration test)
 
+### P1-12a: Stage 3 resolve wiring — target and filter assignment during scans
+
+**Labels:** phase:1, pkg:desktop, pkg:db, type:feat
+**Refs:** DD-004, DD-005
+**Depends on:** P1-11, P1-12
+DD-004 Stage 3 (RESOLVE) runs target resolution and filter normalization during a scan, but P1-11 and P1-12 deliver pure functions and the scan orchestrator deliberately writes only the raw header strings (`object_raw`, `filter_raw`). Nothing writes `frames.target_id` or `frames.filter_id`, so every page from P1-14 on would read an unassigned library. Wire both resolvers into the scan pipeline: after Stage 2, resolve each new or changed frame's target and filter and persist the assignment; unresolved names land in the review queue state rather than being guessed. Manual assignments (user aliases, filter merges) win over automatic resolution and are never clobbered on re-parse.
+
+Deliberately lettered `P1-12a` rather than renumbering, for the same reason as P1-13a.
+
+**Acceptance criteria:**
+
+- Scanning the fixtures corpus assigns `target_id`/`filter_id` for every resolvable light frame; unresolvable names are left unassigned and surface as needing review (integration test against a real DB)
+- A user alias or filter merge made after a scan is applied to matching frames and survives a rescan of changed files (integration test)
+- Re-parsing a frame never overwrites a manual assignment
+- Scan benchmark (P0-07) shows no budget regression
+
 ### P1-13: Integration-time aggregation queries
 
 **Labels:** phase:1, pkg:db, type:feat
@@ -281,7 +297,7 @@ Deliberately numbered `P1-13a` rather than renumbering P1-14 onward. The tracker
 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-008; PRD §6.2
-**Depends on:** P1-11, P1-12, P1-13, P1-13a
+**Depends on:** P1-12a, P1-13, P1-13a
 Targets page per DD-008: card grid + table toggle, virtualized; search (FTS) and filters (filter band, equipment, date range, integration range, status); status badges; sort by name/integration/last-imaged.
 **Acceptance criteria:**
 
@@ -303,7 +319,7 @@ Per-target view: per-filter integration bars (DD-008 colors), session timeline, 
 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-005, DD-008
-**Depends on:** P1-11, P1-12, P1-04
+**Depends on:** P1-12a, P1-04
 Review page listing unresolved OBJECT names (with fuzzy + coordinate suggestions), unknown frame types, and unknown filters; bulk assignment actions; sidebar badge count.
 **Acceptance criteria:**
 
@@ -328,18 +344,31 @@ Review page listing unresolved OBJECT names (with fuzzy + coordinate suggestions
 **Labels:** phase:1, pkg:core, pkg:db, type:feat
 **Refs:** DD-003, DD-006; PRD §6.3
 **Depends on:** P1-07
-`equipment_profiles` already exists (migration 0000, see ADR-004) — alter it as needed. Detect distinct TELESCOP+INSTRUME(+FOCALLEN) combos into `equipment_profiles`; fuzzy-consolidate near-identical strings as suggestions; user confirm/rename/merge UI on Equipment page with usage hours per profile.
+`equipment_profiles` already exists (migration 0000, see ADR-004) — alter it as needed. Detect distinct TELESCOP+INSTRUME(+FOCALLEN) combos into `equipment_profiles`; fuzzy-consolidate near-identical strings as suggestions; user confirm/rename/merge operations with usage hours per profile, exposed through the repository/IPC layer. Per DD-008 the full Equipment workspace is v1.x; v1.0 shows only minimal inline confirmation where calibration matching needs it (P1-21/P1-22), so this slice builds no Equipment page.
 **Acceptance criteria:**
 
 - Same rig with minor header string drift ('EdgeHD 8' vs 'EdgeHD8') suggested as one profile, merged only on user confirm
 - Usage hours = sum of light exposure per profile (test)
 
+### P1-18a: Stage 4 group wiring — equipment assignment and persisted sessions
+
+**Labels:** phase:1, pkg:desktop, pkg:db, type:feat
+**Refs:** DD-003, DD-004, DD-006
+**Depends on:** P1-17, P1-18
+DD-004 Stage 4 (GROUP) runs session detection set-based after a scan batch completes. P1-17 delivers pure `detectSessions()` and explicitly leaves persistence out of scope; P1-18 detects equipment profiles. Wire both into the pipeline: assign `frames.equipment_profile_id` for new/changed frames, then run `detectSessions()` over the affected nights and reconcile the result into `sessions` and `frames.session_id` — updating reused session ids in place (never delete-and-recreate) so notes and weather notes survive, minting UUIDv7 ids for new sessions, and honouring manual-assignment locks. Moves the persistence that P1-17's spec had deferred to P1-19 into its own slice, so the Sessions page, the gap report, and statistics all read one persisted source.
+
+**Acceptance criteria:**
+
+- Scanning a multi-night fixture library produces the expected `sessions` rows and `frames.session_id` assignments (integration test against a real DB)
+- Rescanning after new files arrive keeps existing session ids, notes, and manual merges/splits (integration test)
+- Stage 4 runs off the main-process event loop and does not regress the scan benchmark
+
 ### P1-19: Sessions page and session detail
 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-008; PRD §6.3
-**Depends on:** P1-17, P1-18
-Calendar heat-map + list; detail view: targets, filter/exposure breakdown, equipment, conditions from headers (temp/humidity when present), quality stats (FWHM/HFR/star count when present), notes editor, manual merge/split controls.
+**Depends on:** P1-18a
+Calendar heat-map + list; detail view: targets, filter/exposure breakdown, equipment, conditions from headers (temp/humidity when present), quality stats (FWHM/HFR/star count when present), notes editor, manual merge/split controls. Reads sessions persisted by P1-18a; merge/split write through the same lock mechanism.
 **Acceptance criteria:**
 
 - E2E: seeded multi-night library shows correct session grouping; merge/split persists across rescan
@@ -372,7 +401,7 @@ Implement v1 `matchCalibration()` per DD-006: conservative hard filters by maste
 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-006, DD-008; PRD §6.4
-**Depends on:** P1-20, P1-21
+**Depends on:** P1-19, P1-20, P1-21
 Gap report ("these lights lack matching darks/flats"), status chips on sessions and targets, tolerance settings UI (temp tolerance, staleness window, gap hours).
 **Acceptance criteria:**
 
@@ -443,7 +472,7 @@ Browse library by target / date / equipment / physical folder with virtualized t
 
 **Labels:** phase:1, pkg:desktop, type:feat
 **Refs:** DD-008; PRD §6.6
-**Depends on:** P1-13, P1-17
+**Depends on:** P1-13, P1-18a
 Dashboard page: totals (targets, integration, files, library size), integration per month chart, sessions per month, most-imaged targets, per-filter distribution, equipment usage hours, calibration health summary.
 **Acceptance criteria:**
 
