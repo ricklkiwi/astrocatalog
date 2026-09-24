@@ -41,10 +41,46 @@ describe('astronomicalDayLabel', () => {
       expected: '2026-03-07',
     },
     {
+      name: 'ALG-4c: DST spring-forward day, local noon exactly opens the new day',
+      instant: '2026-03-08T18:00:00.000Z',
+      timezone: 'America/Denver',
+      expected: '2026-03-08',
+    },
+    {
+      name: 'ALG-4d: DST spring-forward day, 59:59.999 past local noon stays on the same date',
+      instant: '2026-03-08T18:59:59.999Z',
+      timezone: 'America/Denver',
+      expected: '2026-03-08',
+    },
+    {
+      name: 'ALG-4e: DST fall-back day, 11:00 local is still the previous astronomical day',
+      instant: '2026-11-01T18:00:00.000Z',
+      timezone: 'America/Denver',
+      expected: '2026-10-31',
+    },
+    {
+      name: 'ALG-4f: DST fall-back day, 11:59:59.999 local is still the previous astronomical day',
+      instant: '2026-11-01T18:59:59.999Z',
+      timezone: 'America/Denver',
+      expected: '2026-10-31',
+    },
+    {
       name: 'ALG-5: fractional-offset zone (Asia/Kolkata, UTC+05:30), morning frame',
       instant: '2026-07-06T04:00:00.000Z',
       timezone: 'Asia/Kolkata',
       expected: '2026-07-05',
+    },
+    {
+      name: 'ALG-5b: Asia/Kolkata, 30 min before local noon (11:45)',
+      instant: '2026-07-06T06:15:00.000Z',
+      timezone: 'Asia/Kolkata',
+      expected: '2026-07-05',
+    },
+    {
+      name: 'ALG-5c: Asia/Kolkata, 15 min after local noon (12:15)',
+      instant: '2026-07-06T06:45:00.000Z',
+      timezone: 'Asia/Kolkata',
+      expected: '2026-07-06',
     },
   ];
 

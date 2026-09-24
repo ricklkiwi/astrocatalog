@@ -7,8 +7,9 @@
  */
 import type { TimezoneSource } from './types.js';
 
-const MS_PER_HOUR = 3_600_000;
-const NOON_SHIFT_MS = 12 * MS_PER_HOUR;
+const MS_PER_DAY = 86_400_000;
+/** DD-006: local noon opens the new astronomical day (ALG-2/ALG-3). */
+const NOON_HOUR = 12;
 
 /**
  * `true` iff `timezone` is a value Node's ICU-backed `Intl.DateTimeFormat`
@@ -44,19 +45,36 @@ export function resolveTimezone(
 }
 
 /**
- * DD-006's astronomical-day (noon-to-noon) date label: subtract 12 real
- * hours from the UTC instant, then take the local calendar date of the
- * *shifted* instant in `timezone` via `Intl.DateTimeFormat('en-CA', ...)`
- * (which formats as `YYYY-MM-DD`). Correct across DST transitions by
- * construction — ICU resolves the correct UTC offset for whatever the
- * shifted instant is, so no manual DST special-casing is needed.
+ * DD-006's astronomical-day (noon-to-noon) date label: a **wall-clock**
+ * rule, not a fixed-duration one. We read `instant`'s local calendar date
+ * and hour in `timezone` directly (never shifting the instant by a real
+ * duration first — a real-hours shift only agrees with the wall-clock rule
+ * when the UTC offset is identical at both instants, which is false on the
+ * two DST-transition days each year), then step the calendar date back by
+ * one day when the local hour is before noon. The day-of, on-or-after-noon
+ * frame keeps its own calendar date (ALG-2); a pre-noon frame belongs to
+ * the previous evening's astronomical day (ALG-3). The one-day step is
+ * pure calendar arithmetic on the (year, month, day) triple via
+ * `Date.UTC`, so it can never reintroduce a timezone-offset bug.
  */
 export function astronomicalDayLabel(instant: Date, timezone: string): string {
-  const shifted = new Date(instant.getTime() - NOON_SHIFT_MS);
-  return new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(shifted);
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(instant);
+  const get = (type: 'year' | 'month' | 'day' | 'hour'): number =>
+    Number(parts.find((part) => part.type === type)?.value);
+
+  const year = get('year');
+  const month = get('month');
+  const day = get('day');
+  const hour = get('hour');
+
+  const localDateUtcMs = Date.UTC(year, month - 1, day);
+  const astronomicalDayUtcMs = hour < NOON_HOUR ? localDateUtcMs - MS_PER_DAY : localDateUtcMs;
+  return new Date(astronomicalDayUtcMs).toISOString().slice(0, 10);
 }

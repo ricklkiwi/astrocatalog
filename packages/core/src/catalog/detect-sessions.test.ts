@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import * as coreRoot from '../index.js';
+// API-1: these four types are imported from the package root (not
+// `./types.js`) specifically so that deleting any of their re-exports from
+// `packages/core/src/index.ts` is a build failure, not just a runtime gap.
+import type {
+  SessionAssignment,
+  SessionDetectionConfig,
+  SessionInputFrame,
+  TimezoneSource,
+} from '../index.js';
 import { detectSessions } from './detect-sessions.js';
-import type { SessionAssignment, SessionInputFrame } from './types.js';
 
 const DENVER = 'America/Denver';
 const KOLKATA = 'Asia/Kolkata';
@@ -430,7 +438,7 @@ describe('detectSessions — session identity across re-runs', () => {
         equipmentProfileId: 'rig-2',
       }),
     ];
-    const config = { fallbackTimezone: 'UTC' };
+    const config: SessionDetectionConfig = { fallbackTimezone: 'UTC' };
     const firstRun = detectSessions(frames, config);
 
     // Mint ids for any null sessionId, mirroring what the (out-of-scope)
@@ -518,7 +526,9 @@ describe('detectSessions — timezone resolution', () => {
         watchFolderTimezone: DENVER,
       }),
     ];
-    expect(() => detectSessions(frames, { fallbackTimezone: 'Not/AZone' })).toThrow();
+    expect(() => detectSessions(frames, { fallbackTimezone: 'Not/AZone' })).toThrow(
+      /fallbackTimezone/,
+    );
   });
 
   it('TZ-6: a frozen existingSessionTimezone beats a since-changed watchFolderTimezone', () => {
@@ -539,38 +549,73 @@ describe('detectSessions — timezone resolution', () => {
     expect(assignment.sessionDate).toBe('2026-07-04');
   });
 
-  it.each([
-    ['tz-first', DENVER, 'UTC'],
-    ['tz-second', 'UTC', DENVER],
-  ])(
-    'TZ-7 (%s earliest): a locked group disagreeing on frozen timezone uses the earliest member’s value',
-    (_label, firstTz, secondTz) => {
-      const frames = [
-        mkFrame('early', {
-          dateObsUtc: new Date('2026-07-06T02:00:00.000Z'),
-          existingSessionId: 'session-A',
-          existingSessionTimezone: firstTz,
-          existingSessionTimezoneSource: 'watch_folder',
-          sessionAssignmentLocked: true,
-        }),
-        mkFrame('late', {
-          dateObsUtc: new Date('2026-07-06T03:00:00.000Z'),
-          existingSessionId: 'session-A',
-          existingSessionTimezone: secondTz,
-          existingSessionTimezoneSource: 'watch_folder',
-          sessionAssignmentLocked: true,
-        }),
-      ];
-      const [assignment] = detectSessions(frames, { fallbackTimezone: 'UTC' }) as [
-        SessionAssignment,
-      ];
-      expect(assignment.timezone).toBe(firstTz);
-    },
-  );
+  describe('TZ-7', () => {
+    // `early` has the smaller `dateObsUtc` and must win regardless of which
+    // array slot it occupies — the earlier attempt only ever varied which
+    // timezone string was attached to `frames[0]`, so "earliest" and
+    // "first in input order" were never distinct elements. Reversing the
+    // array here is what actually exercises `earliestOf`.
+    const early = mkFrame('early', {
+      dateObsUtc: new Date('2026-07-06T02:00:00.000Z'),
+      existingSessionId: 'session-A',
+      existingSessionTimezone: DENVER,
+      existingSessionTimezoneSource: 'watch_folder',
+      sessionAssignmentLocked: true,
+    });
+    const late = mkFrame('late', {
+      dateObsUtc: new Date('2026-07-06T03:00:00.000Z'),
+      existingSessionId: 'session-A',
+      existingSessionTimezone: 'UTC',
+      existingSessionTimezoneSource: 'system_fallback',
+      sessionAssignmentLocked: true,
+    });
+    const expectedTimezone = DENVER;
+    const expectedSource: TimezoneSource = 'watch_folder';
+
+    it.each([
+      ['array order [early, late]', [early, late]],
+      ['array order [late, early]', [late, early]],
+    ])(
+      'a locked group disagreeing on frozen timezone/source uses the earliest member’s values (%s)',
+      (_label, frames) => {
+        const [assignment] = detectSessions(frames, { fallbackTimezone: 'UTC' }) as [
+          SessionAssignment,
+        ];
+        expect(assignment.timezone).toBe(expectedTimezone);
+        expect(assignment.timezoneSource).toBe(expectedSource);
+      },
+    );
+  });
 });
 
 describe('detectSessions — manual-assignment locks', () => {
-  it('LOCK-1/LOCK-3: a manual merge survives a >4h internal gap and a new frame does not widen it', () => {
+  it('LOCK-1: a manual merge survives a >4h internal gap', () => {
+    const lockedFrames = ['02:00', '03:00', '09:00', '10:00'].map((hm, i) =>
+      mkFrame(`locked-${i}`, {
+        dateObsUtc: new Date(`2026-07-06T${hm}:00.000Z`),
+        existingSessionId: 'session-A',
+        existingSessionTimezone: DENVER,
+        existingSessionTimezoneSource: 'watch_folder',
+        sessionAssignmentLocked: true,
+      }),
+    );
+
+    const result = detectSessions(lockedFrames, { fallbackTimezone: 'UTC' });
+
+    const lockedAssignment = result.find((a) => a.sessionId === 'session-A');
+    expect(lockedAssignment).toBeDefined();
+    expect(ids(lockedAssignment as SessionAssignment)).toEqual(
+      ['locked-0', 'locked-1', 'locked-2', 'locked-3'].sort(),
+    );
+    expect((lockedAssignment as SessionAssignment).startedAtUtc).toEqual(
+      new Date('2026-07-06T02:00:00.000Z'),
+    );
+    expect((lockedAssignment as SessionAssignment).endedAtUtc).toEqual(
+      new Date('2026-07-06T10:00:00.000Z'),
+    );
+  });
+
+  it('LOCK-3: a new unlocked frame inside a locked window never widens the lock', () => {
     const lockedFrames = ['02:00', '03:00', '09:00', '10:00'].map((hm, i) =>
       mkFrame(`locked-${i}`, {
         dateObsUtc: new Date(`2026-07-06T${hm}:00.000Z`),
