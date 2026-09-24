@@ -4,7 +4,7 @@
     {
       "file": "xisf/pixinsight-unit-mono-ha.xisf",
       "format": "xisf",
-      "description": "PixInsight-style monolithic XISF unit: Image element carries both FITSKeyword elements (for FITS compatibility) and native XISF Property elements (Observation:Object:Name, Instrument:ExposureTime, ...), mirroring the N.I.N.A. mono narrowband light fixture.",
+      "description": "PixInsight-style monolithic XISF unit: Image element carries both FITSKeyword elements (for FITS compatibility) and native XISF Property elements (Observation:Object:Name, Instrument:ExposureTime, ...), mirroring the N.I.N.A. mono narrowband light fixture. FITSKeyword string values (OBJECT, IMAGETYP, FILTER, DATE-OBS, TELESCOP, INSTRUME) carry FITS single-quote syntax (e.g. \"'WO Gt 71'\"), matching real PixInsight XISF output (#129); Property values are never quoted.",
       "provenance": {
         "method": "synthesized-to-conventions",
         "program": "PixInsight",
@@ -23,7 +23,7 @@
           "FILTER": "Ha 3nm",
           "EXPTIME": "300",
           "DATE-OBS": "2026-01-15T03:22:10.123",
-          "TELESCOP": "Sky-Watcher Esprit 100ED",
+          "TELESCOP": "WO Gt 71",
           "INSTRUME": "ZWO ASI2600MM Pro",
           "CCD-TEMP": "-10.1",
           "GAIN": "100",
@@ -35,7 +35,7 @@
           "RA": "10.684708",
           "DEC": "41.26875"
         },
-        "notes": "FITSKeyword values are XML attribute strings (unlike FITS typed cards); P1-02 decides numeric coercion. Property elements carry the native XISF namespace (Observation:*/Instrument:*) alongside the FITSKeyword compatibility set."
+        "notes": "FITSKeyword values are XML attribute strings (unlike FITS typed cards); P1-02 decides numeric coercion. `expected.keywords` is the post-decode value — the committed .xisf file carries the FITS-quoted TELESCOP/OBJECT/etc. form on disk (#129). Property elements carry the native XISF namespace (Observation:*/Instrument:*) alongside the FITSKeyword compatibility set and are never FITS-quoted."
       }
     },
     {
