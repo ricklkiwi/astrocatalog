@@ -1,6 +1,6 @@
 # Spec: [P1-18] Equipment profile auto-detection
 
-**Slug:** p1-18-equipment-profiles **Issue:** #26 **Plan:** docs/plans/p1-18-equipment-profiles.md **Date:** 2026-09-23
+**Slug:** p1-18-equipment-profiles **Issue:** #26 **Plan:** docs/archive/tasks/p1-18-equipment-profiles/plan.md **Date:** 2026-09-23
 **Governing DDs:** DD-003 (schema, amended in this PR per the Q1/Q2 decisions; see DB-1…DB-10 and J-1), DD-006 (equipment split rule, "visible reasons"), DD-004 (Stage 3: detection is pure functions in `packages/core`), DD-008 (no Equipment page in v1.0), DD-002 (layering, typed IPC), ADR-004 (alter, never recreate), ADR-007 (falsifiability)
 **Decisions applied:** the maintainer's "Open Questions resolved" comment on #26 (2026-09-23). Q1–Q8 are settled as the plan recommends, and every criterion below assumes them.
 
@@ -83,6 +83,9 @@ When a criterion's subject is a set (profile ids, column names, index names, cha
 - [ ] **SUG-17** — Given one confirmed profile with 1 h of light usage and one unconfirmed profile with 5 h, `recommendedSurvivorId` is the confirmed profile's id — **fails under:** `suggest.ts` ranking survivors by usage before confirmation.
 - [ ] **SUG-18** — Given two unconfirmed profiles where the one with the lexicographically **larger** id has more light usage, `recommendedSurvivorId` is that higher-usage id — **fails under:** `suggest.ts` ignoring usage and choosing the smallest id.
 - [ ] **SUG-19** — Given two unconfirmed profiles with equal usage, `recommendedSurvivorId` is the lexicographically smaller id, in both input orders — **fails under:** `suggest.ts` breaking ties by input position instead of by id.
+
+> **Review correction (2026-09-25):** SUG-20's original input yields a single suggestion whose cluster is already in id order, so neither sort could be observed (both mutations survived review). The test now uses two canonical groups of null/equal-focal members whose first-seen member has the larger id; both sort mutations turn it red.
+
 - [ ] **SUG-20** — Given the SUG-13 input in its given order and reversed, the two outputs are deep-equal, including the order of `profileIds` inside each suggestion and the order of the suggestions — **fails under:** `suggest.ts` emitting `profileIds` in input order without sorting.
 - [ ] **SUG-21** — Given the 19 fixture-derived profiles from DET-4, all unconfirmed, `suggestProfileMerges` returns `[]`. The shipped fixture corpus has no false-positive suggestions — **fails under:** `suggest.ts` comparing only the camera canonical form, which then pairs `'Sky-Watcher Esprit 100ED' + 'ZWO ASI2600MC Pro'` with `'ZWO FF65 APO' + 'ZWO ASI2600MC Pro'`.
 

@@ -482,4 +482,4 @@ must turn its test red:
    - _Alternative:_ repository only, with the channels added by the first UI slice that needs
      them.
 
-Plan written: docs/plans/p1-18-equipment-profiles.md — 10 steps
+Plan written: docs/archive/tasks/p1-18-equipment-profiles/plan.md — 10 steps
