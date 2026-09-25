@@ -206,6 +206,43 @@ describe('suggestProfileMerges — determinism (SUG-20)', () => {
 
     expect(suggestProfileMerges([...inputs].reverse())).toEqual(suggestProfileMerges(inputs));
   });
+
+  /**
+   * The test above is blind to both `.sort()` calls in `suggest.ts`
+   * (cluster.map(p => p.id).sort() and the outer suggestions.sort()):
+   * `clusterByFocal`'s own internal focal-sort already happens to put its
+   * one cluster in id-ascending order for that data (335 < 336 both
+   * numerically and lexically as strings), and there is only ever one
+   * suggestion, so the outer sort has nothing to reorder either way.
+   *
+   * This case forces both sorts to matter: two canonical groups (so the
+   * *order of suggestions* is observable), each a two-member cluster whose
+   * members share one focal length or are both null-focal (so
+   * `clusterByFocal`'s internal sort — driven by focal value — cannot be
+   * the thing producing id order; only the id `.sort()` can). The ids are
+   * chosen so the first-encountered member of each group has the
+   * lexicographically *larger* id, and reversing the input flips which
+   * member of each group (and which group) is encountered first — so
+   * without either `.sort()`, forward and reversed runs disagree with each
+   * other AND with the pinned expected shape.
+   */
+  it('is not blind to either sort: unsorted-by-construction clusters and group order', () => {
+    const q = profile('EdgeHD 8', 'Cam1', null, { id: 'q' }); // group A, encountered 1st forward
+    const p = profile('EdgeHD8', 'Cam1', null, { id: 'p' }); // group A, encountered 2nd forward
+    const z = profile('Z', 'Cam2', 1, { id: 'z' }); // group B, encountered 1st forward
+    const y = profile('Z', 'Cam2', 1, { id: 'y' }); // group B, encountered 2nd forward
+    const inputs = [q, p, z, y];
+
+    const expected = [
+      { profileIds: ['p', 'q'], recommendedSurvivorId: 'p', reason: 'canonical_name_match' },
+      { profileIds: ['y', 'z'], recommendedSurvivorId: 'y', reason: 'canonical_name_match' },
+    ];
+
+    const forward = suggestProfileMerges(inputs);
+    const reversed = suggestProfileMerges([...inputs].reverse());
+    expect(forward).toEqual(expected);
+    expect(reversed).toEqual(expected);
+  });
 });
 
 describe('suggestProfileMerges — fixture corpus (SUG-21)', () => {
