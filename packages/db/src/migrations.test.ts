@@ -628,6 +628,275 @@ describe('migration 0006 (drop processing-project tables) against a pre-0006 ins
   }, 20000);
 });
 
+describe('migration 0007 (timezone + session-assignment-lock columns) against a pre-0007 install', () => {
+  const EXPECTED_COLUMNS: Record<string, string[]> = {
+    watch_folders: [
+      'id',
+      'created_at',
+      'updated_at',
+      'path',
+      'drive_label',
+      'timezone',
+      'is_active',
+      'last_scan_at',
+      'skip_patterns',
+      'live_watch_enabled',
+    ],
+    sessions: [
+      'id',
+      'created_at',
+      'updated_at',
+      'session_date',
+      'started_at_utc',
+      'ended_at_utc',
+      'timezone',
+      'timezone_source',
+      'equipment_profile_id',
+      'notes',
+      'weather_notes',
+    ],
+    frames: [
+      'id',
+      'created_at',
+      'updated_at',
+      'file_id',
+      'frame_type',
+      'frame_type_source',
+      'object_raw',
+      'target_id',
+      'filter_raw',
+      'filter_id',
+      'exposure_seconds',
+      'date_obs_utc',
+      'telescope_raw',
+      'camera_raw',
+      'equipment_profile_id',
+      'ccd_temp',
+      'set_temp',
+      'gain',
+      'offset',
+      'binning_x',
+      'binning_y',
+      'width_px',
+      'height_px',
+      'ra_deg',
+      'dec_deg',
+      'focal_length',
+      'aperture',
+      'pier_side',
+      'airmass',
+      'observer',
+      'site_name',
+      'bayer_pattern',
+      'fwhm',
+      'hfr',
+      'star_count',
+      'session_id',
+      'session_assignment_locked',
+      'headers_json',
+    ],
+  };
+
+  /**
+   * Build a migrations folder holding every migration up to and including
+   * `maxIdx`, byte-identical to the committed files so their hashes match,
+   * mirroring `buildPartialMigrationsFolder` in the 0006 describe block
+   * above (duplicated locally rather than hoisted, matching that block's own
+   * precedent of a self-contained describe block).
+   */
+  function buildPartialMigrationsFolder(dir: string, maxIdx: number): string {
+    const partialFolder = join(dir, `migrations-through-${maxIdx}`);
+    mkdirSync(join(partialFolder, 'meta'), { recursive: true });
+    const fullFolder = resolveMigrationsFolder();
+    const realJournal = JSON.parse(
+      readFileSync(join(fullFolder, 'meta', '_journal.json'), 'utf8'),
+    ) as { entries: Array<{ idx: number; when: number; tag: string }> };
+    const entries = realJournal.entries.filter((entry) => entry.idx <= maxIdx);
+    for (const entry of entries) {
+      copyFileSync(join(fullFolder, `${entry.tag}.sql`), join(partialFolder, `${entry.tag}.sql`));
+    }
+    writeFileSync(
+      join(partialFolder, 'meta', '_journal.json'),
+      JSON.stringify({
+        version: '7',
+        dialect: 'sqlite',
+        entries: entries.map((entry) => ({ ...entry, breakpoints: true, version: '6' })),
+      }),
+    );
+    return partialFolder;
+  }
+
+  it('adds the four new columns, defaults them correctly, and preserves seeded rows', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'astrotracker-0007-migration-'));
+    const filePath = join(dir, 'legacy.db');
+    try {
+      // 1. Bring a fresh file to the exact pre-0007 schema.
+      const legacy = new Database(filePath);
+      legacy.pragma('foreign_keys = ON');
+      migrate(drizzle(legacy), { migrationsFolder: buildPartialMigrationsFolder(dir, 6) });
+
+      // 2. Seed one row per altered table, using only pre-0007 columns.
+      const now = Date.now();
+      const watchFolderId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO watch_folders (id, created_at, updated_at, path, is_active)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(watchFolderId, now, now, '/Volumes/AstroSSD', 1);
+
+      const sessionId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO sessions (id, created_at, updated_at, session_date)
+           VALUES (?, ?, ?, ?)`,
+        )
+        .run(sessionId, now, now, '2026-01-15');
+
+      const fileId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO files
+             (id, created_at, updated_at, watch_folder_id, relative_path, filename,
+              extension, size_bytes, first_seen_at, last_seen_at, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          fileId,
+          now,
+          now,
+          watchFolderId,
+          'M31/Light_001.fits',
+          'Light_001.fits',
+          '.fits',
+          32_000_000,
+          now,
+          now,
+          'present',
+        );
+
+      const frameId = uuidv7();
+      legacy
+        .prepare(
+          `INSERT INTO frames
+             (id, created_at, updated_at, file_id, frame_type, frame_type_source,
+              session_id, headers_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(frameId, now, now, fileId, 'light', 'header', sessionId, '{}');
+      legacy.close();
+
+      // 3. Apply the full migration set, which now includes 0007.
+      const db: AstroDatabase = openDatabase({ filePath });
+      try {
+        const columnsByTable = withRawConnectionAt(filePath, (raw) =>
+          Object.fromEntries(
+            Object.keys(EXPECTED_COLUMNS).map((table) => [
+              table,
+              (raw.prepare(`PRAGMA table_info(${table})`).all() as TableColumn[]).map(
+                (c) => c.name,
+              ),
+            ]),
+          ),
+        );
+
+        // Set equality, not containment (#111): an unsanctioned extra column
+        // (e.g. a session-level `manually_locked` flag this slice deliberately
+        // does not add) must fail here the day it appears.
+        for (const [table, expected] of Object.entries(EXPECTED_COLUMNS)) {
+          expect(columnsByTable[table]?.slice().sort(), `${table} column set`).toEqual(
+            [...expected].sort(),
+          );
+        }
+
+        const watchFolderRow = withRawConnectionAt(filePath, (raw) =>
+          raw.prepare('SELECT timezone FROM watch_folders WHERE id = ?').get(watchFolderId),
+        );
+        expect(watchFolderRow).toEqual({ timezone: null });
+
+        const sessionRow = withRawConnectionAt(filePath, (raw) =>
+          raw.prepare('SELECT timezone, timezone_source FROM sessions WHERE id = ?').get(sessionId),
+        );
+        expect(sessionRow).toEqual({ timezone: null, timezone_source: null });
+
+        const frameRow = withRawConnectionAt(filePath, (raw) =>
+          raw.prepare('SELECT session_assignment_locked FROM frames WHERE id = ?').get(frameId),
+        );
+        expect(frameRow).toEqual({ session_assignment_locked: 0 });
+
+        // Pre-existing rows survived the migration untouched.
+        expect(db.repos.watchFolders.getById(watchFolderId)?.path).toBe('/Volumes/AstroSSD');
+        expect(db.repos.sessions.getById(sessionId)?.sessionDate).toBe('2026-01-15');
+        expect(db.repos.frames.getById(frameId)?.frameType).toBe('light');
+      } finally {
+        db.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 20000);
+
+  it('round-trips all four new fields through the repositories, camelCase and typed', () => {
+    const { repos } = db;
+    const watchFolder = repos.watchFolders.insert({
+      path: '/Volumes/AstroSSD2',
+      timezone: 'America/Denver',
+    });
+    expect(watchFolder.timezone).toBe('America/Denver');
+
+    const session = repos.sessions.insert({
+      sessionDate: '2026-07-05',
+      timezone: 'America/Denver',
+      timezoneSource: 'watch_folder',
+    });
+    expect(session.timezone).toBe('America/Denver');
+    expect(session.timezoneSource).toBe('watch_folder');
+
+    const file = repos.files.insert({
+      watchFolderId: watchFolder.id,
+      ...fileFixture('2026-07-05/M31/Light_001.fits'),
+    });
+    const frame = repos.frames.insert({
+      fileId: file.id,
+      frameType: 'light',
+      frameTypeSource: 'header',
+      sessionId: session.id,
+      sessionAssignmentLocked: true,
+      headersJson: '{}',
+    });
+    expect(frame.sessionAssignmentLocked).toBe(true);
+
+    const reread = repos.frames.getById(frame.id);
+    expect(reread?.sessionAssignmentLocked).toBe(true);
+  });
+
+  it('applies cleanly on a fresh empty DB and defaults the lock column to false', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'astrotracker-0007-fresh-migration-'));
+    try {
+      const freshDb = openDatabase({ filePath: join(dir, 'fresh.db') });
+      try {
+        const watchFolder = freshDb.repos.watchFolders.insert({ path: '/Volumes/Fresh' });
+        expect(watchFolder.timezone).toBeNull();
+        const file = freshDb.repos.files.insert({
+          watchFolderId: watchFolder.id,
+          ...fileFixture('fresh.fits'),
+        });
+        const frame = freshDb.repos.frames.insert({
+          fileId: file.id,
+          frameType: 'light',
+          frameTypeSource: 'header',
+          headersJson: '{}',
+        });
+        expect(frame.sessionAssignmentLocked).toBe(false);
+      } finally {
+        freshDb.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 /** `withRawConnection`, but against an explicit path rather than the suite's. */
 function withRawConnectionAt<T>(
   filePath: string,

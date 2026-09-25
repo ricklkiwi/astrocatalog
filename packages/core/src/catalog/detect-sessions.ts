@@ -1,0 +1,251 @@
+/**
+ * `detectSessions()` — the P1-17 orchestrator (DD-006). Pure function: no
+ * fs, no Electron, no ambient clock/timezone reads. The system timezone
+ * reaches this function only via `config.fallbackTimezone` (DD-002 rule 1).
+ */
+import { splitByGap } from './gap-splitting.js';
+import { astronomicalDayLabel, isValidIana, resolveTimezone } from './timezone.js';
+import type {
+  SessionAssignment,
+  SessionDetectionConfig,
+  SessionInputFrame,
+  TimezoneSource,
+} from './types.js';
+
+const DEFAULT_GAP_HOURS = 4;
+/**
+ * Sentinel bucket key for "no equipment profile" — never leaks into output
+ * (ALG-11). Not a real UUIDv7 shape, so it can never collide with an actual
+ * `equipmentProfileId`.
+ */
+const NO_PROFILE_SENTINEL = '__no_equipment_profile__';
+
+/** A `SessionInputFrame` narrowed to a non-null `dateObsUtc`. */
+type UsableFrame = SessionInputFrame & { dateObsUtc: Date };
+
+function hasDateObs(frame: SessionInputFrame): frame is UsableFrame {
+  return frame.dateObsUtc !== null;
+}
+
+function isLocked(frame: UsableFrame): boolean {
+  // A lock with nothing to lock to is not meaningful (LOCK-6): treated as unlocked.
+  return frame.sessionAssignmentLocked && frame.existingSessionId !== null;
+}
+
+function earliestOf(frames: UsableFrame[]): UsableFrame {
+  return frames.reduce((earliest, frame) =>
+    frame.dateObsUtc.getTime() < earliest.dateObsUtc.getTime() ? frame : earliest,
+  );
+}
+
+function isCalibrationOnly(frames: UsableFrame[]): boolean {
+  return frames.every((frame) => frame.frameType !== 'light');
+}
+
+/**
+ * Deterministic session-id reuse for a computed unlocked group: the
+ * majority non-null `existingSessionId` wins; a tie is broken by the
+ * lexicographically smallest id (UUIDv7 sorts chronologically, so this is
+ * also "the oldest surviving session wins"). `null` when no member has a
+ * prior id — minting a fresh row is the caller's job.
+ */
+function chooseSessionId(frames: UsableFrame[]): string | null {
+  const counts = new Map<string, number>();
+  for (const frame of frames) {
+    if (frame.existingSessionId !== null) {
+      counts.set(frame.existingSessionId, (counts.get(frame.existingSessionId) ?? 0) + 1);
+    }
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [id, count] of counts) {
+    if (count > bestCount || (count === bestCount && best !== null && id < best)) {
+      best = id;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/** Resolved timezone context for one frame, used to compute its date label. */
+interface FrameTimezoneContext {
+  timezone: string;
+  timezoneSource: TimezoneSource;
+  sessionDate: string;
+}
+
+/**
+ * Per-frame timezone resolution (DD-003 stability rule): a frame that
+ * already carries a prior session assignment uses that frozen
+ * timezone/source forever, never re-deriving from the frame's *current*
+ * `watchFolderTimezone`. Only a frame with no prior assignment resolves
+ * fresh from its watch folder / the caller's fallback.
+ */
+function resolveFrameTimezone(
+  frame: UsableFrame,
+  config: SessionDetectionConfig,
+): FrameTimezoneContext {
+  let timezone: string;
+  let timezoneSource: TimezoneSource;
+  if (frame.existingSessionId !== null && frame.existingSessionTimezone !== null) {
+    timezone = frame.existingSessionTimezone;
+    timezoneSource = frame.existingSessionTimezoneSource ?? 'watch_folder';
+  } else {
+    const resolved = resolveTimezone(frame.watchFolderTimezone, config.fallbackTimezone);
+    timezone = resolved.timezone;
+    timezoneSource = resolved.source;
+  }
+  return {
+    timezone,
+    timezoneSource,
+    sessionDate: astronomicalDayLabel(frame.dateObsUtc, timezone),
+  };
+}
+
+/**
+ * Builds the assignment for one locked "frozen island": membership is never
+ * recomputed (LOCK-1/LOCK-2/LOCK-5 — gap width and equipment profile are
+ * never evaluated for locked frames), only its boundary metadata is
+ * re-derived from whichever locked frames currently share the id. The
+ * emitted `sessionId` is always the group's `existingSessionId` verbatim
+ * (LOCK-4).
+ */
+function buildLockedAssignment(
+  sessionId: string,
+  members: UsableFrame[],
+  config: SessionDetectionConfig,
+): SessionAssignment {
+  const earliest = earliestOf(members);
+  let timezone: string;
+  let timezoneSource: TimezoneSource;
+  // Defensive: an orphaned lock with no recorded timezone falls through to
+  // fresh resolution rather than crashing (should not occur in a healthy DB).
+  if (
+    earliest.existingSessionTimezone !== null &&
+    earliest.existingSessionTimezoneSource !== null
+  ) {
+    timezone = earliest.existingSessionTimezone;
+    timezoneSource = earliest.existingSessionTimezoneSource;
+  } else {
+    const resolved = resolveTimezone(earliest.watchFolderTimezone, config.fallbackTimezone);
+    timezone = resolved.timezone;
+    timezoneSource = resolved.source;
+  }
+  const startedAtUtc = members.reduce(
+    (min, f) => (f.dateObsUtc.getTime() < min.getTime() ? f.dateObsUtc : min),
+    earliest.dateObsUtc,
+  );
+  const endedAtUtc = members.reduce(
+    (max, f) => (f.dateObsUtc.getTime() > max.getTime() ? f.dateObsUtc : max),
+    earliest.dateObsUtc,
+  );
+  return {
+    sessionId,
+    frameIds: members.map((f) => f.id),
+    sessionDate: astronomicalDayLabel(startedAtUtc, timezone),
+    timezone,
+    timezoneSource,
+    equipmentProfileId: earliest.equipmentProfileId,
+    startedAtUtc,
+    endedAtUtc,
+    isCalibrationOnly: isCalibrationOnly(members),
+  };
+}
+
+/** Builds the assignment for one gap-split run of unlocked frames. */
+function buildUnlockedAssignment(
+  run: UsableFrame[],
+  bucketProfileId: string | null,
+  bucketSessionDate: string,
+  contextByFrameId: Map<string, FrameTimezoneContext>,
+): SessionAssignment {
+  // `run` arrives sorted ascending (splitByGap's own sort), so the first and
+  // last elements are the min/max dateObsUtc among the run's own frames
+  // (ALG-16) — never taken from the caller's original input order.
+  const first = run[0] as UsableFrame;
+  const last = run[run.length - 1] as UsableFrame;
+  const context = contextByFrameId.get(first.id) as FrameTimezoneContext;
+  return {
+    sessionId: chooseSessionId(run),
+    frameIds: run.map((f) => f.id),
+    sessionDate: bucketSessionDate,
+    timezone: context.timezone,
+    timezoneSource: context.timezoneSource,
+    equipmentProfileId: bucketProfileId,
+    startedAtUtc: first.dateObsUtc,
+    endedAtUtc: last.dateObsUtc,
+    isCalibrationOnly: isCalibrationOnly(run),
+  };
+}
+
+/**
+ * Groups parsed frames into imaging-night sessions (DD-006): local
+ * noon-to-noon astronomical-day windowing, >gapHours gap splitting within a
+ * night, equipment-profile splitting, calibration-only sessions, idempotent
+ * re-runs, and respect for explicit manual-assignment locks.
+ */
+export function detectSessions(
+  frames: SessionInputFrame[],
+  config: SessionDetectionConfig,
+): SessionAssignment[] {
+  if (!isValidIana(config.fallbackTimezone)) {
+    throw new Error(
+      `detectSessions: config.fallbackTimezone is not a valid IANA timezone: ${config.fallbackTimezone}`,
+    );
+  }
+
+  const usable = frames.filter(hasDateObs);
+  const locked = usable.filter(isLocked);
+  const unlocked = usable.filter((f) => !isLocked(f));
+
+  const lockedGroups = new Map<string, UsableFrame[]>();
+  for (const frame of locked) {
+    const key = frame.existingSessionId as string;
+    const group = lockedGroups.get(key);
+    if (group === undefined) {
+      lockedGroups.set(key, [frame]);
+    } else {
+      group.push(frame);
+    }
+  }
+  const lockedAssignments = [...lockedGroups.entries()].map(([sessionId, members]) =>
+    buildLockedAssignment(sessionId, members, config),
+  );
+
+  const contextByFrameId = new Map<string, FrameTimezoneContext>();
+  for (const frame of unlocked) {
+    contextByFrameId.set(frame.id, resolveFrameTimezone(frame, config));
+  }
+
+  const buckets = new Map<string, UsableFrame[]>();
+  for (const frame of unlocked) {
+    const sessionDate = (contextByFrameId.get(frame.id) as FrameTimezoneContext).sessionDate;
+    const key = `${frame.equipmentProfileId ?? NO_PROFILE_SENTINEL}|${sessionDate}`;
+    const bucket = buckets.get(key);
+    if (bucket === undefined) {
+      buckets.set(key, [frame]);
+    } else {
+      bucket.push(frame);
+    }
+  }
+
+  const gapHours = config.gapHours ?? DEFAULT_GAP_HOURS;
+  const unlockedAssignments: SessionAssignment[] = [];
+  for (const bucketFrames of buckets.values()) {
+    const runs = splitByGap(bucketFrames, gapHours);
+    for (const run of runs) {
+      const first = run[0] as UsableFrame;
+      const context = contextByFrameId.get(first.id) as FrameTimezoneContext;
+      unlockedAssignments.push(
+        buildUnlockedAssignment(
+          run,
+          first.equipmentProfileId,
+          context.sessionDate,
+          contextByFrameId,
+        ),
+      );
+    }
+  }
+
+  return [...lockedAssignments, ...unlockedAssignments];
+}
