@@ -84,6 +84,9 @@ export const frames = sqliteTable(
     index('frames_target_filter_type_idx').on(t.targetId, t.filterId, t.frameType),
     index('frames_session_id_idx').on(t.sessionId),
     index('frames_date_obs_utc_idx').on(t.dateObsUtc),
+    // P1-18: merge repointing (EquipmentProfilesRepository.merge) and the
+    // usage-hours rollup both filter frames by equipment_profile_id.
+    index('frames_equipment_profile_id_idx').on(t.equipmentProfileId),
     check(
       'frames_frame_type_check',
       sql`${t.frameType} IN ('light', 'dark', 'flat', 'bias', 'darkflat', 'unknown')`,

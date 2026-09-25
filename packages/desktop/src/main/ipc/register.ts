@@ -12,7 +12,10 @@ import {
   type AddWatchFolderInput,
   type EnqueueDemoInput,
   type EnqueueScanInput,
+  type EquipmentProfileRecord,
+  type EquipmentProfileWithUsageRecord,
   type IpcContract,
+  type MergeSuggestionRecord,
   type SetLiveWatchInput,
   type WatchFolderRecord,
 } from '../../ipc/contract.js';
@@ -63,6 +66,14 @@ export interface IpcHandlerDeps {
       watchFolderId: string,
     ): IpcContract['files.listByWatchFolder']['output']['files'];
   };
+  /** P1-18 equipment-profile operations, forwarded to `database.repos.equipmentProfiles`. */
+  equipment: {
+    list(): EquipmentProfileWithUsageRecord[];
+    suggestions(): MergeSuggestionRecord[];
+    confirm(id: string): EquipmentProfileRecord;
+    rename(id: string, name: string): EquipmentProfileRecord;
+    merge(survivorId: string, mergedIds: string[]): void | Promise<void>;
+  };
 }
 
 const DEMO_DEFAULTS = { totalSteps: 10, stepMs: 500 } as const;
@@ -95,6 +106,19 @@ function requireNonEmptyString(value: unknown, field: string): string {
   return value;
 }
 
+/** Array.isArray first (a string also has `.length`), then every element a non-empty string. */
+function requireNonEmptyStringArray(value: unknown, field: string): string[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${field} must be a non-empty array of strings`);
+  }
+  for (const item of value) {
+    if (typeof item !== 'string' || item.trim() === '') {
+      throw new Error(`${field} must be a non-empty array of strings`);
+    }
+  }
+  return value as string[];
+}
+
 function validateAddWatchFolderInput(input: unknown): AddWatchFolderInput {
   const obj = requireObject(input, 'watchFolders.add');
   const path = requireNonEmptyString(obj['path'], 'path');
@@ -125,6 +149,27 @@ function validateSetLiveWatchInput(input: unknown): SetLiveWatchInput {
     throw new Error('enabled must be a boolean');
   }
   return { id, enabled };
+}
+
+function validateEquipmentConfirmInput(input: unknown): { id: string } {
+  const obj = requireObject(input, 'equipment.confirm');
+  return { id: requireNonEmptyString(obj['id'], 'id') };
+}
+
+function validateEquipmentRenameInput(input: unknown): { id: string; name: string } {
+  const obj = requireObject(input, 'equipment.rename');
+  return {
+    id: requireNonEmptyString(obj['id'], 'id'),
+    name: requireNonEmptyString(obj['name'], 'name'),
+  };
+}
+
+function validateEquipmentMergeInput(input: unknown): { survivorId: string; mergedIds: string[] } {
+  const obj = requireObject(input, 'equipment.merge');
+  return {
+    survivorId: requireNonEmptyString(obj['survivorId'], 'survivorId'),
+    mergedIds: requireNonEmptyStringArray(obj['mergedIds'], 'mergedIds'),
+  };
 }
 
 function validateEnqueueDemoInput(input: EnqueueDemoInput | void): Required<EnqueueDemoInput> {
@@ -173,6 +218,20 @@ export function createIpcHandlers(deps: IpcHandlerDeps): IpcHandlers {
     'files.listByWatchFolder': (input) => ({
       files: deps.files.listByWatchFolder(validateWatchFolderId(input, 'files.listByWatchFolder')),
     }),
+    'equipment.list': () => ({ profiles: deps.equipment.list() }),
+    'equipment.suggestions': () => ({ suggestions: deps.equipment.suggestions() }),
+    'equipment.confirm': (input) => {
+      const { id } = validateEquipmentConfirmInput(input);
+      return deps.equipment.confirm(id);
+    },
+    'equipment.rename': (input) => {
+      const { id, name } = validateEquipmentRenameInput(input);
+      return deps.equipment.rename(id, name);
+    },
+    'equipment.merge': (input) => {
+      const { survivorId, mergedIds } = validateEquipmentMergeInput(input);
+      return deps.equipment.merge(survivorId, mergedIds);
+    },
   };
 }
 

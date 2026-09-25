@@ -87,6 +87,25 @@ export {
   type TimezoneSource,
 } from './catalog/index.js';
 
+// --- P1-18 equipment-profile auto-detection (DD-003 `equipment_profiles`,
+// DD-006 equipment split rule) -----------------------------------------
+// Kept as its own re-export block (rather than merged into the block
+// above) so a concurrent branch adding calibration-matching exports here
+// (P1-20) can land without a merge conflict.
+export {
+  equipmentIdentity,
+  defaultProfileName,
+  detectEquipmentProfiles,
+  suggestProfileMerges,
+  type DetectedProfile,
+  type EquipmentIdentity,
+  type EquipmentIdentityInput,
+  type EquipmentProfileForSuggestion,
+  type MergeSuggestion,
+  type MergeSuggestionReason,
+  type SuggestProfileMergesConfig,
+} from './catalog/index.js';
+
 export const coreVersion = '0.1.0';
 
 /** Returns a human-readable identifier for this package. */

@@ -5,6 +5,8 @@ import {
   IPC_CHANNELS,
   IPC_EVENT_CHANNELS,
   type AppVersionInfo,
+  type EquipmentProfileRecord,
+  type EquipmentProfileWithUsageRecord,
   type JobSummary,
   type WatchFolderRecord,
 } from './contract.js';
@@ -20,6 +22,39 @@ const SAMPLE_WATCH_FOLDER: WatchFolderRecord = {
   createdAt: new Date(0),
   updatedAt: new Date(0),
 };
+
+const SAMPLE_EQUIPMENT_PROFILE: EquipmentProfileRecord = {
+  id: 'eq-1',
+  name: 'EdgeHD 8 + ASI2600MM',
+  telescope: 'EdgeHD 8',
+  camera: 'ASI2600MM',
+  focalLength: 2032,
+  aperture: null,
+  pixelSize: null,
+  isUserConfirmed: false,
+  matchKey: 'k1',
+  mergedIntoId: null,
+  createdAt: new Date(0),
+  updatedAt: new Date(0),
+};
+
+const SAMPLE_EQUIPMENT_PROFILE_WITH_USAGE: EquipmentProfileWithUsageRecord = {
+  ...SAMPLE_EQUIPMENT_PROFILE,
+  lightExposureSeconds: 0,
+  usageHours: 0,
+  lightFrameCount: 0,
+};
+
+/** Default equipment stub for tests that don't exercise these handlers. */
+function stubEquipment() {
+  return {
+    list: () => [SAMPLE_EQUIPMENT_PROFILE_WITH_USAGE],
+    suggestions: () => [],
+    confirm: () => SAMPLE_EQUIPMENT_PROFILE,
+    rename: () => SAMPLE_EQUIPMENT_PROFILE,
+    merge: () => {},
+  };
+}
 
 /** Handlers with the demo-enqueue dep mocked and the rest of the contract stubbed. */
 function makeValidationHandlers(enqueueDemo: () => { jobId: string }) {
@@ -41,6 +76,7 @@ function makeValidationHandlers(enqueueDemo: () => { jobId: string }) {
       setLiveWatch: () => SAMPLE_WATCH_FOLDER,
     },
     files: { listByWatchFolder: () => [] },
+    equipment: stubEquipment(),
   });
 }
 
@@ -74,6 +110,7 @@ function makeHandlers() {
     files: {
       listByWatchFolder: () => [],
     },
+    equipment: stubEquipment(),
   });
 }
 
@@ -106,6 +143,11 @@ describe('jobs handlers', () => {
       'watchFolders.remove',
       'watchFolders.setLiveWatch',
       'files.listByWatchFolder',
+      'equipment.list',
+      'equipment.suggestions',
+      'equipment.confirm',
+      'equipment.rename',
+      'equipment.merge',
     ]);
     expect(IPC_EVENT_CHANNELS).toEqual(['jobs.progress', 'watch.status', 'watch.activity']);
   });
@@ -220,6 +262,7 @@ describe('watch-folder and scan handlers', () => {
         setLiveWatch: () => SAMPLE_WATCH_FOLDER,
       },
       files: { listByWatchFolder: () => [] },
+      equipment: stubEquipment(),
     });
 
     expect(await handlers['watchFolders.list']()).toEqual({ watchFolders: [SAMPLE_WATCH_FOLDER] });
@@ -246,6 +289,7 @@ describe('watch-folder and scan handlers', () => {
         setLiveWatch: () => SAMPLE_WATCH_FOLDER,
       },
       files: { listByWatchFolder: () => [] },
+      equipment: stubEquipment(),
     });
 
     expect(await handlers['watchFolders.add']({ path: '/mnt/astro' })).toEqual(SAMPLE_WATCH_FOLDER);
@@ -281,6 +325,7 @@ describe('watch-folder and scan handlers', () => {
         setLiveWatch: () => SAMPLE_WATCH_FOLDER,
       },
       files: { listByWatchFolder },
+      equipment: stubEquipment(),
     });
 
     expect(await handlers['watchFolders.remove']({ id: 'wf-1' })).toEqual({ removed: true });
@@ -321,6 +366,7 @@ describe('watch-folder and scan handlers', () => {
         setLiveWatch,
       },
       files: { listByWatchFolder: () => [] },
+      equipment: stubEquipment(),
     });
 
     expect(await handlers['watchFolders.setLiveWatch']({ id: 'wf-1', enabled: true })).toEqual({
@@ -340,4 +386,160 @@ describe('watch-folder and scan handlers', () => {
     ).toThrow(/enabled must be a boolean/);
     expect(setLiveWatch).not.toHaveBeenCalled();
   });
+});
+
+// --- P1-18 equipment-profile channels (IPC-1..8, TEST-4) ------------------
+
+function makeEquipmentHandlers(
+  overrides: Partial<{
+    list: () => EquipmentProfileWithUsageRecord[];
+    suggestions: () => {
+      profileIds: string[];
+      recommendedSurvivorId: string;
+      reason: 'canonical_name_match';
+    }[];
+    confirm: (id: string) => EquipmentProfileRecord;
+    rename: (id: string, name: string) => EquipmentProfileRecord;
+    merge: (survivorId: string, mergedIds: string[]) => void;
+  }> = {},
+) {
+  return createIpcHandlers({
+    appVersion: 'test',
+    platform: 'test',
+    versions: {},
+    nativeSmoke: () => ({ sqliteVersion: 'test', sharpVersion: 'test' }),
+    jobs: {
+      enqueueDemo: vi.fn(() => ({ jobId: 'job' })),
+      cancel: vi.fn(),
+      list: vi.fn(() => []),
+      enqueueScan: vi.fn(() => ({ jobId: 'scan' })),
+    },
+    watchFolders: {
+      list: () => [],
+      add: () => Promise.resolve(SAMPLE_WATCH_FOLDER),
+      remove: () => true,
+      setLiveWatch: () => SAMPLE_WATCH_FOLDER,
+    },
+    files: { listByWatchFolder: () => [] },
+    equipment: { ...stubEquipment(), ...overrides },
+  });
+}
+
+describe('equipment handlers (IPC-1..8)', () => {
+  it('IPC-2: equipment.merge forwards survivorId and mergedIds in their correct positions', async () => {
+    const merge = vi.fn();
+    const handlers = makeEquipmentHandlers({ merge });
+
+    await handlers['equipment.merge']({ survivorId: 'S', mergedIds: ['L1', 'L2'] });
+    expect(merge).toHaveBeenCalledExactlyOnceWith('S', ['L1', 'L2']);
+  });
+
+  it('IPC-3: equipment.list/suggestions/confirm/rename each forward to their own dep and return its output', async () => {
+    const list = vi.fn(() => [SAMPLE_EQUIPMENT_PROFILE_WITH_USAGE]);
+    const suggestions = vi.fn(() => [
+      {
+        profileIds: ['a', 'b'],
+        recommendedSurvivorId: 'a',
+        reason: 'canonical_name_match' as const,
+      },
+    ]);
+    const confirm = vi.fn(() => ({ ...SAMPLE_EQUIPMENT_PROFILE, isUserConfirmed: true }));
+    const rename = vi.fn(() => ({ ...SAMPLE_EQUIPMENT_PROFILE, name: 'New Name' }));
+    const handlers = makeEquipmentHandlers({ list, suggestions, confirm, rename });
+
+    expect(await handlers['equipment.list']()).toEqual({
+      profiles: [SAMPLE_EQUIPMENT_PROFILE_WITH_USAGE],
+    });
+    expect(list).toHaveBeenCalledOnce();
+
+    expect(await handlers['equipment.suggestions']()).toEqual({
+      suggestions: [
+        { profileIds: ['a', 'b'], recommendedSurvivorId: 'a', reason: 'canonical_name_match' },
+      ],
+    });
+    expect(suggestions).toHaveBeenCalledOnce();
+
+    expect(await handlers['equipment.confirm']({ id: 'eq-1' })).toEqual({
+      ...SAMPLE_EQUIPMENT_PROFILE,
+      isUserConfirmed: true,
+    });
+    expect(confirm).toHaveBeenCalledExactlyOnceWith('eq-1');
+
+    expect(await handlers['equipment.rename']({ id: 'eq-1', name: 'New Name' })).toEqual({
+      ...SAMPLE_EQUIPMENT_PROFILE,
+      name: 'New Name',
+    });
+    expect(rename).toHaveBeenCalledExactlyOnceWith('eq-1', 'New Name');
+  });
+
+  it('IPC-4: equipment.confirm rejects a whitespace-only id before the dep is reached', () => {
+    const confirm = vi.fn(() => SAMPLE_EQUIPMENT_PROFILE);
+    const handlers = makeEquipmentHandlers({ confirm });
+
+    expect(() => handlers['equipment.confirm']({ id: '   ' })).toThrow(
+      /id must be a non-empty string/,
+    );
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('IPC-5: equipment.rename rejects a whitespace-only name before the dep is reached', () => {
+    const rename = vi.fn(() => SAMPLE_EQUIPMENT_PROFILE);
+    const handlers = makeEquipmentHandlers({ rename });
+
+    expect(() => handlers['equipment.rename']({ id: 'eq-1', name: '   ' })).toThrow(
+      /name must be a non-empty string/,
+    );
+    expect(rename).not.toHaveBeenCalled();
+  });
+
+  it('IPC-6: equipment.merge rejects a non-array mergedIds before the dep is reached', () => {
+    const merge = vi.fn();
+    const handlers = makeEquipmentHandlers({ merge });
+
+    expect(() =>
+      handlers['equipment.merge']({ survivorId: 'S', mergedIds: 'L1' } as never),
+    ).toThrow(/mergedIds must be a non-empty array of strings/);
+    expect(merge).not.toHaveBeenCalled();
+  });
+
+  it('IPC-7: equipment.merge rejects an empty mergedIds array before the dep is reached', () => {
+    const merge = vi.fn();
+    const handlers = makeEquipmentHandlers({ merge });
+
+    expect(() => handlers['equipment.merge']({ survivorId: 'S', mergedIds: [] })).toThrow(
+      /mergedIds must be a non-empty array of strings/,
+    );
+    expect(merge).not.toHaveBeenCalled();
+  });
+
+  it('IPC-8: equipment.merge rejects an empty-string or non-string element before the dep is reached', () => {
+    const merge = vi.fn();
+    const handlers = makeEquipmentHandlers({ merge });
+
+    expect(() => handlers['equipment.merge']({ survivorId: 'S', mergedIds: ['L1', ''] })).toThrow(
+      /mergedIds must be a non-empty array of strings/,
+    );
+    expect(() =>
+      handlers['equipment.merge']({ survivorId: 'S', mergedIds: ['L1', 42] } as never),
+    ).toThrow(/mergedIds must be a non-empty array of strings/);
+    expect(merge).not.toHaveBeenCalled();
+  });
+
+  // TEST-4: non-object input rejected before the dep is reached, on every equipment handler that takes input.
+  it.each([null, 'not-an-object', 42, []])(
+    'TEST-4: rejects non-object input %j on confirm/rename/merge before the dep is reached',
+    (input) => {
+      const confirm = vi.fn(() => SAMPLE_EQUIPMENT_PROFILE);
+      const rename = vi.fn(() => SAMPLE_EQUIPMENT_PROFILE);
+      const merge = vi.fn();
+      const handlers = makeEquipmentHandlers({ confirm, rename, merge });
+
+      expect(() => handlers['equipment.confirm'](input as never)).toThrow(/must be an object/);
+      expect(() => handlers['equipment.rename'](input as never)).toThrow(/must be an object/);
+      expect(() => handlers['equipment.merge'](input as never)).toThrow(/must be an object/);
+      expect(confirm).not.toHaveBeenCalled();
+      expect(rename).not.toHaveBeenCalled();
+      expect(merge).not.toHaveBeenCalled();
+    },
+  );
 });

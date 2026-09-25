@@ -81,7 +81,10 @@ sessions(
 )
 
 -- Distinct telescope+camera(+rotator/reducer) combos, auto-detected
-equipment_profiles(id, name, telescope, camera, focal_length, aperture, pixel_size, is_user_confirmed, created_at, updated_at)
+equipment_profiles(id, name, telescope, camera, focal_length, aperture, pixel_size, is_user_confirmed,
+  match_key,        -- P1-18: equipmentIdentity() key; partial-unique WHERE match_key IS NOT NULL
+  merged_into_id,   -- P1-18: set on a merged-away row, pointing at its live survivor
+  created_at, updated_at)
 
 -- Calibration masters; raw-sub provenance arrives with advanced calibration management
 master_frames(
@@ -108,7 +111,7 @@ schema_migrations(version, applied_at)
 ## Key design points
 
 - **`headers_json` on every frame:** raw header dump preserved so future features (new keywords) never require rescanning disks.
-- **Aggregation performance:** integration-time rollups are `SUM(exposure_seconds) GROUP BY target_id, filter_id` over indexed columns. Indexes: `frames(target_id, filter_id, frame_type)`, `frames(session_id)`, `frames(date_obs_utc)`, `files(sha256)`, `target_aliases(alias_normalized)`.
+- **Aggregation performance:** integration-time rollups are `SUM(exposure_seconds) GROUP BY target_id, filter_id` over indexed columns. Indexes: `frames(target_id, filter_id, frame_type)`, `frames(session_id)`, `frames(date_obs_utc)`, `frames(equipment_profile_id)`, `files(sha256)`, `target_aliases(alias_normalized)`.
 - **FTS5** is added incrementally with the target/notes features that need it; P0 does not create search tables before searchable entities exist.
 - **Missing vs deleted:** files on disconnected drives are marked `missing`, never auto-deleted — statistics remain stable when external drives are offline. Rows are removed only by explicit user action.
 - **Lazy hashing:** SHA-256 computed in background after metadata scan (hashing is I/O-heavy); duplicate detection is therefore eventually-consistent.

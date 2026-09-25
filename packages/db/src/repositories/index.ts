@@ -4,6 +4,12 @@
  * better-sqlite3 connection beneath it) stay closed over and unexported.
  */
 import { createEquipmentProfilesRepository } from './equipment-profiles.js';
+import type {
+  DetectFromFramesResult,
+  EquipmentProfileUsage,
+  EquipmentProfileWithUsage,
+  EquipmentProfilesRepository,
+} from './equipment-profiles.js';
 import { createFilesRepository } from './files.js';
 import { createFiltersRepository } from './filters.js';
 import { createFramesRepository } from './frames.js';
@@ -14,7 +20,6 @@ import { createSessionsRepository } from './sessions.js';
 import { createSettingsRepository } from './settings.js';
 import { createTargetsRepository } from './targets.js';
 import { createWatchFoldersRepository } from './watch-folders.js';
-import type { EquipmentProfilesRepository } from './equipment-profiles.js';
 import type {
   DuplicateGroupResult,
   FilesRepository,
@@ -88,6 +93,9 @@ export type {
   FiltersRepository,
   SessionsRepository,
   EquipmentProfilesRepository,
+  DetectFromFramesResult,
+  EquipmentProfileUsage,
+  EquipmentProfileWithUsage,
   MasterFramesRepository,
   CounterDelta,
   EnqueueJobInput,
