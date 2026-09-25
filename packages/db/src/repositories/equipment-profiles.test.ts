@@ -289,6 +289,52 @@ describe('detectFromFrames / resolveMatchKeys (REPO-1..7)', () => {
   });
 });
 
+describe('manual overrides survive a rescan (INV-4)', () => {
+  it('a rename, a confirm, and a merge made before detectFromFrames() are all intact after it', () => {
+    seedDetectionLibrary();
+    const first = db.repos.equipmentProfiles.detectFromFrames();
+    expect(first).toEqual({ inserted: 3, existing: 0 });
+
+    const at336Key = equipmentIdentity({
+      telescopeRaw: 'Gme28',
+      cameraRaw: 'ZWO ASI533MC Pro',
+      focalLength: 336,
+    })!.matchKey;
+    const at420Key = equipmentIdentity({
+      telescopeRaw: 'Gme28',
+      cameraRaw: 'ZWO ASI533MC Pro',
+      focalLength: 420,
+    })!.matchKey;
+    const cameraOnlyKey = equipmentIdentity({
+      telescopeRaw: null,
+      cameraRaw: 'ZWO ASI533MC Pro',
+      focalLength: null,
+    })!.matchKey;
+    const rows = db.repos.equipmentProfiles.list();
+    const survivorId = rows.find((r) => r.matchKey === at336Key)!.id;
+    const confirmedOnlyId = rows.find((r) => r.matchKey === at420Key)!.id;
+    const loserId = rows.find((r) => r.matchKey === cameraOnlyKey)!.id;
+
+    db.repos.equipmentProfiles.rename(survivorId, 'My Custom Name');
+    db.repos.equipmentProfiles.confirm(confirmedOnlyId);
+    db.repos.equipmentProfiles.merge(survivorId, [loserId]);
+
+    // Re-run detection over the same frames (a rescan).
+    const second = db.repos.equipmentProfiles.detectFromFrames();
+    expect(second.inserted).toBe(0);
+    expect(db.repos.equipmentProfiles.list()).toHaveLength(3);
+
+    const survivor = db.repos.equipmentProfiles.getById(survivorId);
+    expect(survivor?.name).toBe('My Custom Name');
+    const confirmedOnly = db.repos.equipmentProfiles.getById(confirmedOnlyId);
+    expect(confirmedOnly?.isUserConfirmed).toBe(true);
+    const loser = db.repos.equipmentProfiles.getById(loserId);
+    expect(loser?.mergedIntoId).toBe(survivorId);
+
+    expect(db.repos.equipmentProfiles.listLive().map((p) => p.id)).not.toContain(loserId);
+  });
+});
+
 // --- CONF-1..3, REN-1..5 ---------------------------------------------------
 
 describe('confirm (CONF-1..3)', () => {
@@ -670,6 +716,14 @@ describe('merge (MRG-1..20, issue AC "merged only on user confirm")', () => {
     expect(db.repos.equipmentProfiles.getById(lib.e2Id)?.mergedIntoId).toBeNull();
   });
 
+  it('TEST-2: an unknown survivor id throws, and the dump is unchanged', () => {
+    const before = fullDump();
+    expect(() =>
+      db.repos.equipmentProfiles.merge('01890000-0000-7000-8000-000000000000', [lib.e2Id]),
+    ).toThrow();
+    expect(fullDump()).toEqual(before);
+  });
+
   it('MRG-18: a merged survivor is rejected, and the dump is unchanged', () => {
     db.repos.equipmentProfiles.merge(lib.e1Id, [lib.e2Id]);
     const before = fullDump();
@@ -790,12 +844,23 @@ describe('usage hours (USE-1..9)', () => {
     expect(db.repos.equipmentProfiles.usageHours(lib.p1).lightExposureSeconds).toBe(7200);
   });
 
-  it('USE-4: a null-exposure light contributes 0, not null/NaN', () => {
+  it('USE-4: a null-exposure light contributes 0, not null/NaN — in both usageHours() and listLive()', () => {
     const lib = seedUsageLibrary();
     expect(db.repos.equipmentProfiles.usageHours(lib.p3)).toEqual({
       lightExposureSeconds: 0,
       usageHours: 0,
     });
+
+    // listLive() has its own SQL query (not a call through usageHours()), so
+    // a COALESCE dropped from only one of the two would otherwise be blind
+    // here: P4 (no frames at all) already exercises the outer
+    // COALESCE(SUM(...), 0), but only P3's null-exposure light exercises
+    // the inner per-row COALESCE(exposure_seconds, 0).
+    const p3Live = db.repos.equipmentProfiles.listLive().find((p) => p.id === lib.p3);
+    expect(p3Live).toBeDefined();
+    expect(p3Live?.lightExposureSeconds).toBe(0);
+    expect(p3Live?.usageHours).toBe(0);
+    expect(p3Live?.lightFrameCount).toBe(1);
   });
 
   it('USE-5: usageHours = seconds / 3600 exactly', () => {
