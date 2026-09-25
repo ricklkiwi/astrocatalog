@@ -1235,6 +1235,50 @@ describe('migration 0008 (equipment match_key/merged_into_id + frames index) aga
     expect(sql).toMatch(/IS NOT NULL/i);
   });
 
+  it('the named index sets of frames and equipment_profiles equal exactly the expected sets (DB-7)', () => {
+    // Set equality (#111), not containment: an extra frames index, an extra
+    // equipment_profiles index, or a wrong-column frames_equipment_profile_id_idx
+    // must all fail here. sqlite_autoindex_* rows (UNIQUE/PK-backed, not
+    // hand-declared) are excluded — they are an implementation detail of the
+    // constraints, not schema this repo declares as an index.
+    function namedIndexes(tableName: string): string[] {
+      return withRawConnection((raw) =>
+        (
+          raw
+            .prepare(
+              `SELECT name FROM sqlite_master
+               WHERE type = 'index' AND tbl_name = ? AND name NOT LIKE 'sqlite_autoindex_%'`,
+            )
+            .all(tableName) as Array<{ name: string }>
+        )
+          .map((row) => row.name)
+          .sort(),
+      );
+    }
+
+    expect(namedIndexes('frames')).toEqual(
+      [
+        'frames_target_filter_type_idx',
+        'frames_session_id_idx',
+        'frames_date_obs_utc_idx',
+        'frames_equipment_profile_id_idx',
+        // Named UNIQUE constraint on file_id (frames.ts), not a DD003_INDEXES
+        // aggregation index, but still a named (non-sqlite_autoindex_*) row.
+        'frames_file_id_uq',
+      ].sort(),
+    );
+    expect(namedIndexes('equipment_profiles')).toEqual(['equipment_profiles_match_key_uq']);
+
+    const indexedColumns = withRawConnection((raw) =>
+      (
+        raw.prepare('PRAGMA index_info(frames_equipment_profile_id_idx)').all() as Array<{
+          name: string;
+        }>
+      ).map((row) => row.name),
+    );
+    expect(indexedColumns).toEqual(['equipment_profile_id']);
+  });
+
   it('rejects merged_into_id pointing at a non-existent equipment_profiles row (DB-3, foreign_keys=ON)', () => {
     const survivor = db.repos.equipmentProfiles.insert({ name: 'Survivor', isUserConfirmed: true });
     expect(() =>
