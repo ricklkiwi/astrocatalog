@@ -28,4 +28,4 @@ The orchestrator archives task docs after reviewer PASS and before opening the P
 | p1-09-live-watch-mode           | #17   | #78  | [plan](p1-09-live-watch-mode/plan.md)           | [spec](p1-09-live-watch-mode/spec.md)           | 2026-07-22 |
 | p1-05-capture-software-profiles | #13   | #70  | [plan](p1-05-capture-software-profiles/plan.md) | [spec](p1-05-capture-software-profiles/spec.md) | 2026-07-21 |
 | p1-13a-app-shell                | #92   | #116 | [plan](p1-13a-app-shell/plan.md)                | [spec](p1-13a-app-shell/spec.md)                | 2026-09-13 |
-| p1-17-session-detection         | #25   | TBD  | [plan](p1-17-session-detection/plan.md)         | [spec](p1-17-session-detection/spec.md)         | 2026-09-23 |
+| p1-17-session-detection         | #25   | #127 | [plan](p1-17-session-detection/plan.md)         | [spec](p1-17-session-detection/spec.md)         | 2026-09-23 |
